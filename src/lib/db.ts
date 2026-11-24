@@ -110,7 +110,16 @@ export const CUPOS_POR_PERSONA = {
   reclamos: 10,
   denuncias: 20,
   pagos: 30,
+  // Por dirección de conexión, para lo que se usa antes de tener cuenta. Holgados: en un evento muchos comparten el wifi.
+  iaPorConexion: 250,
+  vozPorConexion: 400,
+  cuentasPorConexion: 300,
 } as const;
+
+// La dirección de quien pide, como la informa Cloudflare. En desarrollo no hay: ahí no se frena por conexión.
+export function conexionDe(request: Request) {
+  return request.headers.get("cf-connecting-ip") ?? undefined;
+}
 
 // Huella corta de quién es (cuenta o dirección): el contador no guarda mails ni direcciones.
 function huellaCorta(texto: string) {
