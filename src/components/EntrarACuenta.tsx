@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { recordarPrestador } from "@/components/usePrestador";
+import { Link } from "@/lib/navegacion";
 import { BotonSecundario, Campo, claseCampo } from "@/components/ui";
 import {
   borrarPrestadorId,
@@ -254,6 +255,17 @@ export function EntrarACuenta({
         {/* El botón lo dibuja Google: así lo exigen sus reglas de marca. */}
         <div ref={destino} className="flex min-h-11 w-full justify-center" />
       </div>
+      <p className="mt-4 text-center text-[13px] text-ink-500">
+        Al entrar aceptás los{" "}
+        <Link href="/terminos" className="font-semibold text-brand">
+          términos
+        </Link>{" "}
+        y la{" "}
+        <Link href="/privacidad" className="font-semibold text-brand">
+          privacidad
+        </Link>
+        .
+      </p>
     </form>
   );
 }
