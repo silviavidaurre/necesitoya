@@ -1,6 +1,6 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./app/globals.css";
 import PerfilPublicoDePrestador from "./app/p/page";
 import SeguimientoPedido from "./app/pedido/page";
@@ -15,9 +15,21 @@ import VerificarPrestador from "./app/prestador/verificar/page";
 import PanelInterno from "./app/admin/page";
 import Terminos from "./app/terminos/page";
 
+// El lado del prestador va oscuro y el del vecino claro: se cambia la clase de <html> según la pantalla.
+function TemaSegunPantalla() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const oscuro = pathname.startsWith("/prestador");
+    document.documentElement.classList.toggle("tema-oscuro", oscuro);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", oscuro ? "#0d0d0d" : "#ffffff");
+  }, [pathname]);
+  return null;
+}
+
 createRoot(document.getElementById("raiz")!).render(
   <StrictMode>
     <BrowserRouter>
+      <TemaSegunPantalla />
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white">
         <Routes>
           <Route path="/" element={<Pedir />} />

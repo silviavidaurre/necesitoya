@@ -1,12 +1,12 @@
 // Genera los íconos PNG de la app instalable a partir del logo (public/icono.svg), sin dependencias.
-// Dibuja las mismas formas del SVG (globo azul, "N" blanca, punto amarillo) con suavizado de bordes.
+// Dibuja las mismas formas del SVG (globo negro, "N" blanca, punto naranja) con suavizado de bordes.
 // Uso: node scripts/iconos.mjs
 import { writeFileSync } from "node:fs";
 import zlib from "node:zlib";
 
-const AZUL = [11, 111, 214];
+const AZUL = [13, 13, 13];
 const BLANCO = [255, 255, 255];
-const SOL = [255, 201, 60];
+const SOL = [255, 90, 31];
 
 function dentroDelRectRedondeado(x, y, x0, y0, x1, y1, r) {
   if (x < x0 || x > x1 || y < y0 || y > y1) return false;

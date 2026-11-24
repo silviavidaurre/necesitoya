@@ -5,6 +5,7 @@ import { PantallaChat } from "@/components/PantallaChat";
 import { usePrestador } from "@/components/usePrestador";
 import { BotonPrimario, BotonSecundario, Cabecera, Cargando, ErrorDePantalla, Estado, Icono, IconoCirculo, Pantalla, SinConexion, Titulo } from "@/components/ui";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
+import { ESTADOS_DE_TRABAJO, siguienteEstado, textoDeTurno } from "@/lib/turnos";
 import { pesos, type RubroId } from "@/lib/catalogo";
 import { pedir } from "@/lib/cliente";
 import { useRouter } from "@/lib/navegacion";
@@ -25,6 +26,8 @@ interface OfertaConPedido extends Oferta {
   pedido: { titulo: string; zona: string; rubro: RubroId; ejemplo: boolean; confirmado: string | null; estado: "abierto" | "cerrado" | "cancelado" } | null;
   pago: PagoPublico | null;
   reclamos: { de: "vecino" | "prestador"; motivo: string; estado: "abierto" | "resuelto"; resolucion: string }[];
+  // Solo mientras el trabajo está activo y solo para el prestador elegido. Si no, null.
+  direccion: { calle: string; referencia: string } | null;
   // Solo el nombre de pila del vecino: se le escribe por el chat de la app, su teléfono no se muestra.
   cliente: { nombre: string } | null;
   // Mensajes del chat con el vecino: cuántos hay y cuántos faltan leer.
@@ -42,6 +45,24 @@ export default function MisOfertas() {
   // El trabajo que está marcando como terminado (pantalla con la foto del después).
   const [cerrando, setCerrando] = useState<OfertaConPedido | null>(null);
   const [gestion, setGestion] = useState<{ oferta: OfertaConPedido; tipo: "reclamo" | "dia" } | null>(null);
+  const [avanzando, setAvanzando] = useState<string | null>(null);
+
+  // Avanza el trabajo un paso (Salgo, Llegué, Empecé). El último, Terminé, pide la foto del después.
+  async function avanzar(oferta: OfertaConPedido) {
+    const siguiente = siguienteEstado(oferta.trabajo?.estado ?? "confirmado");
+    if (!siguiente || !prestadorId) return;
+    if (siguiente === "terminado") return setCerrando(oferta);
+    setAvanzando(oferta.id);
+    setError("");
+    try {
+      await pedir("/api/ofertas/estado", { method: "POST", body: JSON.stringify({ prestadorId, ofertaId: oferta.id, estado: siguiente }) });
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos avisar. Probá de nuevo.");
+    } finally {
+      setAvanzando(null);
+    }
+  }
 
   const prestadorId = prestador?.id;
   const cargar = useCallback(async () => {
@@ -128,9 +149,6 @@ export default function MisOfertas() {
                   <Estado>Esperando respuesta</Estado>
                 )}
               </p>
-              {conChat && oferta.estado === "elegida" && !oferta.terminado && (
-                <p className="mt-3 text-base font-semibold text-ink">Te eligieron. Escribile a {pila} para coordinar.</p>
-              )}
               {oferta.estado === "elegida" && (oferta.terminado || oferta.pago) && (
                 <div className="mt-2 space-y-1">
                   {oferta.terminado && (
@@ -159,9 +177,9 @@ export default function MisOfertas() {
               )}
               {conChat && oferta.estado === "elegida" && oferta.pedido?.estado !== "cancelado" && (
                 <div className="mt-3 flex flex-wrap gap-x-6">
-                  {!oferta.terminado && (
-                    <button type="button" onClick={() => setGestion({ oferta, tipo: "dia" })} className="flex min-h-12 items-center text-[15px] font-semibold text-brand">
-                      Cambiar el día
+                  {!oferta.terminado && (oferta.trabajo?.estado ?? "confirmado") === "confirmado" && (
+                    <button type="button" onClick={() => setGestion({ oferta, tipo: "dia" })} className="flex min-h-12 items-center text-[15px] font-semibold text-ink underline underline-offset-2">
+                      Reprogramar
                     </button>
                   )}
                   <button type="button" onClick={() => setGestion({ oferta, tipo: "reclamo" })} className="flex min-h-12 items-center text-[15px] font-semibold text-ink-500">
@@ -176,14 +194,14 @@ export default function MisOfertas() {
               )}
               {conChat && (!soloLectura || oferta.mensajes > 0) && (
                 <div className="mt-4">
-                  {oferta.estado === "elegida" && !oferta.terminado && oferta.pedido?.estado !== "cancelado" ? (
-                    <div className="space-y-3">
-                      <BotonPrimario onClick={() => setCerrando(oferta)}>Trabajo terminado</BotonPrimario>
-                      <BotonSecundario onClick={() => setChat(oferta)}>
-                        <Icono nombre="mensaje" size={20} />
-                        Abrir chat
-                      </BotonSecundario>
-                    </div>
+                  {oferta.estado === "elegida" && !oferta.terminado && oferta.pedido?.estado === "cerrado" && !oferta.pedido.confirmado ? (
+                    <TrabajoEnCurso
+                      oferta={oferta}
+                      pila={pila}
+                      ocupado={avanzando === oferta.id}
+                      alAvanzar={() => avanzar(oferta)}
+                      alEscribir={() => setChat(oferta)}
+                    />
                   ) : oferta.estado === "elegida" ? (
                     <BotonSecundario onClick={() => setChat(oferta)}>
                       <Icono nombre="mensaje" size={20} />
@@ -230,6 +248,7 @@ export default function MisOfertas() {
           ofertaId={gestion.oferta.id}
           quien={{ prestadorId: prestador.id }}
           actual={gestion.oferta.cuando}
+          turnos={gestion.oferta.turnos ?? []}
           alCerrar={(nuevo) => {
             setGestion(null);
             if (nuevo) cargar();
@@ -323,5 +342,75 @@ function PantallaTerminado({
       </div>
       {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
     </Pantalla>
+  );
+}
+
+// El trabajo en curso, como en una app de viajes: cuándo, para quién, dónde (privado, hasta terminar),
+// la línea de estados y un botón grande con el paso que sigue.
+function TrabajoEnCurso({
+  oferta,
+  pila,
+  ocupado,
+  alAvanzar,
+  alEscribir,
+}: {
+  oferta: OfertaConPedido;
+  pila: string;
+  ocupado: boolean;
+  alAvanzar: () => void;
+  alEscribir: () => void;
+}) {
+  const estado = oferta.trabajo?.estado ?? "confirmado";
+  const siguiente = siguienteEstado(estado);
+  const pasos = ESTADOS_DE_TRABAJO.filter((e) => e.id !== "confirmado");
+  const indice = pasos.findIndex((e) => e.id === estado);
+  const turno = oferta.trabajo?.turno;
+  return (
+    <div className="space-y-3">
+      <div className="rounded-[18px] bg-subtle p-4">
+        <p className="cifra text-[22px] font-bold leading-tight text-ink">{turno ? textoDeTurno(turno) : oferta.cuando}</p>
+        <p className="mt-0.5 text-[15px] text-ink-500">
+          {pila} · {oferta.pedido?.titulo}
+        </p>
+        {oferta.direccion && (
+          <div className="mt-3 flex items-start gap-3">
+            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
+              <Icono nombre="casa" size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-ink">{oferta.direccion.calle}</p>
+              {oferta.direccion.referencia && <p className="text-sm text-ink-500">{oferta.direccion.referencia}</p>}
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-ink-500">
+                <Icono nombre="candado" size={12} />
+                Visible hasta terminar
+              </p>
+            </div>
+          </div>
+        )}
+        <div className="mt-4" role="img" aria-label={`Estado: ${ESTADOS_DE_TRABAJO.find((e) => e.id === estado)?.texto}`}>
+          <div className="grid grid-cols-4 gap-1.5">
+            {pasos.map((paso, i) => (
+              <span key={paso.id} className={`h-1.5 rounded-full ${i <= indice ? "bg-acento" : "bg-line"}`} />
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-4 gap-1.5 text-xs font-bold">
+            {pasos.map((paso, i) => (
+              <span key={paso.id} className={i <= indice ? "text-ink" : "text-ink-500"}>
+                {paso.texto}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      {siguiente && (
+        <BotonPrimario onClick={alAvanzar} cargando={ocupado}>
+          {ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton}
+        </BotonPrimario>
+      )}
+      <BotonSecundario onClick={alEscribir}>
+        <Icono nombre="mensaje" size={20} />
+        Mandar un mensaje
+      </BotonSecundario>
+    </div>
   );
 }

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { BotonPrimario, BotonSecundario, BotonTexto, Cabecera, Cargando, ErrorDePantalla, Estado, Icono, Pantalla, Seccion, Titulo } from "@/components/ui";
+import { BotonFlotante, BotonPrimario, BotonSecundario, BotonTexto, Cabecera, Cargando, ErrorDePantalla, Estado, Falta, Icono, Pantalla, Titulo } from "@/components/ui";
+import { Mapa } from "@/components/Mapa";
+import { ElegirTurno } from "@/components/Turnos";
+import { ESTADOS_DE_TRABAJO, nombreDelDia, sePuedeCancelar, sePuedeReprogramar, textoDeEstado, textoDeTurno, type EstadoDeTrabajo, type Turno } from "@/lib/turnos";
 import { pesos, rubroPorId } from "@/lib/catalogo";
 import { ErrorDePedido, guardarMiPedido, leerMisPedidos, pedir } from "@/lib/cliente";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
@@ -8,7 +11,7 @@ import { ActivarAvisos } from "@/components/ActivarAvisos";
 import { Diagnostico } from "@/components/Diagnostico";
 import { PantallaCambiarDia, PantallaCancelar, PantallaReclamo } from "@/components/Gestiones";
 import { PantallaChat } from "@/components/PantallaChat";
-import { Estrellas, ResumenDeReputacion, Verificacion } from "@/components/Reputacion";
+import { Estrellas, Verificacion } from "@/components/Reputacion";
 import { claseCampo } from "@/components/ui";
 import { frasePresupuestos } from "@/lib/frases";
 import { Link, useRouter } from "@/lib/navegacion";
@@ -34,23 +37,14 @@ function iniciales(nombre: string) {
     .join("");
 }
 
-function Avatar({ nombre, size = 48 }: { nombre: string; size?: number }) {
+function Avatar({ nombre, size = 48, oscuro = false }: { nombre: string; size?: number; oscuro?: boolean }) {
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand-50 font-bold text-brand-600"
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ${oscuro ? "bg-ink text-white" : "bg-subtle text-ink"}`}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
     >
       {iniciales(nombre)}
     </span>
-  );
-}
-
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="flex min-h-12 items-center justify-between gap-4 py-2">
-      <span className="text-[15px] text-ink-500">{etiqueta}</span>
-      <span className="text-right text-[15px] font-semibold text-ink">{valor}</span>
-    </div>
   );
 }
 
@@ -64,6 +58,11 @@ export default function SeguimientoPedido() {
   const [datos, setDatos] = useState<Seguimiento | null>(null);
   const [error, setError] = useState("");
   const [porConfirmar, setPorConfirmar] = useState<OfertaParaCliente | null>(null);
+  // Elegir: el presupuesto marcado en la lista, y el turno y la dirección de la pantalla "¿Cuándo? ¿Dónde?".
+  const [seleccionada, setSeleccionada] = useState<string | null>(null);
+  const [turnoElegido, setTurnoElegido] = useState<Turno | null>(null);
+  const [calle, setCalle] = useState("");
+  const [referencia, setReferencia] = useState("");
   const [eligiendo, setEligiendo] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [calificando, setCalificando] = useState(false);
@@ -124,14 +123,14 @@ export default function SeguimientoPedido() {
     return () => clearInterval(reloj);
   }, [cargar, abierto]);
 
-  async function elegir(oferta: OfertaParaCliente) {
+  async function elegir(oferta: OfertaParaCliente, turno: Turno | null) {
     if (!clave) return;
     setEligiendo(true);
     setError("");
     try {
       const respuesta = await pedir<Seguimiento>("/api/pedido/elegir", {
         method: "POST",
-        body: JSON.stringify({ id, clave, ofertaId: oferta.id }),
+        body: JSON.stringify({ id, clave, ofertaId: oferta.id, turno, direccion: { calle, referencia } }),
       });
       cambios.current += 1;
       setDatos(respuesta);
@@ -292,42 +291,77 @@ export default function SeguimientoPedido() {
     );
   }
 
-  // Confirmar la elección: paso que no se puede deshacer, a pantalla completa y con un solo botón principal.
+  // Día, franja y dirección: el vecino elige entre los turnos que ofreció el prestador y carga dónde es.
+  // La dirección es privada: solo la ve el prestador elegido, mientras el trabajo está activo.
   if (porConfirmar) {
     const pila = porConfirmar.prestador.nombre.split(" ")[0];
+    const muestra = porConfirmar.prestador.ejemplo;
+    const turnos = porConfirmar.turnos ?? [];
+    const turno = turnoElegido ?? turnos[0] ?? null;
+    const faltaDireccion = !muestra && calle.trim().length < 4;
     return (
       <Pantalla
+        mapa={
+          <Mapa alto={170} variante="destino">
+            <BotonFlotante icono="atras" etiqueta="Volver a los presupuestos" onClick={() => setPorConfirmar(null)} />
+          </Mapa>
+        }
         pie={
           <>
-            <BotonPrimario onClick={() => elegir(porConfirmar)} cargando={eligiendo}>
-              Sí, elegir a {pila}
+            {faltaDireccion && <Falta>Falta la dirección</Falta>}
+            <BotonPrimario onClick={() => elegir(porConfirmar, turno)} disabled={faltaDireccion} cargando={eligiendo}>
+              {turno ? textoDeTurno(turno) : `Elegir a ${pila}`}
+              <Icono nombre="flecha" size={22} />
             </BotonPrimario>
-            <BotonTexto onClick={() => setPorConfirmar(null)}>Volver a los presupuestos</BotonTexto>
           </>
         }
       >
-        <Cabecera alVolver={() => setPorConfirmar(null)} cerrar />
-        <div className="mt-6 flex flex-col items-center text-center">
-          <Avatar nombre={porConfirmar.prestador.nombre} size={88} />
-          <h1 className="mt-5 text-[30px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Elegís a {pila}?</h1>
-          <p className="mt-3 text-[44px] font-bold leading-none tracking-[-0.03em] text-ink">{pesos(porConfirmar.precio)}</p>
-          <p className="mt-2 text-[15px] text-ink-500">Puede ir: {porConfirmar.cuando.toLowerCase()}</p>
-          {!porConfirmar.prestador.ejemplo && (
-            <p className="mt-3">
-              <Verificacion nivel={porConfirmar.prestador.nivel} />
-            </p>
+        <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Cuándo?</h1>
+        <p className="mt-1 text-[15px] text-ink-500">
+          {pila} · <span className="cifra font-bold text-ink">{pesos(porConfirmar.precio)}</span>
+        </p>
+        <div className="mt-4">
+          {turnos.length > 0 ? (
+            <ElegirTurno turnos={turnos} valor={turno} alCambiar={setTurnoElegido} />
+          ) : (
+            <p className="text-[15px] text-ink-500">Lo coordinan por la app después de elegir.</p>
           )}
         </div>
-        <p className="mt-8 text-center text-[15px] text-ink-500">
-          Se cierran los otros presupuestos y se abre el chat para coordinar.
-          {porConfirmar.prestador.pagoProtegido ? " Después pagás protegido: la plata queda retenida hasta que confirmes que quedó bien." : ""}
+
+        <div className="my-6 h-px bg-line" />
+
+        <h2 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Dónde?</h2>
+        <label className="mt-4 block">
+          <span className="sr-only">Calle y número</span>
+          <span className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-subtle">
+              <Icono nombre="casa" size={22} />
+            </span>
+            <input
+              className={claseCampo}
+              value={calle}
+              onChange={(e) => setCalle(e.target.value)}
+              placeholder="Calle y número"
+              autoComplete="street-address"
+              maxLength={120}
+            />
+          </span>
+        </label>
+        <label className="mt-3 block">
+          <span className="sr-only">Cómo encontrar la casa</span>
+          <input className={claseCampo} value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="Piso, timbre o color de la casa (opcional)" maxLength={120} />
+        </label>
+        <p className="mt-3 inline-flex min-h-10 items-center gap-2 self-start rounded-xl bg-subtle px-3.5 text-sm font-semibold text-ink">
+          <Icono nombre="candado" size={16} />
+          Solo la ve {pila}, hasta que termine
         </p>
+        {porConfirmar.prestador.pagoProtegido && <p className="mt-4 text-[15px] text-ink-500">Después pagás protegido: la plata queda retenida hasta que confirmes.</p>}
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
     );
   }
 
-  // Calificar: después del trabajo, una pantalla con las estrellas y un comentario opcional.
+  // Calificar: después del trabajo, las estrellas y un comentario opcional.
   if (elegida && calificando) {
     const pila = elegida.prestador.nombre.split(" ")[0];
     return (
@@ -339,7 +373,7 @@ export default function SeguimientoPedido() {
         }
       >
         <Cabecera alVolver={() => setCalificando(false)} cerrar />
-        <Titulo pregunta="Tu opinión le sirve a otros vecinos.">¿Cómo trabajó {pila}?</Titulo>
+        <Titulo pregunta="Le sirve a otros vecinos.">¿Cómo trabajó {pila}?</Titulo>
         <div className="mt-8">
           <Estrellas valor={estrellas} alElegir={setEstrellas} />
         </div>
@@ -358,13 +392,14 @@ export default function SeguimientoPedido() {
     );
   }
 
-  // Resultado: ya eligió. Lo que sigue depende de en qué quedó el trabajo:
-  // pagar protegido → esperar que termine → confirmar con la foto del después → liberar el pago → calificar.
-  // Siempre una sola acción azul: la que toca ahora.
+  // Seguimiento en vivo del trabajo elegido: el estado grande, la línea de tiempo, el turno, el pago y una sola
+  // acción grande (la que toca ahora). Reprogramar, cancelar, reclamar y el chat quedan como acciones secundarias.
   if (elegida) {
     const pila = elegida.prestador.nombre.split(" ")[0];
     const pago = elegida.pago;
     const muestra = elegida.prestador.ejemplo;
+    const trabajo = elegida.trabajo;
+    const estado: EstadoDeTrabajo = pedido.confirmado ? "terminado" : (trabajo?.estado ?? "confirmado");
     const puedePagar = datos.pagos && elegida.prestador.cobraPorLaApp && !muestra;
     const terminado = elegida.terminado;
     const confirmado = Boolean(pedido.confirmado);
@@ -376,79 +411,105 @@ export default function SeguimientoPedido() {
 
     let principal: { texto: string; accion: () => void } | null = null;
     if (porLiberar) principal = { texto: "Liberar el pago", accion: () => abrirPago(pago.urlDePago) };
-    else if (porConfirmarTrabajo) principal = { texto: "Confirmar que quedó bien", accion: confirmar };
-    else if (porPagar && confirmado) principal = { texto: pago ? "Terminar el pago" : `Pagarle a ${pila} por la app`, accion: pagar };
+    else if (porConfirmarTrabajo) principal = { texto: "Quedó bien", accion: confirmar };
+    else if (porPagar && confirmado) principal = { texto: pago ? "Terminar el pago" : `Pagarle a ${pila}`, accion: pagar };
     else if (confirmado && !pedido.calificacion) principal = { texto: `Calificar a ${pila}`, accion: () => setCalificando(true) };
-    else if (porPagar) principal = { texto: pago ? "Terminar el pago" : elegida.prestador.pagoProtegido ? "Pagar protegido" : "Pagar por la app", accion: pagar };
-    else if (!muestra) principal = { texto: `Escribirle a ${pila}`, accion: () => setChat(elegida) };
+    else if (porPagar) principal = { texto: pago ? "Terminar el pago" : protegido ? "Pagar protegido" : "Pagar por la app", accion: pagar };
 
-    const titulo = confirmado ? "Trabajo terminado" : terminado ? `${pila} terminó el trabajo` : `Elegiste a ${pila}`;
-    const bajada = muestra
-      ? "Era un presupuesto de muestra. Con un prestador real, acá se abre el chat para coordinar."
-      : porLiberar
-        ? "Abrimos Cosmos Pay: aprobá y liberá el pago con tu billetera. Así le llega a " + pila + "."
-        : confirmado
-          ? porPagar
-            ? `Pagale por la app: le llega en el momento y suma a su historial.`
-            : "Gracias por confirmar."
-          : terminado
-            ? "Mirá la foto. Si algo no quedó bien, escribile antes de confirmar."
-            : porPagar
-              ? elegida.prestador.pagoProtegido
-                ? "Pagá por la app: la plata queda retenida hasta que confirmes que quedó bien."
-                : `Pagá por la app: le llega a ${pila} en el momento.`
-              : "Coordinen día y hora por el chat. Nadie ve tu teléfono.";
+    const titulo = confirmado ? "Listo" : terminado ? "Terminó" : muestra ? "De muestra" : textoDeEstado(estado);
+    const pasos = ESTADOS_DE_TRABAJO.filter((e) => e.id !== "confirmado");
+    const indice = pasos.findIndex((e) => e.id === estado);
+    const progreso = estado === "confirmado" ? 0 : estado === "en_camino" ? 0.5 : 1;
+    const activo = !confirmado && !terminado && !muestra;
+    const reprogramable = activo && sePuedeReprogramar(trabajo?.estado ?? "confirmado");
+    const cancelable = activo && sePuedeCancelar(trabajo?.estado ?? "confirmado") && (!pago || pago.estado === "pendiente");
 
     return (
       <>
         <Pantalla
+          mapa={
+            <Mapa alto={terminado?.fotoId ? 150 : 230} variante={estado === "confirmado" || confirmado || terminado ? "destino" : "ruta"} progreso={progreso} iniciales={iniciales(elegida.prestador.nombre)}>
+              <BotonFlotante icono="atras" etiqueta="Volver al inicio" href="/" />
+              {activo && estado !== "confirmado" && (
+                <span className="flex h-12 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
+                  <span className="latido h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+                  En vivo
+                </span>
+              )}
+            </Mapa>
+          }
           pie={
-            <>
-              {!muestra && elegida.sinLeer > 0 && (
-                <p className="mb-2 text-center">
-                  <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
-                </p>
-              )}
-              {principal && (
-                <BotonPrimario onClick={principal.accion} cargando={trabajando}>
-                  {principal.texto}
-                </BotonPrimario>
-              )}
-              {principal && !principal.texto.startsWith("Escribirle") && !muestra ? (
-                <BotonTexto onClick={() => setChat(elegida)}>Escribirle a {pila}</BotonTexto>
-              ) : (
-                <BotonTexto onClick={() => router.replace("/")}>Volver al inicio</BotonTexto>
-              )}
-            </>
+            principal || !muestra ? (
+              <>
+                {!muestra && elegida.sinLeer > 0 && (
+                  <p className="mb-2 text-center">
+                    <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
+                  </p>
+                )}
+                {principal ? (
+                  <BotonPrimario onClick={principal.accion} cargando={trabajando}>
+                    {principal.texto}
+                  </BotonPrimario>
+                ) : (
+                  <BotonSecundario onClick={() => setChat(elegida)}>
+                    <Icono nombre="mensaje" size={20} />
+                    Mandar un mensaje
+                  </BotonSecundario>
+                )}
+              </>
+            ) : undefined
           }
         >
-          <Cabecera volver="/" cerrar />
-          <div className="mt-2 flex flex-col items-center text-center">
-            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-success">
-              <Icono nombre="check" size={36} />
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-[34px] font-bold leading-none tracking-[-0.03em] text-ink">{titulo}</h1>
+            {trabajo?.turno && !confirmado && <span className="cifra text-right text-[17px] font-bold text-ink">{textoDeTurno(trabajo.turno)}</span>}
+          </div>
+
+          {!muestra && (
+            <div className="mt-4" role="img" aria-label={`Estado del trabajo: ${textoDeEstado(estado)}`}>
+              <div className="grid grid-cols-4 gap-1.5">
+                {pasos.map((paso, i) => (
+                  <span key={paso.id} className={`h-1.5 rounded-full ${i <= indice ? "bg-acento" : "bg-line"}`} />
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-4 gap-1.5 text-xs font-bold">
+                {pasos.map((paso, i) => (
+                  <span key={paso.id} className={i <= indice ? "text-ink" : "text-ink-500"}>
+                    {paso.texto}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5 flex items-center gap-3">
+            <Avatar nombre={elegida.prestador.nombre} size={52} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold text-ink">{elegida.prestador.nombre}</p>
+              {!muestra && <Verificacion nivel={elegida.prestador.nivel} />}
+            </div>
+            <span className="cifra flex h-9 items-center gap-1.5 rounded-lg bg-subtle px-2.5 text-sm font-bold text-ink">
+              {pago && pago.estado !== "pendiente" && <Icono nombre="escudo" size={14} />}
+              {pesos(elegida.precio)}
             </span>
-            <h1 className="mt-4 text-[30px] font-bold leading-tight tracking-[-0.02em] text-ink">{titulo}</h1>
-            <p className="mt-2 text-[17px] text-ink-500">{bajada}</p>
           </div>
 
           {terminado?.fotoId && (
-            <figure className="mt-6">
-              <img src={`/api/fotos?id=${terminado.fotoId}`} alt={`Cómo quedó el trabajo, según ${pila}`} className="max-h-72 w-full rounded-[22px] object-cover" />
-              <figcaption className="mt-2 text-[13px] text-ink-500">Foto del después que mandó {pila}.</figcaption>
+            <figure className="mt-5">
+              <img src={`/api/fotos?id=${terminado.fotoId}`} alt={`Cómo quedó el trabajo, según ${pila}`} className="max-h-64 w-full rounded-[22px] object-cover" />
+              <figcaption className="mt-2 text-[13px] text-ink-500">La foto del después.</figcaption>
             </figure>
           )}
 
-          <div className="mt-6 divide-y divide-line">
-            <Dato etiqueta="Trabajo" valor={pedido.titulo} />
-            <Dato etiqueta="Precio" valor={pesos(elegida.precio)} />
-            <Dato etiqueta="Puede ir" valor={elegida.cuando} />
-            <Dato etiqueta="Prestador" valor={elegida.prestador.nombre} />
-          </div>
-
           <div className="mt-4 space-y-2">
-            {!muestra && (
-              <p>
-                <Verificacion nivel={elegida.prestador.nivel} />
+            {muestra && <p className="text-[15px] text-ink-500">Era de muestra. Con un prestador real, acá ves el trabajo en vivo.</p>}
+            {datos.direccion && activo && (
+              <p className="flex items-center gap-2 text-[15px] text-ink">
+                <Icono nombre="candado" size={16} />
+                <span>
+                  {datos.direccion.calle}
+                  <span className="text-ink-500"> · solo la ve {pila}</span>
+                </span>
               </p>
             )}
             {pago && (
@@ -458,77 +519,45 @@ export default function SeguimientoPedido() {
                 </Estado>
               </p>
             )}
-            {!pago && !muestra && !confirmado && (
+            {!pago && !muestra && !confirmado && !puedePagar && (
               <p>
-                <Estado>{puedePagar ? "Todavía no pagaste" : `${pila} todavía no cobra por la app. Arreglen el pago por el chat`}</Estado>
+                <Estado>Sin pago por la app: arreglen por el chat</Estado>
               </p>
             )}
-            {!muestra && !terminado && !confirmado && (
-              <p>
-                <Estado>Esperando que {pila} marque el trabajo como terminado</Estado>
+            {porLiberar && <p className="text-[15px] text-ink-500">Se abre Cosmos Pay: aprobá y liberá con tu billetera.</p>}
+            {porPagar && (
+              <p className="text-[15px] text-ink-500">
+                {protegido ? "Queda retenido hasta que confirmes." : `Le llega a ${pila} en el momento.`} Comisión fija de NecesitoYa
+                {pago ? `: ${pago.moneda === "USDC" ? `${pago.comision} USDC` : pesos(Number(pago.comision))}` : " aparte"}.
+              </p>
+            )}
+            {pago?.urlDeComision && !pago.comisionPagada && pago.estado !== "pendiente" && (
+              <button type="button" onClick={() => abrirPago(pago.urlDeComision ?? "")} className="flex min-h-12 items-center text-base font-semibold text-ink underline underline-offset-2">
+                Pagar la comisión ({pago.comision} USDC)
+              </button>
+            )}
+            {datos.reclamos.map((r) => (
+              <p key={r.creado}>
+                {r.estado === "abierto" ? <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado> : <Estado>Reclamo resuelto: {r.resolucion}</Estado>}
+              </p>
+            ))}
+            {pedido.calificacion && (
+              <p className="flex items-center gap-2">
+                <Estrellas valor={pedido.calificacion.estrellas} size={18} />
+                <span className="text-[15px] text-ink-500">Gracias por calificar.</span>
               </p>
             )}
           </div>
 
-          {porPagar && (
-            <p className="mt-4 text-[15px] text-ink-500">
-              {pago ? (pago.moneda === "USDC" ? `Son ${pago.monto} USDC con Cosmos Pay` : `Son ${pesos(Number(pago.monto))} con Mercado Pago`) : elegida.prestador.pagoProtegido ? "Se paga en USDC con Cosmos Pay" : "Se paga"}, en una página segura. NecesitoYa cobra una comisión fija
-              {pago ? ` de ${pago.moneda === "USDC" ? `${pago.comision} USDC` : pesos(Number(pago.comision))}` : ""}.
-            </p>
-          )}
-          {pago?.urlDeComision && !pago.comisionPagada && pago.estado !== "pendiente" && (
-            <button type="button" onClick={() => abrirPago(pago.urlDeComision ?? "")} className="mt-3 flex min-h-12 items-center text-base font-semibold text-brand">
-              Pagar la comisión de NecesitoYa ({pago.comision} USDC)
-            </button>
-          )}
-
-          {pedido.calificacion && (
-            <div className="mt-8 flex flex-col items-center gap-2 text-center">
-              <Estrellas valor={pedido.calificacion.estrellas} size={24} />
-              <p className="text-[15px] text-ink-500">Gracias por calificar a {pila}.</p>
-            </div>
-          )}
-          {datos.reclamos.length > 0 && (
-            <div className="mt-6 space-y-2">
-              {datos.reclamos.map((r) => (
-                <p key={r.creado}>
-                  {r.estado === "abierto" ? (
-                    <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado>
-                  ) : (
-                    <Estado>Reclamo resuelto: {r.resolucion}</Estado>
-                  )}
-                </p>
-              ))}
-            </div>
-          )}
-
           {!muestra && (
-            <div className="mt-6 divide-y divide-line border-t border-line">
-              {!terminado && !confirmado && (
-                <button type="button" onClick={() => setGestion("dia")} className="flex min-h-14 w-full items-center justify-between text-base font-semibold text-ink">
-                  Cambiar el día
-                  <Icono nombre="chevron" size={20} className="text-ink-400" />
-                </button>
+            <div className="mt-5 divide-y divide-line border-t border-line">
+              {principal && (
+                <AccionSecundaria texto="Mandar un mensaje" icono="mensaje" onClick={() => setChat(elegida)} aviso={elegida.sinLeer > 0} />
               )}
-              <button type="button" onClick={() => setGestion("reclamo")} className="flex min-h-14 w-full items-center justify-between text-base font-semibold text-ink">
-                Tengo un problema
-                <Icono nombre="chevron" size={20} className="text-ink-400" />
-              </button>
-              {!terminado && !confirmado && (!pago || pago.estado === "pendiente") && (
-                <button type="button" onClick={() => setGestion("cancelar")} className="flex min-h-14 w-full items-center justify-between text-base font-semibold text-danger">
-                  Cancelar el pedido
-                  <Icono nombre="chevron" size={20} className="text-ink-400" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {(porLiberar || (porPagar && confirmado)) && !pedido.calificacion && (
-            <div className="mt-6">
-              <BotonSecundario onClick={() => setCalificando(true)}>
-                <Icono nombre="estrella" size={20} />
-                Calificar a {pila}
-              </BotonSecundario>
+              {reprogramable && <AccionSecundaria texto="Reprogramar" icono="reloj" onClick={() => setGestion("dia")} />}
+              {porLiberar && !pedido.calificacion && <AccionSecundaria texto={`Calificar a ${pila}`} icono="estrella" onClick={() => setCalificando(true)} />}
+              <AccionSecundaria texto="Tengo un problema" icono="bandeja" onClick={() => setGestion("reclamo")} />
+              {cancelable && <AccionSecundaria texto="Cancelar" icono="cerrar" onClick={() => setGestion("cancelar")} peligro />}
             </div>
           )}
           {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
@@ -550,6 +579,7 @@ export default function SeguimientoPedido() {
             ofertaId={elegida.id}
             quien={{ pedidoId: id, clave }}
             actual={elegida.cuando}
+            turnos={elegida.turnos ?? []}
             alCerrar={(nuevo) => {
               setGestion(null);
               if (nuevo) cargar();
@@ -560,119 +590,155 @@ export default function SeguimientoPedido() {
     );
   }
 
+  // Presupuestos: tarjetas para elegir, con el precio grande. Arriba, el mapa con los precios.
+  const reales = ofertas.filter((o) => !o.prestador.ejemplo).length;
+  const marcada = ofertas.find((o) => o.id === seleccionada) ?? ofertas[0];
   return (
     <>
-    <Pantalla>
-      <Cabecera volver="/" />
-      <h1 className="text-[26px] font-bold leading-[1.15] tracking-[-0.02em] text-ink">{pedido.titulo}</h1>
-      <p className="mt-3 flex items-center gap-2 text-[15px] text-ink-500">
-        <Icono nombre={rubro.id} size={18} className="text-ink" />
-        {rubro.nombre} · {pedido.zona}
-      </p>
-      {pedido.precioMin !== null && pedido.precioMax !== null && (
-        <p className="mt-1 text-[15px] text-ink-500">
-          Suele costar {pesos(pedido.precioMin)} a {pesos(pedido.precioMax)}
-        </p>
-      )}
-
-      {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
-
-      <Seccion derecha={`${ofertas.filter((o) => !o.prestador.ejemplo).length} de ${maximo}`}>Presupuestos</Seccion>
-      {ofertas.length > 0 && <BotonEscuchar texto={frasePresupuestos(ofertas)} />}
-
-      {ofertas.length === 0 ? (
-        <div className="mt-6 flex flex-col items-center text-center">
-          <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-ink">
-            <Icono nombre="reloj" size={32} />
+      <Pantalla
+        mapa={
+          <Mapa alto={ofertas.length > 0 ? 200 : 160} variante="inicio" etiqueta={pedido.zona} marcas={ofertas.map((o) => ({ texto: `$${Math.round(o.precio / 1000)}k`, acento: o.id === marcada?.id }))}>
+            <BotonFlotante icono="atras" etiqueta="Volver al inicio" href="/" />
+          </Mapa>
+        }
+        pie={
+          marcada ? (
+            <BotonPrimario onClick={() => setPorConfirmar(marcada)}>Elegir a {marcada.prestador.nombre.split(" ")[0]}</BotonPrimario>
+          ) : undefined
+        }
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink">{ofertas.length > 0 ? "Elegí presupuesto" : "Buscando"}</h1>
+          <span className="shrink-0 text-sm font-semibold text-ink-500">
+            {reales} de {maximo}
           </span>
-          <p className="mt-4 text-lg font-bold text-ink">Buscando prestadores</p>
-          <p className="mt-1 text-[15px] text-ink-500">Aparecen acá apenas respondan. No hace falta actualizar.</p>
-          <div className="w-full text-left">
-            <ActivarAvisos para="¿Te avisamos cuando llegue un presupuesto?" />
-          </div>
-          <div className="mt-6 w-full">
-            <BotonSecundario onClick={verMuestra} disabled={pidiendoMuestra}>
-              {pidiendoMuestra ? "Cargando" : "Ver presupuestos de muestra"}
-            </BotonSecundario>
-            <p className="mt-2 text-[13px] text-ink-500">Para probar cómo se ve. Son de prestadores inventados.</p>
-          </div>
         </div>
-      ) : (
-        <ul className="mt-2 divide-y divide-line">
-          {ofertas.map((oferta) => {
-            const dentro =
-              pedido.precioMin !== null && pedido.precioMax !== null && oferta.precio >= pedido.precioMin && oferta.precio <= pedido.precioMax;
-            const pila = oferta.prestador.nombre.split(" ")[0];
-            return (
-              <li key={oferta.id} className="entrar py-6">
-                <div className="flex items-center gap-4">
-                  <Avatar nombre={oferta.prestador.nombre} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-ink">{oferta.prestador.nombre}</p>
-                    {oferta.prestador.ejemplo ? (
-                      <Estado>De muestra</Estado>
-                    ) : (
-                      <>
-                        <ResumenDeReputacion reputacion={oferta.prestador.reputacion} aniosExperiencia={oferta.prestador.aniosExperiencia} />
-                        <span className="mt-0.5 block">
-                          <Verificacion nivel={oferta.prestador.nivel} />
+        <p className="mt-1 flex items-center gap-2 text-[15px] text-ink-500">
+          <Icono nombre={rubro.id} size={16} className="text-ink" />
+          <span className="truncate">{pedido.titulo}</span>
+        </p>
+        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+
+        {ofertas.length === 0 ? (
+          <div className="mt-6">
+            <p className="flex items-center gap-2 text-base font-semibold text-ink">
+              <span className="latido h-2.5 w-2.5 rounded-full bg-acento" aria-hidden="true" />
+              Avisamos a los de {pedido.zona}
+            </p>
+            <p className="mt-1 text-[15px] text-ink-500">Los presupuestos aparecen acá solos.</p>
+            {pedido.precioMin !== null && pedido.precioMax !== null && (
+              <p className="mt-4 text-[15px] text-ink-500">
+                Suele costar{" "}
+                <span className="cifra font-bold text-ink">
+                  {pesos(pedido.precioMin)} a {pesos(pedido.precioMax)}
+                </span>
+              </p>
+            )}
+            <ActivarAvisos para="¿Te avisamos cuando llegue uno?" />
+            <div className="mt-4">
+              <BotonSecundario onClick={verMuestra} disabled={pidiendoMuestra}>
+                {pidiendoMuestra ? "Cargando" : "Ver presupuestos de muestra"}
+              </BotonSecundario>
+              <p className="mt-2 text-[13px] text-ink-500">Para probar cómo se ve. Son inventados.</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-3">
+              <BotonEscuchar texto={frasePresupuestos(ofertas)} />
+            </div>
+            <ul className="mt-3 flex flex-col gap-2.5">
+              {ofertas.map((oferta) => {
+                const activa = oferta.id === marcada?.id;
+                const pila = oferta.prestador.nombre.split(" ")[0];
+                const proximo = oferta.turnos?.[0];
+                return (
+                  <li key={oferta.id} className="entrar">
+                    <button
+                      type="button"
+                      aria-pressed={activa}
+                      onClick={() => setSeleccionada(oferta.id)}
+                      className={`flex w-full items-center gap-3 rounded-[18px] bg-white p-3.5 text-left ${activa ? "border-2 border-ink" : "border border-line"}`}
+                    >
+                      <Avatar nombre={oferta.prestador.nombre} oscuro={activa} />
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="truncate text-[17px] font-bold text-ink">{oferta.prestador.nombre}</span>
+                        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] font-bold">
+                          {oferta.prestador.ejemplo ? <Estado>De muestra</Estado> : <Verificacion nivel={oferta.prestador.nivel} />}
+                          {oferta.prestador.reputacion.promedio !== null && (
+                            <span className="inline-flex items-center gap-1 text-ink">
+                              <Icono nombre="estrella" size={13} />
+                              {oferta.prestador.reputacion.promedio.toFixed(1).replace(".", ",")}
+                            </span>
+                          )}
                         </span>
-                      </>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="cifra text-[22px] font-bold leading-none tracking-[-0.02em] text-ink">{pesos(oferta.precio)}</span>
+                        <span className="flex items-center gap-1.5 text-[13px] font-bold text-ink">
+                          {proximo && nombreDelDia(proximo.dia) === "Hoy" && <span className="h-2 w-2 rounded-full bg-acento" aria-hidden="true" />}
+                          {proximo ? (nombreDelDia(proximo.dia) === "Hoy" ? "Llega hoy" : nombreDelDia(proximo.dia)) : oferta.cuando}
+                        </span>
+                      </span>
+                    </button>
+                    {activa && (
+                      <div className="px-2 pb-1 pt-3">
+                        {oferta.mensaje && <p className="text-[15px] text-ink-500">“{oferta.mensaje}”</p>}
+                        {oferta.prestador.fotos.length > 0 && (
+                          <div className="mt-3 flex gap-2">
+                            {oferta.prestador.fotos.map((fotoId) => (
+                              <img key={fotoId} src={`/api/fotos?id=${fotoId}`} alt={`Trabajo de ${pila}`} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-x-5">
+                          <Link href={`/p/${oferta.prestador.id}`} className="flex min-h-12 items-center text-[15px] font-semibold text-ink underline underline-offset-2">
+                            Ver perfil
+                          </Link>
+                          {!oferta.prestador.ejemplo && (
+                            <button type="button" onClick={() => setChat(oferta)} className="flex min-h-12 items-center gap-2 text-[15px] font-semibold text-ink underline underline-offset-2">
+                              Mandar un mensaje
+                              {oferta.sinLeer > 0 && <Estado tono="bien">Nuevo</Estado>}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                  <Link href={`/p/${oferta.prestador.id}`} className="flex h-12 shrink-0 items-center text-[15px] font-semibold text-brand">
-                    Ver perfil
-                  </Link>
-                </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {ofertas.some((o) => o.prestador.pagoProtegido) && (
+              <p className="mt-4 flex items-center gap-2 text-sm font-semibold text-ink-500">
+                <Icono nombre="escudo" size={18} />
+                Pago protegido por la app
+              </p>
+            )}
+          </>
+        )}
 
-                <p className="mt-4 text-[36px] font-bold leading-none tracking-[-0.03em] text-ink">{pesos(oferta.precio)}</p>
-                <p className="mt-2 text-sm text-ink-500">Mano de obra. Puede ir: {oferta.cuando.toLowerCase()}.</p>
-                {dentro && (
-                  <p className="mt-2">
-                    <Estado tono="bien">Dentro de lo que suele costar</Estado>
-                  </p>
-                )}
-                {oferta.mensaje && <p className="mt-3 text-[15px] italic text-ink-500">“{oferta.mensaje}”</p>}
-                {oferta.prestador.fotos.length > 0 && (
-                  <div className="mt-3 flex gap-2">
-                    {oferta.prestador.fotos.map((fotoId) => (
-                      <img key={fotoId} src={`/api/fotos?id=${fotoId}`} alt={`Trabajo de ${pila}`} loading="lazy" className="h-20 w-20 rounded-2xl object-cover" />
-                    ))}
-                  </div>
-                )}
+        {pedido.diagnostico && <Diagnostico diagnostico={pedido.diagnostico} />}
 
-                <div className="mt-4">
-                  <BotonSecundario onClick={() => setPorConfirmar(oferta)}>Elegir a {pila}</BotonSecundario>
-                </div>
-                {oferta.prestador.ejemplo ? (
-                  <p className="mt-3 text-center text-[13px] text-ink-500">Es de muestra: no se le puede escribir.</p>
-                ) : (
-                  <button type="button" onClick={() => setChat(oferta)} className="mx-auto mt-1 flex min-h-12 flex-col items-center justify-center gap-1 px-4 py-2 text-base font-semibold text-brand">
-                    <span className="flex items-center gap-2">
-                      <Icono nombre="mensaje" size={20} />
-                      Preguntarle a {pila}
-                    </span>
-                    {oferta.sinLeer > 0 && <Estado tono="bien">Mensaje nuevo</Estado>}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {pedido.diagnostico && <Diagnostico diagnostico={pedido.diagnostico} />}
-
-      <div className="mt-8">
-        <BotonSecundario onClick={copiarEnlace}>
-          <Icono nombre={copiado ? "check" : "enlace"} size={20} />
-          {copiado ? "Enlace copiado" : "Copiar enlace del pedido"}
-        </BotonSecundario>
-        <p className="mt-3 text-center text-[13px] text-ink-500">Con ese enlace lo seguís desde cualquier celular.</p>
-        <BotonTexto onClick={() => setGestion("cancelar")}>Cancelar el pedido</BotonTexto>
-      </div>
-    </Pantalla>
-    {pantallaDeChat}
+        <div className="mt-8">
+          <BotonSecundario onClick={copiarEnlace}>
+            <Icono nombre={copiado ? "check" : "enlace"} size={20} />
+            {copiado ? "Enlace copiado" : "Copiar enlace del pedido"}
+          </BotonSecundario>
+          <BotonTexto onClick={() => setGestion("cancelar")}>Cancelar el pedido</BotonTexto>
+        </div>
+      </Pantalla>
+      {pantallaDeChat}
     </>
+  );
+}
+
+function AccionSecundaria({ texto, icono, onClick, aviso = false, peligro = false }: { texto: string; icono: string; onClick: () => void; aviso?: boolean; peligro?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} className={`flex min-h-14 w-full items-center gap-3 text-left text-base font-semibold ${peligro ? "text-danger" : "text-ink"}`}>
+      <Icono nombre={icono} size={20} />
+      <span className="flex-1">{texto}</span>
+      {aviso && <Estado tono="bien">Nuevo</Estado>}
+      <Icono nombre="chevron" size={20} className="text-ink-400" />
+    </button>
   );
 }

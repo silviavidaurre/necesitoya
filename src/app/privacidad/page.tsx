@@ -50,6 +50,9 @@ export default function Privacidad() {
         en voz alta, el audio y el texto se envían a ElevenLabs. Se usan solo para darte ese resultado.
       </Punto>
 
+      <Seccion>Tipografías</Seccion>
+      <Punto>Las letras de la app se cargan desde Google Fonts: tu navegador le pide los archivos a Google, que ve tu dirección de internet. No le mandamos ningún otro dato.</Punto>
+
       <Seccion>Lo que no hacemos</Seccion>
       <Punto>No vendemos tus datos ni los usamos para publicidad.</Punto>
 

@@ -1,21 +1,59 @@
 @import "tailwindcss";
 
-/* Tokens de NecesitoYa.
-   Regla de uso: casi todo blanco, texto e íconos en tinta, y el azul solo en la acción principal y los enlaces.
-   Verde = salió bien. Rojo = error o algo que se pierde. Los estados neutros van con un punto gris y una palabra. */
+/* Tokens de NecesitoYa · variante tipo Uber.
+   Negro tinta y blanco, con un único acento naranja (sobre naranja, siempre texto negro).
+   El lado del vecino es claro; el del prestador, oscuro (clase .tema-oscuro en <html>).
+   La acción principal es negra en el lado claro y naranja en el oscuro. Verde = salió bien. Rojo = error.
+   Los estados van con un punto y una palabra. Títulos y números en Space Grotesk; el resto en Inter. */
 @theme {
-  --color-brand: #0b6fd6;
-  --color-brand-600: #0a5cb8;
-  --color-brand-50: #eaf3fe;
-  --color-sol: #ffc93c;
-  --color-ink: #111418;
-  --color-ink-500: #5f6772;
-  --color-ink-400: #6b7380;
-  --color-subtle: #f3f5f7;
-  --color-line: #e6e9ed;
-  --color-success: #0e7a41;
-  --color-danger: #d92d20;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-brand: #0d0d0d;
+  --color-brand-600: #2b2b2b;
+  --color-brand-50: #f2f2ef;
+  --color-acento: #ff5a1f;
+  --color-sol: #ff5a1f;
+  --color-ink: #0d0d0d;
+  --color-ink-500: #5e5e5e;
+  --color-ink-400: #6b6b6b;
+  --color-subtle: #f2f2ef;
+  --color-line: #e3e2de;
+  --color-success: #0a7a3d;
+  --color-danger: #c8261b;
+  --color-white: #ffffff;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  /* Mapa dibujado (SVG propio, sin servicios de mapas). */
+  --mapa-fondo: #e4e1da;
+  --mapa-calle: #ffffff;
+  --mapa-rio: #c3d6de;
+  --mapa-plaza: #cfe2c8;
+  --mapa-texto: #6f6b62;
+  --sombra-panel: 0 -8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* Lado del prestador: oscuro. Se invierten los tokens y la acción principal pasa a naranja con texto negro
+   (el "blanco" del texto sobre el botón se vuelve negro). Contrastes revisados: todos 4,5:1 o más. */
+.tema-oscuro {
+  --color-white: #0d0d0d;
+  --color-ink: #ffffff;
+  --color-ink-500: #a3a3a3;
+  --color-ink-400: #9a9a9a;
+  --color-subtle: #1c1c1c;
+  --color-line: #2b2b2b;
+  --color-brand: #ff5a1f;
+  --color-brand-600: #e8501a;
+  --color-brand-50: #2b2b2b;
+  --color-success: #3ccf7f;
+  --color-danger: #ff7a6e;
+  --mapa-fondo: #161616;
+  --mapa-calle: #2b2b2b;
+  --mapa-rio: #1f2e36;
+  --mapa-plaza: #1d2a1d;
+  --mapa-texto: #8a8a8a;
+  --sombra-panel: 0 -8px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
 }
 
 html,
@@ -26,13 +64,23 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+h1,
+h2,
+.cifra {
+  font-family: var(--font-display);
+}
+
+.cifra {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Onda del micrófono mientras graba. */
 @keyframes onda {
   0% {
-    box-shadow: 0 0 0 0 rgb(217 45 32 / 0.35);
+    box-shadow: 0 0 0 0 rgb(255 90 31 / 0.45);
   }
   100% {
-    box-shadow: 0 0 0 22px rgb(217 45 32 / 0);
+    box-shadow: 0 0 0 22px rgb(255 90 31 / 0);
   }
 }
 
@@ -55,9 +103,25 @@ body {
   animation: entrar 0.2s ease-out;
 }
 
+/* El punto del estado "en vivo" late suave. */
+@keyframes latido {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.latido {
+  animation: latido 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .grabando,
-  .entrar {
+  .entrar,
+  .latido {
     animation: none;
   }
 }
@@ -70,4 +134,12 @@ body {
 }
 .sin-barra::-webkit-scrollbar {
   display: none;
+}
+
+/* Los enlaces de texto ya no son de color: se distinguen subrayados. */
+a.text-brand,
+button.text-brand {
+  text-decoration-line: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
 }

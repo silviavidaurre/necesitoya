@@ -112,7 +112,7 @@ export default function PedidosPrestador() {
                 href="/prestador/ofertas"
                 icono={<IconoCirculo nombre="check" />}
                 titulo={`Te eligieron: ${oferta.pedido?.titulo ?? "un pedido"}`}
-                detalle={<Estado tono="bien">{oferta.sinLeer > 0 ? "Mensaje nuevo. Abrí el chat" : "Abrí el chat para coordinar"}</Estado>}
+                detalle={<Estado tono="bien">{oferta.sinLeer > 0 ? "Mensaje nuevo" : "Trabajo en curso"}</Estado>}
               />
             ))}
           </div>

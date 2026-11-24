@@ -3,6 +3,8 @@ import { BotonPrimario, Cabecera, Chip, ErrorDePantalla, Icono, claseCampo } fro
 import { pedir } from "@/lib/cliente";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { MOTIVOS_DE_RECLAMO } from "@/lib/motivos";
+import { textoDeTurno, type Turno } from "@/lib/turnos";
+import { ElegirTurno } from "@/components/Turnos";
 
 // Gestiones de un trabajo elegido, a pantalla completa y con un solo botón: reclamar, cambiar el día, cancelar.
 // `quien` es la llave de quien la hace: el vecino con su pedido y su clave, el prestador con su id secreto.
@@ -142,19 +144,33 @@ export function PantallaReclamo({ ofertaId, quien, nombre, alCerrar }: { ofertaI
 
 const DIAS = ["Hoy", "Mañana", "Esta semana", "La semana que viene", "A coordinar"];
 
-// Cambiar el día del trabajo. Queda escrito en el chat para que el otro se entere.
-export function PantallaCambiarDia({ ofertaId, quien, actual, alCerrar }: { ofertaId: string; quien: Quien; actual: string; alCerrar: (nuevo?: string) => void }) {
+// Reprogramar: otro de los turnos que ofreció el prestador (o, si no dejó turnos, un día a elegir).
+// Queda escrito en el chat para que el otro se entere.
+export function PantallaCambiarDia({
+  ofertaId,
+  quien,
+  actual,
+  turnos = [],
+  alCerrar,
+}: {
+  ofertaId: string;
+  quien: Quien;
+  actual: string;
+  turnos?: Turno[];
+  alCerrar: (nuevo?: string) => void;
+}) {
   const [cuando, setCuando] = useState("");
   const [otro, setOtro] = useState("");
+  const [turno, setTurno] = useState<Turno | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
-  const elegido = (cuando === "otro" ? otro : cuando).trim();
+  const elegido = turno ? textoDeTurno(turno) : (cuando === "otro" ? otro : cuando).trim();
 
   async function guardar() {
     setEnviando(true);
     setError("");
     try {
-      const respuesta = await pedir<{ cuando: string }>("/api/ofertas/dia", { method: "POST", body: JSON.stringify({ ofertaId, ...quien, cuando: elegido }) });
+      const respuesta = await pedir<{ cuando: string }>("/api/ofertas/dia", { method: "POST", body: JSON.stringify({ ofertaId, ...quien, ...(turno ? { turno } : { cuando: elegido }) }) });
       alCerrar(respuesta.cuando);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos cambiar el día. Probá de nuevo.");
@@ -167,7 +183,12 @@ export function PantallaCambiarDia({ ofertaId, quien, actual, alCerrar }: { ofer
       <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
         <Cabecera alVolver={() => alCerrar()} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Para cuándo?</h1>
-        <p className="mt-2 text-[17px] text-ink-500">Ahora dice: {actual.toLowerCase()}. Lo avisamos por el chat.</p>
+        <p className="mt-2 text-base text-ink-500">Ahora: {actual}. Le avisamos.</p>
+        {turnos.length > 0 ? (
+          <div className="mt-6">
+            <ElegirTurno turnos={turnos} valor={turno} alCambiar={setTurno} />
+          </div>
+        ) : (
         <div className="mt-6 flex flex-wrap gap-2">
           {[...DIAS, "otro"].map((d) => (
             <Chip key={d} activo={cuando === d} onClick={() => setCuando(d)}>
@@ -175,12 +196,13 @@ export function PantallaCambiarDia({ ofertaId, quien, actual, alCerrar }: { ofer
             </Chip>
           ))}
         </div>
-        {cuando === "otro" && <input className={`${claseCampo} mt-4`} value={otro} onChange={(e) => setOtro(e.target.value)} maxLength={80} placeholder="Ej: el sábado a la mañana" autoFocus />}
+        )}
+        {turnos.length === 0 && cuando === "otro" && <input className={`${claseCampo} mt-4`} value={otro} onChange={(e) => setOtro(e.target.value)} maxLength={80} placeholder="Ej: el sábado a la mañana" autoFocus />}
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </div>
       <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         <BotonPrimario onClick={guardar} disabled={!elegido} cargando={enviando}>
-          Guardar el nuevo día
+          {turno ? textoDeTurno(turno) : "Guardar el nuevo día"}
         </BotonPrimario>
       </div>
     </div>
