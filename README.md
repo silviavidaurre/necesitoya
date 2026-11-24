@@ -15,6 +15,7 @@ Publicada en https://necesitoya.gabriel13iturre.workers.dev
 - **Reclamos y cancelaciones.** Cancelar, cambiar el día y reclamar con fotos (el chat sirve de prueba), conectado a la disputa del pago protegido.
 - **Cuenta obligatoria** para pedir y presupuestar (mail y contraseña, sin código, o Google).
 - **Avisos en el celular** (web push) y **app instalable**.
+- **Eliminar la cuenta** desde "Mi cuenta" o sin entrar, en `/eliminar-cuenta` (lo pide Google Play): se borra lo personal y se anonimiza lo que hay que guardar (pagos hechos, reclamos abiertos).
 - **Panel interno** en `/admin` (con secreto): verificaciones, denuncias, reclamos, métricas sin datos de muestra ni de prueba, y limpieza de los datos de las pruebas.
 
 ## Con qué está hecha
@@ -47,7 +48,7 @@ Con la app corriendo, cada tanda se corre contra una dirección:
 node pruebas/circuito.mjs http://localhost:3000
 ```
 
-Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta`, `voz`, `confianza` (diagnóstico, verificado, cierre, pagos, webhook), `avisos` (push y app instalable), `turnos` (días, dirección privada y estados) y `moderacion` (verificación, reclamos, denuncias, bloqueos, panel, límites, métricas). Usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con:
+Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta`, `voz`, `confianza` (diagnóstico, verificado, cierre, pagos, webhook), `avisos` (push y app instalable), `turnos` (días, dirección privada y estados), `eliminar` (eliminar la cuenta y cuentas de revisión) y `moderacion` (verificación, reclamos, denuncias, bloqueos, panel, límites, métricas). Usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con:
 
 ```bash
 node pruebas/limpiar.mjs https://necesitoya.gabriel13iturre.workers.dev --borrar
