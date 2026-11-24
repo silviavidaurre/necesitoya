@@ -26,3 +26,15 @@ export function limpiarLista(valor: unknown, maximoItems: number, maximoLargo: n
   const limpios = valor.map((v) => limpiarTexto(v, maximoLargo)).filter(Boolean);
   return [...new Set(limpios)].slice(0, maximoItems);
 }
+
+// Como limpiarTexto, pero si el texto es más largo que el máximo lo corta donde termina una oración
+// (o, si no hay ninguna cerca, en el último espacio con "…"), para no mostrar palabras partidas.
+export function limpiarTextoProlijo(valor: unknown, maximo: number) {
+  const entero = limpiarTexto(valor, Number.MAX_SAFE_INTEGER);
+  if (entero.length <= maximo) return entero;
+  const corte = entero.slice(0, maximo);
+  const finDeOracion = Math.max(corte.lastIndexOf(". "), corte.lastIndexOf("; "), corte.endsWith(".") ? corte.length - 1 : -1);
+  if (finDeOracion >= maximo * 0.5) return corte.slice(0, finDeOracion + 1).replace(/;$/, ".");
+  const espacio = corte.slice(0, maximo - 1).lastIndexOf(" ");
+  return `${corte.slice(0, espacio > 0 ? espacio : maximo - 1).replace(/[\s,;:]+$/, "")}…`;
+}
