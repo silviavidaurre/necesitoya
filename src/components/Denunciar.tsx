@@ -104,7 +104,7 @@ export function Denunciar({
       <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         {falta && <p className="mb-2 text-center text-[15px] font-medium text-ink-500">{falta}</p>}
         <BotonPrimario onClick={enviar} disabled={Boolean(falta) || (!motivo && !conBloqueo)} cargando={enviando}>
-          {motivo ? "Enviar denuncia" : "Bloquear"}
+          {motivo || !bloquear ? "Enviar denuncia" : "Bloquear"}
         </BotonPrimario>
       </div>
     </div>
