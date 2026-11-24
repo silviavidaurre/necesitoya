@@ -1,76 +1,138 @@
 # NecesitoYa
 
-No te mostramos una lista. Te decimos qué tenés, cuánto cuesta y quién lo arregla, y tu plata queda protegida hasta que esté hecho. Hecha para San Salvador de Jujuy y Palpalá, en el Cursor Hackathon Jujuy (Tren Solar, noviembre de 2026), por Gabriel y Silvia.
+Contás qué se rompió hablando, escribiendo o con una foto, y la app te dice qué puede ser, cuánto suele costar y quién de tu barrio lo arregla. Comparás hasta tres presupuestos, elegís día y seguís el trabajo en vivo, como un viaje en Uber. Hecha para San Salvador de Jujuy y Palpalá en el Cursor Hackathon Jujuy (Tren Solar, noviembre de 2026), por Gabriel y Silvia.
 
-Publicada en https://necesitoya.gabriel13iturre.workers.dev
+**App publicada:** https://necesitoya.gabriel13iturre.workers.dev. Se abre en el celular o en la compu; en la compu conviene achicar la ventana a tamaño de celular.
 
-## Qué hace
+<p>
+  <img src="docs/capturas/01-inicio.png" width="160" alt="Inicio: qué se rompió">
+  <img src="docs/capturas/03-diagnostico.png" width="160" alt="Diagnóstico de la IA">
+  <img src="docs/capturas/04-presupuestos.png" width="160" alt="Elegir presupuesto">
+  <img src="docs/capturas/06-seguimiento-en-vivo.png" width="160" alt="Seguimiento en vivo">
+  <img src="docs/capturas/07-prestador-trabajo-en-curso.png" width="160" alt="Lado del prestador">
+</p>
 
-- **Diagnóstico.** El vecino cuenta lo que le pasa hablando, escribiendo o con una foto. La IA arma el pedido y un diagnóstico orientativo: lo más probable, el riesgo, qué hacer ya, materiales y preguntas para el prestador. Con gas o electricidad siempre avisa que hace falta un matriculado y da los pasos de seguridad.
-- **Presupuestos.** Hasta tres prestadores mandan su precio; el último lugar queda reservado 15 minutos para los del barrio. Cada uno dice si está **verificado** (DNI y, si tiene, matrícula revisados a mano) o **sin verificar**.
-- **Trabajo tipo Uber.** El prestador ofrece días y franjas al presupuestar; el vecino elige uno y carga la dirección, que es privada (solo la ve el prestador elegido mientras el trabajo está activo, y se borra al terminar o cancelar). El prestador avanza los estados con un botón (Confirmado, En camino, Llegó, Trabajando, Terminado) y el vecino los sigue en vivo sobre un mapa dibujado. Llamadas sin mostrar el número: pendiente (necesita un proveedor de telefonía).
-- **Chat dentro de la app**, como acción secundaria para las excepciones. Nadie ve el teléfono de nadie: los números que se pegan se ocultan. Se puede denunciar o bloquear desde el chat.
-- **Pago por la app (Cosmos Pay, USDC en Stellar).** Protegido: la plata queda retenida hasta que el vecino confirma. Mientras Cosmos no publique los pagos protegidos en su API, se cobra directo con la comisión fija separada en la misma transacción (`merchantFee`). Mercado Pago marketplace está armado detrás de configuración.
-- **Cierre del trabajo.** El prestador marca "Trabajo terminado" con la foto del después, el vecino confirma y recién ahí califica. El perfil público muestra el historial: trabajos terminados, cobrados por la app y reseñas.
-- **Reclamos y cancelaciones.** Cancelar, cambiar el día y reclamar con fotos (el chat sirve de prueba), conectado a la disputa del pago protegido.
-- **Cuenta obligatoria** para pedir y presupuestar (mail y contraseña, sin código, o Google).
-- **Avisos en el celular** (web push) y **app instalable**.
-- **Eliminar la cuenta** desde "Mi cuenta" o sin entrar, en `/eliminar-cuenta` (lo pide Google Play): se borra lo personal y se anonimiza lo que hay que guardar (pagos hechos, reclamos abiertos).
-- **Panel interno** en `/admin` (con secreto): verificaciones, denuncias, reclamos, métricas sin datos de muestra ni de prueba, y limpieza de los datos de las pruebas.
+> **Los datos que vas a ver son de demostración.** Prestadores, vecinos, pedidos, chats y reseñas son inventados. Están marcados como demostración, no cuentan como uso real y no se mezclan con los pedidos de vecinos reales. Las fotos de trabajos son ilustraciones. Uso real al momento de escribir esto: 1 prestador y 1 pedido.
 
-## Con qué está hecha
+## Probala en 3 minutos, con las cuentas de demostración
 
-- Vite, React 19, React Router 7, Tailwind 4 y TypeScript. Diseño: negro, blanco y un acento naranja; Space Grotesk e Inter; el lado del prestador va oscuro (tokens en `src/app/globals.css`).
-- API en `src/app/api/**/route.ts`, registrada en `src/servidor/rutas.ts`.
-- En producción corre en un Worker de Cloudflare con una base D1 (`src/servidor/worker.ts`, `wrangler.jsonc`), con una tabla por colección (`src/servidor/almacen-d1.ts`). La primera vez migra sola desde la fila única `estado`, que queda intacta como respaldo. En desarrollo guarda en un archivo local.
-- IA: un modelo de lenguaje de Anthropic, con su SDK (`src/lib/ia.ts`). Sin clave, la app sigue andando en un modo básico por reglas.
-- Voz: ElevenLabs (`src/lib/voz.ts`). Pagos: Cosmos Pay (`src/lib/cosmos.ts`) y Mercado Pago (`src/lib/mercadopago.ts`). Avisos: web push con VAPID (`src/lib/push.ts`, `public/sw.js`).
+Entrá desde "Entrar o crear cuenta", abajo en la pantalla de inicio. No hace falta registrarse:
+
+| Para ver | Mail | Contraseña |
+| --- | --- | --- |
+| El lado del vecino | `vecina@necesitoya.demo` | `demo2026` |
+| El lado del prestador | `prestador@necesitoya.demo` | `demo2026` |
+
+Arriba aparece un cartel naranja "Demo · todo inventado" mientras estés en una de estas cuentas.
+
+**Como vecina (Carla, de Alto Comedero):**
+
+1. En **Tus pedidos** tocá *Termotanque pierde agua…*. Vas a ver el diagnóstico de la IA y **tres presupuestos** para comparar: precio, cuándo puede ir, si está verificado, sus reseñas y fotos de trabajos. Tocá *Ver perfil* o *Mandar un mensaje*.
+2. Volvé y abrí *Se tapó el inodoro…*. El plomero está **en camino**: el mapa muestra el recorrido, la dirección que solo ve él y el chat.
+3. *Salta la térmica…*: la electricista ya está **trabajando**.
+4. Tocá **Ver todos** y abrí *Pintar el living*, un trabajo **terminado y calificado**, y *Arreglar el revoque*, que tuvo un **reclamo resuelto**.
+5. Para probar el flujo desde cero, escribí o dictá un problema en la pantalla de inicio. La IA lo ordena y arma el diagnóstico. Lo que pidas con esta cuenta queda en el barrio de demostración.
+
+**Como prestador (Ramiro, plomero matriculado):**
+
+1. En **Pedidos** están los pedidos del barrio para presupuestar. Abrí uno y mandá tu precio eligiendo días y franjas.
+2. En **Mis presupuestos**, el trabajo de Carla está *en camino*: tocá **Llegué**, **Empecé el trabajo** y **Terminé**, con una foto del después. Después entrá como vecina y confirmá que quedó bien.
+3. En **Perfil** está su ficha pública: verificado con matrícula, fotos de trabajos, historial y reseñas.
+
+## Qué funciona
+
+- **Pedido con voz, texto o foto.** La IA arma un pedido claro y un **diagnóstico orientativo**: lo más probable, el riesgo, qué hacer ya, materiales y preguntas para el prestador. Con gas o electricidad siempre pide un matriculado y da los pasos de seguridad.
+- **Hasta tres presupuestos**, con el último lugar guardado 15 minutos para prestadores del barrio. Cada prestador dice si está **verificado**: DNI y, si tiene, matrícula, revisados a mano.
+- **Trabajo tipo Uber.** El prestador ofrece días y franjas, y el vecino elige y carga la dirección. La dirección la ve solo el elegido, mientras dura el trabajo, y se borra al terminar. Los estados En camino, Llegó, Trabajando y Terminado se siguen en vivo.
+- **Chat dentro de la app.** Nadie ve el teléfono de nadie: los números se tapan en el chat, en los presupuestos, en los pedidos y en los perfiles. Se puede denunciar o bloquear.
+- **Cierre con foto y calificación.** Hay un perfil público con historial y reseñas.
+- **Reclamos con fotos, cancelación y reprogramación.** Hay un panel interno en `/admin` para verificar, moderar, resolver reclamos y ver métricas de uso real.
+- **Cuenta con mail y contraseña o con Google.** Eliminar la cuenta desde la app o en `/eliminar-cuenta`, como pide Google Play.
+- **Avisos en el celular:** web push en el navegador y avisos nativos en la app de Android.
+- **Voz:** dictado y lectura en voz alta de pedidos y presupuestos.
+- **Pago por la app** con Cosmos Pay (USDC en Stellar), con la comisión de NecesitoYa separada en la misma transacción.
+- **App de Android** (Capacitor) en la prueba interna de Google Play.
+
+**Lo que todavía no está** (lo decimos tal cual):
+
+- **Pago protegido** (la plata retenida hasta que el vecino confirma): la app está lista para activarlo sola, pero Cosmos todavía no lo publicó en su API. Hoy el pago es directo.
+- **Mercado Pago:** el código está hecho, faltan las credenciales de la aplicación ([pasos](docs/mercadopago-pasos.md)).
+- **Mails** para recuperar la contraseña y confirmar una baja: el código está hecho, falta configurar el proveedor ([pasos](docs/correo-pasos.md)).
+- **Llamadas sin mostrar el número:** falta un proveedor de telefonía.
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+  Celu[Navegador o app de Android] -->|HTTPS| Worker[Cloudflare Worker]
+  Worker --> Estaticos[Web: Vite + React]
+  Worker --> API[API: src/app/api]
+  API --> D1[(Cloudflare D1: una tabla por colección)]
+  API --> IA[Anthropic: pedido y diagnóstico]
+  API --> Voz[ElevenLabs: voz]
+  API --> Cosmos[Cosmos Pay: pagos USDC]
+  API --> Avisos[Web push y Firebase]
+```
+
+- **Web:** Vite, React 19, React Router 7, Tailwind 4 y TypeScript. Es negro y blanco con un acento naranja; el lado del prestador es oscuro.
+- **API:** cada ruta es un `src/app/api/**/route.ts`, registrado en `src/servidor/rutas.ts`, con `Request` y `Response` estándar. En producción corre en un Worker de Cloudflare con D1. En desarrollo la sirve Vite y guarda en un archivo local.
+- **Integraciones:** una carpeta por servicio en `src/integraciones/`, cada una con su README. Si falta la clave de un servicio, esa parte se apaga y la app sigue andando.
+- **App de Android:** Capacitor abre la versión publicada, así que casi todos los cambios llegan solo con publicar la web. El paquete firmado lo arma GitHub Actions al subir una etiqueta `android-v*`.
+
+## Estructura
+
+```
+src/app/            pantallas (page.tsx) y API (api/**/route.ts)
+src/components/     piezas de pantalla
+src/lib/            reglas de la app: base, pedidos, trabajo, pagos, chat, moderación, demo, métricas
+src/integraciones/  anthropic-ia, elevenlabs-voz, cosmos-pagos, mercadopago-pagos, webpush-avisos,
+                    firebase-avisos, resend-correo, google-cuenta, capacitor-android
+src/servidor/       rutas de la API, cloudflare/ (Worker + D1) y local/ (desarrollo)
+pruebas/            tandas de pruebas contra una URL
+scripts/            íconos, capturas para Play y correr todas las pruebas
+docs/               capturas y pasos de configuración
+android/            proyecto de Android (Capacitor)
+```
+
+Para cambiar el código, leé [AGENTS.md](AGENTS.md): mapa, comandos y reglas.
 
 ## Correrla en tu máquina
 
 ```bash
-npm install
+npm ci
+cp .env.example .env.local   # completá las claves que tengas; sin claves anda en modo básico
+npm run dev                  # http://localhost:3000
 ```
 
-Copiá `.env.example` como `.env.local` y completá las claves que tengas. Después:
-
-```bash
-npm run dev
-```
-
-Queda en http://localhost:3000. Para probar el Worker real con D1 local: `npx vite build` y `npx wrangler dev` (lee los secretos de `.dev.vars`, que no se sube).
+Para cargar el barrio de demostración en tu base local, entrá a `/admin` con el `ADMIN_SECRET` de tu `.env.local` y abrí la pestaña **Demo**.
 
 ## Pruebas
 
-Con la app corriendo, cada tanda se corre contra una dirección:
+Con la app corriendo:
 
 ```bash
-node pruebas/circuito.mjs http://localhost:3000
+node scripts/pruebas.mjs http://localhost:3000
 ```
 
-Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta`, `voz`, `confianza` (diagnóstico, verificado, cierre, pagos, webhook), `avisos` (push y app instalable), `turnos` (días, dirección privada y estados), `eliminar` (eliminar la cuenta y cuentas de revisión) y `moderacion` (verificación, reclamos, denuncias, bloqueos, panel, límites, métricas). Usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con:
+Corre las 13 tandas y después borra lo que crearon. Las tandas son:
+- `circuito` y `prestador`;
+- `muestra`;
+- `chat`: además controla que no salga ningún teléfono;
+- `cuenta` y `correo`;
+- `voz`;
+- `confianza`: diagnóstico, verificación, cierre, pagos y webhook;
+- `avisos`;
+- `moderacion`;
+- `turnos`;
+- `eliminar`;
+- `demo`: el barrio de demostración y su aislamiento.
 
-```bash
-node pruebas/limpiar.mjs https://necesitoya.gabriel13iturre.workers.dev --borrar
-```
+Las pruebas usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con `node pruebas/limpiar.mjs <url> --borrar`.
 
 ## Publicar
 
 ```bash
-npx vite build
+npx vite build && npx wrangler deploy
 ```
 
-```bash
-npx wrangler deploy
-```
-
-Secretos del Worker (nunca en el repositorio): `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `VAPID_PRIVATE_KEY`, `ADMIN_SECRET`, `COSMOS_API_KEY`, `COSMOS_WALLET_COMISION`, `COSMOS_WEBHOOK_SECRET` y, para Mercado Pago, `MP_CLIENT_ID`, `MP_CLIENT_SECRET` y `MP_WEBHOOK_SECRET`. Ajustes opcionales: `COMISION_USDC` (por defecto 1), `COMISION_ARS` (1500), `ARS_POR_USDC` (si no, el dólar cripto del día), `COSMOS_MODO` (`protegido` o `directo`).
-
-## App de Android (Google Play)
-
-La app de Android se arma con Capacitor, igual que KILO, y abre la versión publicada en Cloudflare: casi todos los cambios llegan a los celulares solo con publicar la web. Hace falta una versión nueva en Play solo cuando cambia algo nativo (permisos, íconos, complementos).
-
-- Configuración: `capacitor.config.ts`. Proyecto de Android: `android/`.
-- El paquete para Play lo arma GitHub Actions (`.github/workflows/android.yml`): a mano desde la pestaña Actions o al subir una etiqueta `android-v1.0.1`. No hace falta el kit de Android en ninguna compu.
-- Firma: la llave de subida nunca va al repo. En GitHub va como secretos `NECESITOYA_UPLOAD_*`; en una compu, en `android/keystore.properties` (ver `android/keystore.properties.example`). La llave definitiva de la app la guarda Google (firma de apps de Play).
-- Íconos: se generan desde `assets/` con `npx @capacitor/assets generate --android`.
+Las claves van como secretos del Worker (`npx wrangler secret put NOMBRE`), nunca en el repositorio. Las variables de cada servicio están en el README de su carpeta en `src/integraciones/`.
