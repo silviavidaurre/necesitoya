@@ -320,7 +320,7 @@ export default function SeguimientoPedido() {
         </div>
         <p className="mt-8 text-center text-[15px] text-ink-500">
           Se cierran los otros presupuestos y se abre el chat para coordinar.
-          {datos.pagos && porConfirmar.prestador.cobraPorLaApp && !porConfirmar.prestador.ejemplo ? " Después pagás protegido: la plata queda retenida hasta que confirmes que quedó bien." : ""}
+          {porConfirmar.prestador.pagoProtegido ? " Después pagás protegido: la plata queda retenida hasta que confirmes que quedó bien." : ""}
         </p>
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
@@ -369,14 +369,17 @@ export default function SeguimientoPedido() {
     const terminado = elegida.terminado;
     const confirmado = Boolean(pedido.confirmado);
     const porLiberar = confirmado && pago?.modo === "protegido" && pago.estado === "retenido";
-    const porPagar = !confirmado && puedePagar && (!pago || pago.estado === "pendiente");
+    // Protegido: se paga antes (la plata queda retenida). Directo: se paga cuando el vecino confirma que quedó bien.
+    const protegido = elegida.prestador.pagoProtegido;
+    const porPagar = puedePagar && (!pago || pago.estado === "pendiente") && (protegido ? !confirmado && !terminado : confirmado);
     const porConfirmarTrabajo = !confirmado && (Boolean(terminado) || muestra);
 
     let principal: { texto: string; accion: () => void } | null = null;
     if (porLiberar) principal = { texto: "Liberar el pago", accion: () => abrirPago(pago.urlDePago) };
     else if (porConfirmarTrabajo) principal = { texto: "Confirmar que quedó bien", accion: confirmar };
+    else if (porPagar && confirmado) principal = { texto: pago ? "Terminar el pago" : `Pagarle a ${pila} por la app`, accion: pagar };
     else if (confirmado && !pedido.calificacion) principal = { texto: `Calificar a ${pila}`, accion: () => setCalificando(true) };
-    else if (porPagar) principal = { texto: pago ? "Terminar el pago" : "Pagar protegido", accion: pagar };
+    else if (porPagar) principal = { texto: pago ? "Terminar el pago" : elegida.prestador.pagoProtegido ? "Pagar protegido" : "Pagar por la app", accion: pagar };
     else if (!muestra) principal = { texto: `Escribirle a ${pila}`, accion: () => setChat(elegida) };
 
     const titulo = confirmado ? "Trabajo terminado" : terminado ? `${pila} terminó el trabajo` : `Elegiste a ${pila}`;
@@ -385,11 +388,15 @@ export default function SeguimientoPedido() {
       : porLiberar
         ? "Abrimos Cosmos Pay: aprobá y liberá el pago con tu billetera. Así le llega a " + pila + "."
         : confirmado
-          ? "Gracias por confirmar."
+          ? porPagar
+            ? `Pagale por la app: le llega en el momento y suma a su historial.`
+            : "Gracias por confirmar."
           : terminado
             ? "Mirá la foto. Si algo no quedó bien, escribile antes de confirmar."
             : porPagar
-              ? "Pagá por la app: la plata queda retenida hasta que confirmes que quedó bien."
+              ? elegida.prestador.pagoProtegido
+                ? "Pagá por la app: la plata queda retenida hasta que confirmes que quedó bien."
+                : `Pagá por la app: le llega a ${pila} en el momento.`
               : "Coordinen día y hora por el chat. Nadie ve tu teléfono.";
 
     return (
@@ -447,7 +454,7 @@ export default function SeguimientoPedido() {
             {pago && (
               <p>
                 <Estado tono={pago.estado === "en_disputa" || pago.estado === "vencido" ? "mal" : pago.estado === "pendiente" ? "neutro" : "bien"}>
-                  {TEXTO_DE_PAGO[pago.estado]} · {pago.monto} {pago.moneda}
+                  {TEXTO_DE_PAGO[pago.estado]} · {pago.moneda === "USDC" ? `${pago.monto} USDC` : pesos(Number(pago.monto))}
                 </Estado>
               </p>
             )}
@@ -465,8 +472,8 @@ export default function SeguimientoPedido() {
 
           {porPagar && (
             <p className="mt-4 text-[15px] text-ink-500">
-              {pago ? `Son ${pago.monto} USDC` : "Se paga en USDC con Cosmos Pay"}, en una página segura. NecesitoYa cobra una comisión fija aparte
-              {pago ? ` de ${pago.comision} USDC` : ""}.
+              {pago ? (pago.moneda === "USDC" ? `Son ${pago.monto} USDC con Cosmos Pay` : `Son ${pesos(Number(pago.monto))} con Mercado Pago`) : elegida.prestador.pagoProtegido ? "Se paga en USDC con Cosmos Pay" : "Se paga"}, en una página segura. NecesitoYa cobra una comisión fija
+              {pago ? ` de ${pago.moneda === "USDC" ? `${pago.comision} USDC` : pesos(Number(pago.comision))}` : ""}.
             </p>
           )}
           {pago?.urlDeComision && !pago.comisionPagada && pago.estado !== "pendiente" && (
@@ -516,7 +523,7 @@ export default function SeguimientoPedido() {
             </div>
           )}
 
-          {porLiberar && !pedido.calificacion && (
+          {(porLiberar || (porPagar && confirmado)) && !pedido.calificacion && (
             <div className="mt-6">
               <BotonSecundario onClick={() => setCalificando(true)}>
                 <Icono nombre="estrella" size={20} />

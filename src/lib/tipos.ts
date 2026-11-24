@@ -52,8 +52,11 @@ export interface Prestador extends PerfilBorrador {
   billetera?: string;
   // true = moderación lo sacó de la vista (por denuncias). No aparece en presupuestos nuevos.
   suspendido?: boolean;
-  // Solo en la respuesta del perfil propio: si está unido a una cuenta (no se guarda).
+  // Cuenta de Mercado Pago conectada (marketplace). Privada: el token nunca sale del servidor.
+  mercadopago?: { usuario: string; token: string; refresco: string; vence: string };
+  // Solo en la respuesta del perfil propio (no se guardan): si está unido a una cuenta y si conectó Mercado Pago.
   conCuenta?: boolean;
+  conMercadoPago?: boolean;
 }
 
 // Lo que el vecino opinó del trabajo una vez hecho.
@@ -249,8 +252,10 @@ export interface OfertaParaCliente extends Omit<Oferta, "prestadorId" | "leidoVe
     reputacion: Reputacion;
     // true = prestador de muestra.
     ejemplo: boolean;
-    // true = cargó su billetera: se le puede pagar protegido por la app.
+    // true = se le puede pagar por la app (cargó su billetera o conectó Mercado Pago).
     cobraPorLaApp: boolean;
+    // true = ese pago queda retenido hasta que el vecino confirme (Cosmos, pago protegido).
+    pagoProtegido: boolean;
   };
   pago: PagoPublico | null;
 }

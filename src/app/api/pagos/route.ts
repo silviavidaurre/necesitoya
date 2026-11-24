@@ -8,11 +8,13 @@ import {
   leerPagoProtegido,
   memoDe,
   modoDeCosmos,
+  sondearProtegidos,
   paginaDeCobro,
   usdc,
 } from "@/lib/cosmos";
 import { dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
-import { anotarEstado, comisionUsdc, cotizacionArsPorUsdc, estadoDeCobro, estadoProtegido, pagoDe, pagoPublico } from "@/lib/pagos";
+import { ErrorDeMercadoPago, crearPreferencia, mercadoPagoDisponible } from "@/lib/mercadopago";
+import { anotarEstado, comisionArs, comisionUsdc, cotizacionArsPorUsdc, estadoDeCobro, estadoProtegido, pagoDe, pagoPublico, pagosDisponibles } from "@/lib/pagos";
 import type { BaseDeDatos, Pago } from "@/lib/tipos";
 
 // Pago del trabajo elegido, dentro de la app, con Cosmos Pay. Lo hace el vecino dueño del pedido (id + clave).
@@ -38,6 +40,7 @@ function delDuenio(db: BaseDeDatos, id: string, clave: string) {
 
 function responderError(error: unknown) {
   if (error instanceof ErrorDePago) return Response.json({ error: error.message }, { status: error.estado });
+  if (error instanceof ErrorDeMercadoPago) return Response.json({ error: "Mercado Pago no aceptó el pago. Probá de nuevo en un rato." }, { status: 502 });
   if (error instanceof ErrorDeCosmos) {
     const mensaje =
       error.codigo === "trustline_missing"
@@ -84,7 +87,7 @@ export async function GET(request: Request) {
     const db = await leer();
     const { oferta } = delDuenio(db, parametros.get("id") ?? "", parametros.get("clave") ?? "");
     const pago = pagoDe(db, oferta.id);
-    return Response.json({ disponible: cosmosDisponible(), pago: pagoPublico(pago ? await sincronizar(pago) : null) });
+    return Response.json({ disponible: pagosDisponibles(), pago: pagoPublico(pago ? await sincronizar(pago) : null) });
   } catch (error) {
     return responderError(error);
   }
@@ -105,16 +108,61 @@ export async function POST(request: Request) {
 
     const prestador = db.prestadores.find((p) => p.id === oferta.prestadorId);
     if (!prestador || prestador.ejemplo || oferta.ejemplo) throw new ErrorDePago("Es un presupuesto de muestra: no se puede pagar.", 409);
+    if (!pagosDisponibles()) throw new ErrorDePago("El pago por la app todavía no está disponible. Arreglen el pago por el chat.", 503);
     const comisionA = billeteraDeComision();
-    if (!cosmosDisponible() || !comisionA) throw new ErrorDePago("El pago por la app todavía no está disponible. Arreglen el pago por el chat.", 503);
-    if (!prestador.billetera) throw new ErrorDePago("Este prestador todavía no cobra por la app. Arreglen el pago por el chat.", 409);
+    const porCosmos = cosmosDisponible() && Boolean(comisionA) && Boolean(prestador.billetera);
+    const porMercadoPago = !porCosmos && mercadoPagoDisponible() && Boolean(prestador.mercadopago);
+    if (!porCosmos && !porMercadoPago) throw new ErrorDePago("Este prestador todavía no cobra por la app. Arreglen el pago por el chat.", 409);
     if (!(await dentroDelCupoDe("pagos", pedido.cuenta))) throw new ErrorDePago("Hiciste muchos intentos de pago hoy. Probá mañana.", 429);
 
+    // Mercado Pago: cobro directo en pesos en la cuenta del prestador, con la comisión fija separada (marketplace_fee).
+    if (porMercadoPago && prestador.mercadopago) {
+      const origen = new URL(request.url).origin;
+      const comision = comisionArs();
+      const preferencia = await crearPreferencia({
+        token: prestador.mercadopago.token,
+        titulo: `NecesitoYa: ${pedido.titulo}`,
+        precio: oferta.precio,
+        comision,
+        referencia: oferta.id,
+        notificacion: `${origen}/api/mercadopago/webhook?oferta=${encodeURIComponent(oferta.id)}`,
+        vuelta: `${origen}/pedido/${pedido.id}`,
+      });
+      const ahoraMp = new Date().toISOString();
+      const pagoMp: Pago = {
+        id: nuevoId(),
+        ofertaId: oferta.id,
+        pedidoId: pedido.id,
+        proveedor: "mercadopago",
+        modo: "directo",
+        estado: "pendiente",
+        montoArs: oferta.precio,
+        monto: String(oferta.precio),
+        moneda: "ARS",
+        comision: String(comision),
+        comisionPagada: false,
+        externoId: preferencia.id,
+        urlDePago: preferencia.init_point,
+        eventos: [{ tipo: "creado", creado: ahoraMp }],
+        creado: ahoraMp,
+        actualizado: ahoraMp,
+      };
+      const guardadoMp = await modificar((actual) => {
+        const ya = pagoDe(actual, oferta.id);
+        if (ya) return ya;
+        actual.pagos = [...(actual.pagos ?? []), pagoMp];
+        return pagoMp;
+      });
+      return Response.json({ pago: pagoPublico(guardadoMp) }, { status: 201 });
+    }
+    if (!comisionA || !prestador.billetera) throw new ErrorDePago("Este prestador todavía no cobra por la app.", 409);
+
+    await sondearProtegidos();
     const cotizacion = await cotizacionArsPorUsdc();
     // Los pagos protegidos de Cosmos van de 1 a 1.000.000 USDC.
     const monto = usdc(Math.max(1, oferta.precio / cotizacion));
     const comision = comisionUsdc();
-    const modo = modoDeCosmos();
+    let modo = modoDeCosmos();
     const titulo = `NecesitoYa: ${pedido.titulo}`;
     const ahora = new Date().toISOString();
     const base = {
@@ -134,15 +182,24 @@ export async function POST(request: Request) {
       actualizado: ahora,
     };
 
+    // Si Cosmos todavía no tiene publicados los pagos protegidos (responde 404), se cobra directo con merchantFee.
+    const protegido =
+      modo === "protegido"
+        ? await crearPagoProtegido({
+            monto,
+            billeteraDelPrestador: prestador.billetera,
+            titulo,
+            descripcion: `Trabajo de ${prestador.nombre.split(" ")[0]}. La plata queda retenida hasta que confirmes que quedó bien.`,
+            referencia: oferta.id,
+          }).catch((error) => {
+            if (error instanceof ErrorDeCosmos && error.estado === 404) return null;
+            throw error;
+          })
+        : null;
+    if (!protegido) modo = "directo";
+
     let pago: Pago;
-    if (modo === "protegido") {
-      const protegido = await crearPagoProtegido({
-        monto,
-        billeteraDelPrestador: prestador.billetera,
-        titulo,
-        descripcion: `Trabajo de ${prestador.nombre.split(" ")[0]}. La plata queda retenida hasta que confirmes que quedó bien.`,
-        referencia: oferta.id,
-      });
+    if (protegido) {
       // Los pagos protegidos no aceptan merchantFee: la comisión fija va en un cobro aparte a la billetera de NecesitoYa.
       const cobroComision = await crearCobro({
         destino: comisionA,
@@ -156,6 +213,7 @@ export async function POST(request: Request) {
       });
       pago = {
         ...base,
+        modo: "protegido",
         estado: estadoProtegido(protegido.status),
         externoId: protegido.id,
         urlDePago: protegido.checkoutUrl,
@@ -173,6 +231,7 @@ export async function POST(request: Request) {
       });
       pago = {
         ...base,
+        modo: "directo",
         estado: estadoDeCobro(cobro.status),
         externoId: cobro.id,
         // Con merchantFee la dirección del cobro ya es la página de pago de Cosmos.

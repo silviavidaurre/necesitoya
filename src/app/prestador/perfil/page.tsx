@@ -31,6 +31,23 @@ export default function PerfilPrestador() {
   const [subiendo, setSubiendo] = useState(false);
   const [compartido, setCompartido] = useState(false);
   const [tramites, setTramites] = useState<Tramite[]>([]);
+  // Qué medios de pago tiene configurados el servidor: solo se ofrece conectar los que existen.
+  const [medios, setMedios] = useState<{ cosmos: boolean; mercadopago: boolean }>({ cosmos: false, mercadopago: false });
+  useEffect(() => {
+    pedir<{ cosmos?: boolean; mercadopago?: boolean }>("/api/stats")
+      .then((s) => setMedios({ cosmos: Boolean(s.cosmos), mercadopago: Boolean(s.mercadopago) }))
+      .catch(() => undefined);
+  }, []);
+
+  async function conectarMercadoPago() {
+    setError("");
+    try {
+      const { url } = await pedir<{ url: string }>("/api/mercadopago/conectar", { method: "POST", body: JSON.stringify({ prestadorId: prestador?.id }) });
+      window.location.href = url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos abrir Mercado Pago.");
+    }
+  }
   const entradaFoto = useRef<HTMLInputElement>(null);
 
   // El id secreto (prestadorId) solo se usa para cambiar cosas propias. Para mostrar y compartir va el público.
@@ -186,6 +203,15 @@ export default function PerfilPrestador() {
               </button>
             );
           })}
+          {medios.mercadopago && (
+            <button type="button" onClick={prestador.conMercadoPago ? undefined : conectarMercadoPago} className="flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left">
+              <div>
+                <p className="text-base font-semibold text-ink">Cobrar con Mercado Pago</p>
+                <p className="text-sm text-ink-500">{prestador.conMercadoPago ? "Cuenta conectada. Te pagan en pesos." : "Conectá tu cuenta y te pagan en pesos por la app."}</p>
+              </div>
+              {prestador.conMercadoPago ? <Estado tono="bien">Listo</Estado> : <Estado>Conectar</Estado>}
+            </button>
+          )}
           <button type="button" onClick={() => router.push("/prestador/editar")} className="flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left">
             <div>
               <p className="text-base font-semibold text-ink">Cobrar por la app</p>

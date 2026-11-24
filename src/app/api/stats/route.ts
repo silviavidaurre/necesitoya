@@ -1,4 +1,5 @@
 import { cosmosDisponible } from "@/lib/cosmos";
+import { mercadoPagoDisponible } from "@/lib/mercadopago";
 import { esCuentaDePrueba, leer } from "@/lib/db";
 import { iaDisponible } from "@/lib/ia";
 import { vozDisponible } from "@/lib/voz";
@@ -20,6 +21,8 @@ export async function GET() {
     ofertasDePrueba: db.ofertas.filter(esDePrueba).length,
     ia: iaDisponible(),
     voz: vozDisponible(),
-    pagos: cosmosDisponible(),
+    pagos: cosmosDisponible() || mercadoPagoDisponible(),
+    cosmos: cosmosDisponible(),
+    mercadopago: mercadoPagoDisponible(),
   });
 }

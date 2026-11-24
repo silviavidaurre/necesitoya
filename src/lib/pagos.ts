@@ -1,6 +1,23 @@
 import { variable } from "./config";
-import { usdc } from "./cosmos";
-import type { BaseDeDatos, EstadoDePago, Pago, PagoPublico } from "./tipos";
+import { cosmosDisponible, modoDeCosmos, usdc } from "./cosmos";
+import { mercadoPagoDisponible } from "./mercadopago";
+import type { BaseDeDatos, EstadoDePago, Pago, PagoPublico, Prestador } from "./tipos";
+
+// Hay algún medio de pago configurado en el servidor.
+export function pagosDisponibles() {
+  return cosmosDisponible() || mercadoPagoDisponible();
+}
+
+// A este prestador se le puede pagar por la app: con Cosmos (cargó su billetera) o con Mercado Pago (conectó su cuenta).
+export function cobraPorLaApp(prestador: Pick<Prestador, "billetera" | "mercadopago" | "ejemplo">) {
+  if (prestador.ejemplo) return false;
+  return (cosmosDisponible() && Boolean(prestador.billetera)) || (mercadoPagoDisponible() && Boolean(prestador.mercadopago));
+}
+
+// El pago a este prestador queda retenido hasta confirmar: solo con Cosmos en modo protegido.
+export function pagoProtegidoPara(prestador: Pick<Prestador, "billetera" | "ejemplo">) {
+  return !prestador.ejemplo && cosmosDisponible() && Boolean(prestador.billetera) && modoDeCosmos() === "protegido";
+}
 
 // Reglas de los pagos dentro de la app, sin importar el proveedor.
 

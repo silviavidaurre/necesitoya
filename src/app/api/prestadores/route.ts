@@ -18,8 +18,8 @@ export async function GET(request: Request) {
 
 // El perfil propio tal como lo ve su dueño: sin el identificador de la cuenta (puede ser un mail).
 function perfilPropio(prestador: Prestador) {
-  const { cuenta, idCliente: _intento, ...resto } = prestador;
-  return { ...resto, conCuenta: Boolean(cuenta) };
+  const { cuenta, idCliente: _intento, mercadopago, ...resto } = prestador;
+  return { ...resto, conCuenta: Boolean(cuenta), conMercadoPago: Boolean(mercadopago) };
 }
 
 // Crea un perfil nuevo o, si viene el id, guarda los cambios del existente.
