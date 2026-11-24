@@ -4,6 +4,7 @@ import { BotonPrimario, Cabecera, Campo, Cargando, Chip, ErrorDePantalla, Pantal
 import { RUBROS, ZONAS, type RubroId } from "@/lib/catalogo";
 import { pedir } from "@/lib/cliente";
 import { useRouter } from "@/lib/navegacion";
+import { billeteraValida } from "@/lib/stellar";
 
 // Editar el perfil: los mismos datos del alta, ya cargados, y un solo botón para guardar.
 export default function EditarPerfil() {
@@ -17,7 +18,8 @@ export default function EditarPerfil() {
   const [descripcion, setDescripcion] = useState("");
   const [disponibilidad, setDisponibilidad] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [faltas, setFaltas] = useState<{ nombre?: string; rubros?: string; whatsapp?: string }>({});
+  const [billetera, setBilletera] = useState("");
+  const [faltas, setFaltas] = useState<{ nombre?: string; rubros?: string; whatsapp?: string; billetera?: string }>({});
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
@@ -30,6 +32,7 @@ export default function EditarPerfil() {
     setDescripcion(prestador.descripcion);
     setDisponibilidad(prestador.disponibilidad);
     setWhatsapp(prestador.whatsapp);
+    setBilletera(prestador.billetera ?? "");
     setListo(true);
   }, [prestador, listo]);
 
@@ -45,6 +48,7 @@ export default function EditarPerfil() {
     if (nombre.trim().length < 2) nuevas.nombre = "Escribí tu nombre y apellido.";
     if (rubros.length === 0) nuevas.rubros = "Elegí al menos un oficio.";
     if (whatsapp.trim() && whatsapp.replace(/\D/g, "").length < 8) nuevas.whatsapp = "Escribilo con la característica, por ejemplo 388 4123456. O dejalo vacío.";
+    if (billetera.trim() && !billeteraValida(billetera.trim().toUpperCase())) nuevas.billetera = "Revisala: empieza con G y tiene 56 letras y números. Copiala de tu billetera.";
     setFaltas(nuevas);
     if (Object.keys(nuevas).length > 0) return;
 
@@ -53,7 +57,7 @@ export default function EditarPerfil() {
     try {
       await pedir("/api/prestadores", {
         method: "POST",
-        body: JSON.stringify({ id: prestador?.id, nombre, rubros, zonas, aniosExperiencia: Number(anios) || 0, descripcion, disponibilidad, whatsapp }),
+        body: JSON.stringify({ id: prestador?.id, nombre, rubros, zonas, aniosExperiencia: Number(anios) || 0, descripcion, disponibilidad, whatsapp, billetera: billetera.trim().toUpperCase() }),
       });
       router.replace("/prestador/perfil");
     } catch (e) {
@@ -118,6 +122,23 @@ export default function EditarPerfil() {
       </Campo>
       <Campo etiqueta="Tu celular (opcional)" error={faltas.whatsapp} ayuda="No se le muestra a nadie. Los vecinos te escriben por el chat de la app.">
         <input className={claseCampo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" />
+      </Campo>
+
+      <Campo
+        etiqueta="Billetera para cobrar por la app (opcional)"
+        error={faltas.billetera}
+        ayuda="Tu dirección Stellar (empieza con G). Ahí te llegan los pagos protegidos en USDC. Tiene que aceptar USDC."
+      >
+        <input
+          className={`${claseCampo} font-mono text-[15px]`}
+          value={billetera}
+          onChange={(e) => setBilletera(e.target.value.replace(/\s/g, ""))}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={56}
+          placeholder="G..."
+        />
       </Campo>
 
       {error && <ErrorDePantalla>{error}</ErrorDePantalla>}

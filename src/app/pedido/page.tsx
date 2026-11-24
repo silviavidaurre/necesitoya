@@ -4,13 +4,25 @@ import { BotonPrimario, BotonSecundario, BotonTexto, Cabecera, Cargando, ErrorDe
 import { pesos, rubroPorId } from "@/lib/catalogo";
 import { ErrorDePedido, guardarMiPedido, leerMisPedidos, pedir } from "@/lib/cliente";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
+import { Diagnostico } from "@/components/Diagnostico";
 import { PantallaChat } from "@/components/PantallaChat";
-import { Estrellas, ResumenDeReputacion } from "@/components/Reputacion";
+import { Estrellas, ResumenDeReputacion, Verificacion } from "@/components/Reputacion";
 import { claseCampo } from "@/components/ui";
 import { frasePresupuestos } from "@/lib/frases";
 import { Link, useRouter } from "@/lib/navegacion";
 import type { Seguimiento } from "@/lib/seguimiento";
-import type { OfertaParaCliente } from "@/lib/tipos";
+import type { EstadoDePago, OfertaParaCliente, PagoPublico } from "@/lib/tipos";
+
+const TEXTO_DE_PAGO: Record<EstadoDePago, string> = {
+  pendiente: "Esperando el pago",
+  retenido: "Pago retenido hasta que confirmes",
+  liberado: "Pago liberado",
+  en_disputa: "Pago en reclamo",
+  resuelto: "Reclamo del pago resuelto",
+  vencido: "El pago venció",
+  cancelado: "Pago cancelado",
+  pagado: "Pagado",
+};
 
 function iniciales(nombre: string) {
   return nombre
@@ -57,6 +69,8 @@ export default function SeguimientoPedido() {
   const [comentario, setComentario] = useState("");
   const [enviandoNota, setEnviandoNota] = useState(false);
   const [pidiendoMuestra, setPidiendoMuestra] = useState(false);
+  // Pagar o confirmar el trabajo: mientras se guarda, el botón principal muestra que está trabajando.
+  const [trabajando, setTrabajando] = useState(false);
   // El presupuesto cuyo chat está abierto, si hay alguno.
   const [chat, setChat] = useState<OfertaParaCliente | null>(null);
   // Cada cambio hecho desde esta pantalla sube el contador: una consulta automática que salió antes
@@ -79,11 +93,24 @@ export default function SeguimientoPedido() {
       setDatos(respuesta);
       setError("");
       guardarMiPedido({ id, clave, titulo: respuesta.pedido.titulo, creado: respuesta.pedido.creado });
+      // Si hay un pago en curso se pregunta su estado a Cosmos (por si el aviso todavía no llegó).
+      const pagoEnCurso = respuesta.ofertas.find((o) => o.estado === "elegida")?.pago;
+      if (pagoEnCurso && (pagoEnCurso.estado === "pendiente" || pagoEnCurso.estado === "retenido" || !pagoEnCurso.comisionPagada)) {
+        const actual = await pedir<{ pago: PagoPublico | null }>(`/api/pagos?id=${encodeURIComponent(id)}&clave=${encodeURIComponent(clave)}`).catch(() => null);
+        if (actual?.pago && alSalir === cambios.current) {
+          setDatos({ ...respuesta, ofertas: respuesta.ofertas.map((o) => (o.estado === "elegida" ? { ...o, pago: actual.pago } : o)) });
+        }
+      }
     } catch (e) {
       if (e instanceof ErrorDePedido && (e.estado === 403 || e.estado === 404)) setError(e.message);
       else setError("Sin conexión. Seguimos intentando.");
     }
   }, [id, clave]);
+
+  const tituloDelPedido = datos?.pedido.titulo;
+  useEffect(() => {
+    if (tituloDelPedido) document.title = `${tituloDelPedido} · NecesitoYa`;
+  }, [tituloDelPedido]);
 
   const abierto = datos?.pedido.estado !== "cerrado";
   useEffect(() => {
@@ -128,6 +155,48 @@ export default function SeguimientoPedido() {
       setError(e instanceof Error ? e.message : "No pudimos guardar tu calificación. Probá de nuevo.");
     } finally {
       setEnviandoNota(false);
+    }
+  }
+
+  // La página de pago de Cosmos se abre en otra pestaña. Se abre en el mismo toque (si no, el celular la bloquea).
+  function abrirPago(url: string, ventana?: Window | null) {
+    if (!url) return;
+    if (ventana) ventana.location.href = url;
+    else if (!window.open(url, "_blank", "noopener")) window.location.href = url;
+  }
+
+  async function pagar() {
+    if (!clave) return;
+    const existente = datos?.ofertas.find((o) => o.estado === "elegida")?.pago;
+    if (existente?.urlDePago) return abrirPago(existente.urlDePago);
+    const ventana = window.open("", "_blank");
+    setTrabajando(true);
+    setError("");
+    try {
+      const respuesta = await pedir<{ pago: PagoPublico }>("/api/pagos", { method: "POST", body: JSON.stringify({ id, clave }), espera: 40_000 });
+      cambios.current += 1;
+      abrirPago(respuesta.pago.urlDePago, ventana);
+      setDatos((previos) => previos && { ...previos, ofertas: previos.ofertas.map((o) => (o.estado === "elegida" ? { ...o, pago: respuesta.pago } : o)) });
+    } catch (e) {
+      ventana?.close();
+      setError(e instanceof Error ? e.message : "No pudimos armar el pago. Probá de nuevo.");
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  async function confirmar() {
+    if (!clave) return;
+    setTrabajando(true);
+    setError("");
+    try {
+      const respuesta = await pedir<Seguimiento>("/api/pedido/confirmar", { method: "POST", body: JSON.stringify({ id, clave }) });
+      cambios.current += 1;
+      setDatos(respuesta);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos guardar la confirmación. Probá de nuevo.");
+    } finally {
+      setTrabajando(false);
     }
   }
 
@@ -212,8 +281,16 @@ export default function SeguimientoPedido() {
           <h1 className="mt-5 text-[30px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Elegís a {pila}?</h1>
           <p className="mt-3 text-[44px] font-bold leading-none tracking-[-0.03em] text-ink">{pesos(porConfirmar.precio)}</p>
           <p className="mt-2 text-[15px] text-ink-500">Puede ir: {porConfirmar.cuando.toLowerCase()}</p>
+          {!porConfirmar.prestador.ejemplo && (
+            <p className="mt-3">
+              <Verificacion nivel={porConfirmar.prestador.nivel} />
+            </p>
+          )}
         </div>
-        <p className="mt-8 text-center text-[15px] text-ink-500">Se cierran los otros presupuestos y se abre el chat para coordinar.</p>
+        <p className="mt-8 text-center text-[15px] text-ink-500">
+          Se cierran los otros presupuestos y se abre el chat para coordinar.
+          {datos.pagos && porConfirmar.prestador.cobraPorLaApp && !porConfirmar.prestador.ejemplo ? " Después pagás protegido: la plata queda retenida hasta que confirmes que quedó bien." : ""}
+        </p>
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
     );
@@ -250,63 +327,140 @@ export default function SeguimientoPedido() {
     );
   }
 
-  // Resultado: ya eligió. Un check, el nombre y la única acción que queda: escribirle por el chat.
+  // Resultado: ya eligió. Lo que sigue depende de en qué quedó el trabajo:
+  // pagar protegido → esperar que termine → confirmar con la foto del después → liberar el pago → calificar.
+  // Siempre una sola acción azul: la que toca ahora.
   if (elegida) {
     const pila = elegida.prestador.nombre.split(" ")[0];
+    const pago = elegida.pago;
+    const muestra = elegida.prestador.ejemplo;
+    const puedePagar = datos.pagos && elegida.prestador.cobraPorLaApp && !muestra;
+    const terminado = elegida.terminado;
+    const confirmado = Boolean(pedido.confirmado);
+    const porLiberar = confirmado && pago?.modo === "protegido" && pago.estado === "retenido";
+    const porPagar = !confirmado && puedePagar && (!pago || pago.estado === "pendiente");
+    const porConfirmarTrabajo = !confirmado && (Boolean(terminado) || muestra);
+
+    let principal: { texto: string; accion: () => void } | null = null;
+    if (porLiberar) principal = { texto: "Liberar el pago", accion: () => abrirPago(pago.urlDePago) };
+    else if (porConfirmarTrabajo) principal = { texto: "Confirmar que quedó bien", accion: confirmar };
+    else if (confirmado && !pedido.calificacion) principal = { texto: `Calificar a ${pila}`, accion: () => setCalificando(true) };
+    else if (porPagar) principal = { texto: pago ? "Terminar el pago" : "Pagar protegido", accion: pagar };
+    else if (!muestra) principal = { texto: `Escribirle a ${pila}`, accion: () => setChat(elegida) };
+
+    const titulo = confirmado ? "Trabajo terminado" : terminado ? `${pila} terminó el trabajo` : `Elegiste a ${pila}`;
+    const bajada = muestra
+      ? "Era un presupuesto de muestra. Con un prestador real, acá se abre el chat para coordinar."
+      : porLiberar
+        ? "Abrimos Cosmos Pay: aprobá y liberá el pago con tu billetera. Así le llega a " + pila + "."
+        : confirmado
+          ? "Gracias por confirmar."
+          : terminado
+            ? "Mirá la foto. Si algo no quedó bien, escribile antes de confirmar."
+            : porPagar
+              ? "Pagá por la app: la plata queda retenida hasta que confirmes que quedó bien."
+              : "Coordinen día y hora por el chat. Nadie ve tu teléfono.";
+
     return (
       <>
-      <Pantalla
-        pie={
-          <>
-            {!elegida.prestador.ejemplo && (
-              <>
-                {elegida.sinLeer > 0 && (
-                  <p className="mb-2 text-center">
-                    <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
-                  </p>
-                )}
-                <BotonPrimario onClick={() => setChat(elegida)}>Escribirle a {pila}</BotonPrimario>
-              </>
-            )}
-            <BotonTexto onClick={() => router.replace("/")}>Volver al inicio</BotonTexto>
-          </>
-        }
-      >
-        <Cabecera volver="/" cerrar />
-        <div className="mt-6 flex flex-col items-center text-center">
-          <span className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-subtle text-success">
-            <Icono nombre="check" size={44} />
-          </span>
-          <h1 className="mt-5 text-[32px] font-bold leading-tight tracking-[-0.02em] text-ink">Elegiste a {pila}</h1>
-          <p className="mt-2 text-[17px] text-ink-500">
-            {elegida.prestador.ejemplo ? "Era un presupuesto de muestra. Con un prestador real, acá se abre el chat para coordinar." : "Coordinen día, hora y pago por el chat. Nadie ve tu teléfono."}
-          </p>
-        </div>
-        <div className="mt-8 divide-y divide-line">
-          <Dato etiqueta="Trabajo" valor={pedido.titulo} />
-          <Dato etiqueta="Precio" valor={pesos(elegida.precio)} />
-          <Dato etiqueta="Puede ir" valor={elegida.cuando} />
-          <Dato etiqueta="Prestador" valor={elegida.prestador.nombre} />
-        </div>
+        <Pantalla
+          pie={
+            <>
+              {!muestra && elegida.sinLeer > 0 && (
+                <p className="mb-2 text-center">
+                  <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
+                </p>
+              )}
+              {principal && (
+                <BotonPrimario onClick={principal.accion} cargando={trabajando}>
+                  {principal.texto}
+                </BotonPrimario>
+              )}
+              {principal && !principal.texto.startsWith("Escribirle") && !muestra ? (
+                <BotonTexto onClick={() => setChat(elegida)}>Escribirle a {pila}</BotonTexto>
+              ) : (
+                <BotonTexto onClick={() => router.replace("/")}>Volver al inicio</BotonTexto>
+              )}
+            </>
+          }
+        >
+          <Cabecera volver="/" cerrar />
+          <div className="mt-2 flex flex-col items-center text-center">
+            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-success">
+              <Icono nombre="check" size={36} />
+            </span>
+            <h1 className="mt-4 text-[30px] font-bold leading-tight tracking-[-0.02em] text-ink">{titulo}</h1>
+            <p className="mt-2 text-[17px] text-ink-500">{bajada}</p>
+          </div>
 
-        <div className="mt-8">
-          {pedido.calificacion ? (
-            <div className="flex flex-col items-center gap-2 text-center">
+          {terminado?.fotoId && (
+            <figure className="mt-6">
+              <img src={`/api/fotos?id=${terminado.fotoId}`} alt={`Cómo quedó el trabajo, según ${pila}`} className="max-h-72 w-full rounded-[22px] object-cover" />
+              <figcaption className="mt-2 text-[13px] text-ink-500">Foto del después que mandó {pila}.</figcaption>
+            </figure>
+          )}
+
+          <div className="mt-6 divide-y divide-line">
+            <Dato etiqueta="Trabajo" valor={pedido.titulo} />
+            <Dato etiqueta="Precio" valor={pesos(elegida.precio)} />
+            <Dato etiqueta="Puede ir" valor={elegida.cuando} />
+            <Dato etiqueta="Prestador" valor={elegida.prestador.nombre} />
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {!muestra && (
+              <p>
+                <Verificacion nivel={elegida.prestador.nivel} />
+              </p>
+            )}
+            {pago && (
+              <p>
+                <Estado tono={pago.estado === "en_disputa" || pago.estado === "vencido" ? "mal" : pago.estado === "pendiente" ? "neutro" : "bien"}>
+                  {TEXTO_DE_PAGO[pago.estado]} · {pago.monto} {pago.moneda}
+                </Estado>
+              </p>
+            )}
+            {!pago && !muestra && !confirmado && (
+              <p>
+                <Estado>{puedePagar ? "Todavía no pagaste" : `${pila} todavía no cobra por la app. Arreglen el pago por el chat`}</Estado>
+              </p>
+            )}
+            {!muestra && !terminado && !confirmado && (
+              <p>
+                <Estado>Esperando que {pila} marque el trabajo como terminado</Estado>
+              </p>
+            )}
+          </div>
+
+          {porPagar && (
+            <p className="mt-4 text-[15px] text-ink-500">
+              {pago ? `Son ${pago.monto} USDC` : "Se paga en USDC con Cosmos Pay"}, en una página segura. NecesitoYa cobra una comisión fija aparte
+              {pago ? ` de ${pago.comision} USDC` : ""}.
+            </p>
+          )}
+          {pago?.urlDeComision && !pago.comisionPagada && pago.estado !== "pendiente" && (
+            <button type="button" onClick={() => abrirPago(pago.urlDeComision ?? "")} className="mt-3 flex min-h-12 items-center text-base font-semibold text-brand">
+              Pagar la comisión de NecesitoYa ({pago.comision} USDC)
+            </button>
+          )}
+
+          {pedido.calificacion && (
+            <div className="mt-8 flex flex-col items-center gap-2 text-center">
               <Estrellas valor={pedido.calificacion.estrellas} size={24} />
               <p className="text-[15px] text-ink-500">Gracias por calificar a {pila}.</p>
             </div>
-          ) : (
-            <>
+          )}
+          {porLiberar && !pedido.calificacion && (
+            <div className="mt-6">
               <BotonSecundario onClick={() => setCalificando(true)}>
                 <Icono nombre="estrella" size={20} />
                 Calificar a {pila}
               </BotonSecundario>
-              <p className="mt-3 text-center text-[13px] text-ink-500">Hacelo cuando termine el trabajo.</p>
-            </>
+            </div>
           )}
-        </div>
-      </Pantalla>
-      {pantallaDeChat}
+          {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+        </Pantalla>
+        {pantallaDeChat}
       </>
     );
   }
@@ -360,7 +514,12 @@ export default function SeguimientoPedido() {
                     {oferta.prestador.ejemplo ? (
                       <Estado>De muestra</Estado>
                     ) : (
-                      <ResumenDeReputacion reputacion={oferta.prestador.reputacion} aniosExperiencia={oferta.prestador.aniosExperiencia} />
+                      <>
+                        <ResumenDeReputacion reputacion={oferta.prestador.reputacion} aniosExperiencia={oferta.prestador.aniosExperiencia} />
+                        <span className="mt-0.5 block">
+                          <Verificacion nivel={oferta.prestador.nivel} />
+                        </span>
+                      </>
                     )}
                   </div>
                   <Link href={`/p/${oferta.prestador.id}`} className="flex h-12 shrink-0 items-center text-[15px] font-semibold text-brand">
@@ -403,6 +562,8 @@ export default function SeguimientoPedido() {
           })}
         </ul>
       )}
+
+      {pedido.diagnostico && <Diagnostico diagnostico={pedido.diagnostico} />}
 
       <div className="mt-8">
         <BotonSecundario onClick={copiarEnlace}>

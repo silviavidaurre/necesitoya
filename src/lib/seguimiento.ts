@@ -1,6 +1,8 @@
 import { MAX_OFERTAS } from "./catalogo";
 import { resumenDeChat } from "./chat";
 import { pedidoPublico } from "./db";
+import { cosmosDisponible } from "./cosmos";
+import { pagoDe, pagoPublico } from "./pagos";
 import { reputacionDe } from "./reglas";
 import type { BaseDeDatos, OfertaParaCliente, Pedido } from "./tipos";
 
@@ -29,12 +31,14 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
             fotos: prestador.fotos ?? [],
             reputacion: reputacionDe(db, prestador.id),
             ejemplo: Boolean(prestador.ejemplo),
+            cobraPorLaApp: Boolean(prestador.billetera),
           },
+          pago: pagoPublico(pagoDe(db, oferta.id)),
         },
       ];
     });
 
-  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS };
+  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS, pagos: cosmosDisponible() };
 }
 
 export type Seguimiento = ReturnType<typeof seguimientoDe>;
