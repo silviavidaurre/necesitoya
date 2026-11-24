@@ -1,6 +1,6 @@
 import { modificar, nuevoId } from "./db";
-import { enviarFcm, fcmDisponible } from "./fcm";
-import { despertar, pushDisponible } from "./push";
+import { enviarFcm, fcmDisponible } from "@/integraciones/firebase-avisos/fcm";
+import { despertar, pushDisponible } from "@/integraciones/webpush-avisos/push";
 import { enSegundoPlano } from "./segundo-plano";
 import type { AvisoGuardado } from "./tipos";
 

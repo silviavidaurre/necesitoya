@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Estado } from "@/components/ui";
 import { leerCuenta, pedir } from "@/lib/cliente";
-import { appConAvisosNativos, avisosNativosActivos, esAppNativa, registrarAvisosNativos } from "@/lib/nativo";
+import { appConAvisosNativos, avisosNativosActivos, esAppNativa, registrarAvisosNativos } from "@/integraciones/capacitor-android/nativo";
 
 type EstadoDeAvisos = "cargando" | "no-soportado" | "sin-servidor" | "bloqueado" | "activo" | "apagado";
 

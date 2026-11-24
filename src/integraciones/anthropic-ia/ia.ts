@@ -1,10 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { claveDeIa } from "./config";
-import { RUBROS, RUBRO_IDS, ZONAS, normalizar, type RubroId } from "./catalogo";
-import { completarDiagnostico, diagnosticoBasico } from "./diagnostico";
-import type { PedidoBorrador, PerfilBorrador } from "./tipos";
+import { claveDeIa } from "@/lib/config";
+import { RUBROS, RUBRO_IDS, ZONAS, normalizar, type RubroId } from "@/lib/catalogo";
+import { completarDiagnostico, diagnosticoBasico } from "@/lib/diagnostico";
+import type { PedidoBorrador, PerfilBorrador } from "@/lib/tipos";
 
 const MODELO = "claude-opus-5-5";
 

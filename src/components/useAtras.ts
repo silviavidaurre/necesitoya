@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { anotarCierre } from "@/lib/nativo";
+import { anotarCierre } from "@/integraciones/capacitor-android/nativo";
 
 // En la app de Android, el botón atrás del celular cierra esta pantalla (la que está encima de todo).
 export function useCerrarConAtras(cerrar: () => void) {

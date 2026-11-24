@@ -1,6 +1,6 @@
-import { variable } from "./config";
-import { modificar, nuevoId } from "./db";
-import type { CorreoDePrueba } from "./tipos";
+import { variable } from "@/lib/config";
+import { modificar, nuevoId } from "@/lib/db";
+import type { CorreoDePrueba } from "@/lib/tipos";
 
 // Correos de la app (recuperar la contraseña, confirmar que se borre una cuenta), con Resend.
 // Queda apagado hasta que estén las dos variables:

@@ -1,5 +1,5 @@
 import { conexionDe, dentroDelCupo, dentroDelCupoDe } from "@/lib/db";
-import { armarPerfil, perfilBasico } from "@/lib/ia";
+import { armarPerfil, perfilBasico } from "@/integraciones/anthropic-ia/ia";
 
 
 export async function POST(request: Request) {

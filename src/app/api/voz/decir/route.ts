@@ -1,5 +1,5 @@
 import { conexionDe, dentroDelCupo, dentroDelCupoDe } from "@/lib/db";
-import { ErrorDeVoz, MAXIMO_TEXTO, decir } from "@/lib/voz";
+import { ErrorDeVoz, MAXIMO_TEXTO, decir } from "@/integraciones/elevenlabs-voz/voz";
 
 // Lee en voz alta un texto corto. Devuelve el audio en MP3.
 export async function POST(request: Request) {

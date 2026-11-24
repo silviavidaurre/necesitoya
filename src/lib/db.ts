@@ -1,8 +1,8 @@
 import type { BaseDeDatos, Pedido, PedidoPublico, Prestador } from "./tipos";
 
 // Puerta única a los datos. El almacén real se elige al arrancar el servidor:
-// un archivo JSON en desarrollo (servidor/almacen-archivo.ts) o una base D1 en Cloudflare
-// (servidor/almacen-d1.ts). El resto de la app solo usa leer() y modificar().
+// un archivo JSON en desarrollo (servidor/local/almacen-archivo.ts) o una base D1 en Cloudflare
+// (servidor/cloudflare/almacen-d1.ts). El resto de la app solo usa leer() y modificar().
 
 export interface Foto {
   tipo: string;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Estado, Icono } from "@/components/ui";
 import { callar, leerEnVozAlta, prepararParlante, type EstadoDeLectura } from "@/lib/lectura";
-import { vozEnServidor } from "@/lib/voz-cliente";
+import { vozEnServidor } from "@/integraciones/elevenlabs-voz/voz-cliente";
 
 // Acción secundaria para que la app lea en voz alta lo que hay en pantalla. Tocar de nuevo corta el audio.
 // Si el servidor no tiene voz, no aparece: la pantalla queda igual que antes.

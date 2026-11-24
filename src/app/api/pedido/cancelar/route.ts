@@ -1,5 +1,5 @@
 import { avisar } from "@/lib/avisos";
-import { cancelarPagoProtegido, cosmosDisponible } from "@/lib/cosmos";
+import { cancelarPagoProtegido, cosmosDisponible } from "@/integraciones/cosmos-pagos/cosmos";
 import { modificar } from "@/lib/db";
 import { anotarEstado, pagoDe } from "@/lib/pagos";
 import { seguimientoDe } from "@/lib/seguimiento";

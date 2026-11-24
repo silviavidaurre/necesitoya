@@ -1,5 +1,5 @@
 import { leer } from "@/lib/db";
-import { estadoDeConexion, mercadoPagoDisponible, urlDeAutorizacion } from "@/lib/mercadopago";
+import { estadoDeConexion, mercadoPagoDisponible, urlDeAutorizacion } from "@/integraciones/mercadopago-pagos/mercadopago";
 
 // El prestador pide conectar su cuenta de Mercado Pago. Entra con su id secreto (en el cuerpo, nunca en la dirección)
 // y recibe la página de Mercado Pago donde autoriza a NecesitoYa a cobrar en su nombre.

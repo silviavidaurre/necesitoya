@@ -318,7 +318,7 @@ export interface BaseDeDatos {
   reclamos?: Reclamo[];
   denuncias?: Denuncia[];
   bajas?: SolicitudDeBaja[];
-  // Mails a direcciones .test: no se mandan, quedan acá para las pruebas (ver lib/correo.ts).
+  // Mails a direcciones .test: no se mandan, quedan acá para las pruebas (ver integraciones/resend-correo).
   correos?: CorreoDePrueba[];
 }
 
