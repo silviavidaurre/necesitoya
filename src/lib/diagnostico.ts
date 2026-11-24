@@ -1,5 +1,5 @@
 import { normalizar, type RubroId } from "./catalogo";
-import { limpiarTexto } from "./texto";
+import { limpiarTexto, limpiarTextoProlijo } from "./texto";
 import type { Diagnostico, Riesgo } from "./tipos";
 
 // Reglas del diagnóstico que no dependen de la IA. Se aplican siempre, venga de la IA, del modo básico
@@ -35,7 +35,7 @@ export function matriculadoPara(rubro: RubroId, texto: string): Diagnostico["mat
 
 function lista(valor: unknown, maximoItems: number, maximoLargo: number) {
   if (!Array.isArray(valor)) return [];
-  return [...new Set(valor.map((v) => limpiarTexto(v, maximoLargo)).filter(Boolean))].slice(0, maximoItems);
+  return [...new Set(valor.map((v) => limpiarTextoProlijo(v, maximoLargo)).filter(Boolean))].slice(0, maximoItems);
 }
 
 // Deja el diagnóstico prolijo y con las reglas de seguridad aplicadas. Devuelve null si no hay nada que mostrar.
@@ -46,7 +46,7 @@ export function completarDiagnostico(crudo: unknown, rubro: RubroId, texto: stri
   // Gas y electricidad nunca son de riesgo bajo.
   if (matriculado && riesgo === "bajo") riesgo = "medio";
 
-  const causa = limpiarTexto(d.causa, 300);
+  const causa = limpiarTextoProlijo(d.causa, 300);
   const queHacerYa = lista(d.queHacerYa, 4, 160);
   const materiales = lista(d.materiales, 6, 80);
   const preguntas = lista(d.preguntas, 4, 140);
