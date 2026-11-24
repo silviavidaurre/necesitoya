@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* Tokens de NecesitoYa.
+   Regla de uso: casi todo blanco, texto e íconos en tinta, y el azul solo en la acción principal y los enlaces.
+   Verde = salió bien. Rojo = error o algo que se pierde. Los estados neutros van con un punto gris y una palabra. */
+@theme {
+  --color-brand: #0b6fd6;
+  --color-brand-600: #0a5cb8;
+  --color-brand-50: #eaf3fe;
+  --color-sol: #ffc93c;
+  --color-ink: #111418;
+  --color-ink-500: #5f6772;
+  --color-ink-400: #6b7380;
+  --color-subtle: #f3f5f7;
+  --color-line: #e6e9ed;
+  --color-success: #0e7a41;
+  --color-danger: #d92d20;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-subtle);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Onda del micrófono mientras graba. */
+@keyframes onda {
+  0% {
+    box-shadow: 0 0 0 0 rgb(217 45 32 / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgb(217 45 32 / 0);
+  }
+}
+
+.grabando {
+  animation: onda 1.4s ease-out infinite;
+}
+
+@keyframes entrar {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.entrar {
+  animation: entrar 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grabando,
+  .entrar {
+    animation: none;
+  }
+}
+
+/* Zonas que se deslizan con el dedo (fila de filtros, detalle del pedido): sin la barra gris del navegador,
+   como en las apps del celular. Se sigue pudiendo deslizar, con el dedo, la rueda o el teclado. */
+.sin-barra {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sin-barra::-webkit-scrollbar {
+  display: none;
+}
