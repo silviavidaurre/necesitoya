@@ -134,6 +134,17 @@ export interface Cuenta {
   creado: string;
   // A quiénes bloqueó: "p:<id del prestador>" o "c:<cuenta del vecino>". Con un bloqueo no se cruzan más.
   bloqueos?: string[];
+  // true = cuenta para la revisión de Google Play: lo suyo no cuenta en las métricas.
+  revision?: boolean;
+}
+
+// Pedido de eliminar una cuenta hecho desde la página pública, sin entrar a la app. Lo resuelve el equipo en /admin.
+export interface SolicitudDeBaja {
+  id: string;
+  email: string;
+  estado: "pendiente" | "hecha" | "sin-cuenta";
+  creado: string;
+  resuelta?: string;
 }
 
 export interface Oferta {
@@ -288,6 +299,7 @@ export interface BaseDeDatos {
   verificaciones?: Verificacion[];
   reclamos?: Reclamo[];
   denuncias?: Denuncia[];
+  bajas?: SolicitudDeBaja[];
 }
 
 // Un celular que aceptó recibir avisos, unido a una cuenta. El endpoint lo da el navegador.

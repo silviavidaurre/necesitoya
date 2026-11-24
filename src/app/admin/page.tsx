@@ -99,12 +99,13 @@ export default function PanelInterno() {
     setError("");
     try {
       if (vista === "pendientes") {
-        const [v, d, r] = await Promise.all([
+        const [v, d, r, b] = await Promise.all([
           api<{ verificaciones: unknown[] }>(secreto, "/api/admin?seccion=verificaciones"),
           api<{ denuncias: unknown[] }>(secreto, "/api/admin?seccion=denuncias"),
           api<{ reclamos: unknown[] }>(secreto, "/api/admin?seccion=reclamos"),
+          api<{ bajas: unknown[] }>(secreto, "/api/admin?seccion=bajas"),
         ]);
-        setDatos({ ...v, ...d, ...r });
+        setDatos({ ...v, ...d, ...r, ...b });
       } else {
         setDatos(await api(secreto, `/api/admin?seccion=${vista}`));
       }
@@ -193,6 +194,30 @@ export default function PanelInterno() {
 
       {vista === "pendientes" && (
         <>
+          <Seccion derecha={String(datos.bajas?.length ?? "")}>Pedidos de baja</Seccion>
+          {datos.bajas?.length === 0 && <p className="mt-2 text-[15px] text-ink-500">No hay pedidos de eliminar cuentas.</p>}
+          <ul className="divide-y divide-line">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {datos.bajas?.map((b: any) => (
+              <li key={b.id} className="py-5">
+                <p className="text-base font-semibold text-ink">{b.email}</p>
+                <p className="text-sm text-ink-500">
+                  {new Date(b.creado).toLocaleString("es-AR")} · {b.tieneCuenta ? "tiene cuenta con mail" : "no hay cuenta con ese mail (puede ser de Google: escribile)"}
+                </p>
+                <div className="mt-3">
+                  <BotonSecundario
+                    disabled={ocupado}
+                    onClick={() => {
+                      if (window.confirm(`¿Eliminar la cuenta de ${b.email}? No se puede deshacer.`)) void hacer({ accion: "baja", id: b.id });
+                    }}
+                  >
+                    {b.tieneCuenta ? "Eliminar la cuenta" : "Marcar como resuelto"}
+                  </BotonSecundario>
+                </div>
+              </li>
+            ))}
+          </ul>
+
           <Seccion derecha={String(datos.verificaciones?.length ?? "")}>Verificaciones</Seccion>
           {datos.verificaciones?.length === 0 && <p className="mt-2 text-[15px] text-ink-500">No hay trámites pendientes.</p>}
           <ul className="divide-y divide-line">

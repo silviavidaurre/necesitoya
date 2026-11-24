@@ -46,11 +46,14 @@ const COLECCIONES = {
   verificaciones: "id",
   reclamos: "id",
   denuncias: "id",
+  bajas: "id",
 } as const satisfies Record<keyof BaseDeDatos, string>;
 
 type Coleccion = keyof typeof COLECCIONES;
 const NOMBRES = Object.keys(COLECCIONES) as Coleccion[];
 const MIGRACION = "tablas-v1";
+// Cuando se suma una colección nueva (una tabla nueva), se sube esta marca: crea las tablas que falten sin migrar nada.
+const ESQUEMA = "esquema-2";
 const INTENTOS = 6;
 // D1 admite hasta 100 valores por sentencia y sentencias de hasta 100 KB: se agrupa por debajo de eso.
 const FILAS_POR_SENTENCIA = 45;
@@ -136,15 +139,23 @@ async function migrar(d1: BaseD1) {
 
 async function preparar(d1: BaseD1) {
   if (lista) return;
-  // Lo normal (ya migrada) es una sola consulta; si falla es porque la tabla todavía no existe.
-  const hecha = await d1
-    .prepare("SELECT estado FROM migraciones WHERE nombre = ?")
-    .bind(MIGRACION)
-    .first<{ estado: string }>()
-    .catch(() => null);
-  if (hecha?.estado !== "hecha") {
+  // Lo normal (ya migrada y con el esquema al día) es una sola consulta; si falla es porque la tabla todavía no existe.
+  const marcas = await d1
+    .prepare("SELECT nombre, estado FROM migraciones WHERE nombre IN (?, ?)")
+    .bind(MIGRACION, ESQUEMA)
+    .all<{ nombre: string; estado: string }>()
+    .then((r) => r.results ?? [])
+    .catch(() => []);
+  const migrada = marcas.some((m) => m.nombre === MIGRACION && m.estado === "hecha");
+  const alDia = marcas.some((m) => m.nombre === ESQUEMA);
+  if (!migrada) {
     await crearTablas(d1);
     await migrar(d1);
+  }
+  if (!alDia) {
+    // Solo crea las tablas que falten (CREATE IF NOT EXISTS): no toca datos.
+    await crearTablas(d1);
+    await d1.prepare("INSERT OR IGNORE INTO migraciones (nombre, estado, fecha) VALUES (?, 'hecha', ?)").bind(ESQUEMA, new Date().toISOString()).run();
   }
   lista = true;
 }

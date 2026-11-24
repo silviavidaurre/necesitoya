@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { recordarPrestador } from "@/components/usePrestador";
+import { PantallaEliminarCuenta } from "@/components/EliminarCuenta";
 import { Link } from "@/lib/navegacion";
 import { BotonSecundario, Campo, claseCampo } from "@/components/ui";
 import {
@@ -122,6 +123,7 @@ export function EntrarACuenta({
 }) {
   const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
   const [abierto, setAbierto] = useState(abiertoAlInicio);
+  const [eliminando, setEliminando] = useState(false);
   const [email, setEmail] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [entrando, setEntrando] = useState(false);
@@ -201,16 +203,34 @@ export function EntrarACuenta({
     }
   }
 
+  // "Mi cuenta": quién está, cambiar de cuenta y eliminarla (como pide Google Play), con los enlaces legales al pie.
   if (cuenta) {
     return (
-      <div className="mt-8 flex min-h-12 items-center justify-between gap-3">
-        <p className="min-w-0 text-[15px] text-ink-500">
-          Tu cuenta: <span className="font-semibold text-ink">{cuenta.nombre}</span>
-        </p>
-        <button type="button" onClick={cerrarCuenta} className="flex min-h-12 shrink-0 items-center text-[15px] font-semibold text-brand">
-          Cambiar de cuenta
+      <section aria-label="Mi cuenta" className="mt-8 border-t border-line pt-4">
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <p className="min-w-0 text-[15px] text-ink-500">
+            Mi cuenta: <span className="font-semibold text-ink">{cuenta.nombre}</span>
+          </p>
+          <button type="button" onClick={cerrarCuenta} className="flex min-h-12 shrink-0 items-center text-[15px] font-semibold text-brand">
+            Cambiar de cuenta
+          </button>
+        </div>
+        <button type="button" onClick={() => setEliminando(true)} className="flex min-h-12 items-center text-[15px] font-semibold text-danger">
+          Eliminar mi cuenta
         </button>
-      </div>
+        <p className="mt-2 flex flex-wrap gap-x-4 text-[13px] text-ink-500">
+          <Link href="/privacidad" className="flex min-h-12 items-center underline underline-offset-2">
+            Privacidad
+          </Link>
+          <Link href="/terminos" className="flex min-h-12 items-center underline underline-offset-2">
+            Términos
+          </Link>
+          <Link href="/eliminar-cuenta" className="flex min-h-12 items-center underline underline-offset-2">
+            Cómo eliminar tu cuenta
+          </Link>
+        </p>
+        {eliminando && <PantallaEliminarCuenta alCerrar={() => setEliminando(false)} />}
+      </section>
     );
   }
 
