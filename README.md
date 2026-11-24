@@ -1,27 +1,28 @@
 # NecesitoYa
 
-Pedís con un audio lo que se te rompió y te llegan hasta tres presupuestos de gente de tu barrio. Hecha para San Salvador de Jujuy y Palpalá, en el Cursor Hackathon Jujuy (Tren Solar, noviembre de 2026), por Gabriel y Silvia.
+No te mostramos una lista. Te decimos qué tenés, cuánto cuesta y quién lo arregla, y tu plata queda protegida hasta que esté hecho. Hecha para San Salvador de Jujuy y Palpalá, en el Cursor Hackathon Jujuy (Tren Solar, noviembre de 2026), por Gabriel y Silvia.
 
 Publicada en https://necesitoya.gabriel13iturre.workers.dev
 
 ## Qué hace
 
-- **El vecino** cuenta lo que necesita hablando, escribiendo o con una foto. La IA arma el pedido: título, rubro, urgencia y cuánto suele costar la mano de obra.
-- **Hasta tres prestadores** mandan su precio. El último lugar queda reservado 15 minutos para los del barrio.
-- **El vecino compara y elige.** Se abre un chat dentro de la app: nadie ve el teléfono de nadie, y los números que se pegan en el chat se ocultan.
-- **El prestador** se anota contando por voz qué hace; la IA le arma el perfil. Cada trabajo calificado suma a su reputación.
-- **Voz:** dictado y lectura en voz alta, para quien no se lleva con escribir.
-- **Cuenta opcional** con mail y contraseña o con Google, para no perder el perfil ni los pedidos al cambiar de celular.
-
-Lo que todavía no está construido: el cobro, el trámite de verificación de prestadores y los avisos cuando la app está cerrada.
+- **Diagnóstico.** El vecino cuenta lo que le pasa hablando, escribiendo o con una foto. La IA arma el pedido y un diagnóstico orientativo: lo más probable, el riesgo, qué hacer ya, materiales y preguntas para el prestador. Con gas o electricidad siempre avisa que hace falta un matriculado y da los pasos de seguridad.
+- **Presupuestos.** Hasta tres prestadores mandan su precio; el último lugar queda reservado 15 minutos para los del barrio. Cada uno dice si está **verificado** (DNI y, si tiene, matrícula revisados a mano) o **sin verificar**.
+- **Chat dentro de la app.** Nadie ve el teléfono de nadie: los números que se pegan se ocultan. Se puede denunciar o bloquear desde el chat.
+- **Pago por la app (Cosmos Pay, USDC en Stellar).** Protegido: la plata queda retenida hasta que el vecino confirma. Mientras Cosmos no publique los pagos protegidos en su API, se cobra directo con la comisión fija separada en la misma transacción (`merchantFee`). Mercado Pago marketplace está armado detrás de configuración.
+- **Cierre del trabajo.** El prestador marca "Trabajo terminado" con la foto del después, el vecino confirma y recién ahí califica. El perfil público muestra el historial: trabajos terminados, cobrados por la app y reseñas.
+- **Reclamos y cancelaciones.** Cancelar, cambiar el día y reclamar con fotos (el chat sirve de prueba), conectado a la disputa del pago protegido.
+- **Cuenta obligatoria** para pedir y presupuestar (mail y contraseña, sin código, o Google).
+- **Avisos en el celular** (web push) y **app instalable**.
+- **Panel interno** en `/admin` (con secreto): verificaciones, denuncias, reclamos, métricas sin datos de muestra ni de prueba, y limpieza de los datos de las pruebas.
 
 ## Con qué está hecha
 
 - Vite, React 19, React Router 7, Tailwind 4 y TypeScript.
 - API en `src/app/api/**/route.ts`, registrada en `src/servidor/rutas.ts`.
-- En producción corre en un Worker de Cloudflare con una base D1 (`src/servidor/worker.ts`, `wrangler.jsonc`). En desarrollo guarda en un archivo local.
+- En producción corre en un Worker de Cloudflare con una base D1 (`src/servidor/worker.ts`, `wrangler.jsonc`), con una tabla por colección (`src/servidor/almacen-d1.ts`). La primera vez migra sola desde la fila única `estado`, que queda intacta como respaldo. En desarrollo guarda en un archivo local.
 - IA: Claude, con el SDK de Anthropic (`src/lib/ia.ts`). Sin clave, la app sigue andando en un modo básico por reglas.
-- Voz: ElevenLabs (`src/lib/voz.ts`).
+- Voz: ElevenLabs (`src/lib/voz.ts`). Pagos: Cosmos Pay (`src/lib/cosmos.ts`) y Mercado Pago (`src/lib/mercadopago.ts`). Avisos: web push con VAPID (`src/lib/push.ts`, `public/sw.js`).
 
 ## Correrla en tu máquina
 
@@ -35,7 +36,7 @@ Copiá `.env.example` como `.env.local` y completá las claves que tengas. Despu
 npm run dev
 ```
 
-Queda en http://localhost:3000.
+Queda en http://localhost:3000. Para probar el Worker real con D1 local: `npx vite build` y `npx wrangler dev` (lee los secretos de `.dev.vars`, que no se sube).
 
 ## Pruebas
 
@@ -45,7 +46,11 @@ Con la app corriendo, cada tanda se corre contra una dirección:
 node pruebas/circuito.mjs http://localhost:3000
 ```
 
-Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta` y `voz`. Crean datos de prueba en la base a la que apuntan.
+Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta`, `voz`, `confianza` (diagnóstico, verificado, cierre, pagos, webhook), `avisos` (push y app instalable) y `moderacion` (verificación, reclamos, denuncias, bloqueos, panel, límites, métricas). Usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con:
+
+```bash
+node pruebas/limpiar.mjs https://necesitoya.gabriel13iturre.workers.dev --borrar
+```
 
 ## Publicar
 
@@ -57,4 +62,4 @@ npx vite build
 npx wrangler deploy
 ```
 
-Las claves `ANTHROPIC_API_KEY` y `ELEVENLABS_API_KEY` van como secretos del Worker, nunca en el repositorio.
+Secretos del Worker (nunca en el repositorio): `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `VAPID_PRIVATE_KEY`, `ADMIN_SECRET`, `COSMOS_API_KEY`, `COSMOS_WALLET_COMISION`, `COSMOS_WEBHOOK_SECRET` y, para Mercado Pago, `MP_CLIENT_ID`, `MP_CLIENT_SECRET` y `MP_WEBHOOK_SECRET`. Ajustes opcionales: `COMISION_USDC` (por defecto 1), `COMISION_ARS` (1500), `ARS_POR_USDC` (si no, el dólar cripto del día), `COSMOS_MODO` (`protegido` o `directo`).
