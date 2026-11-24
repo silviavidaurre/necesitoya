@@ -85,6 +85,7 @@ export const CUPOS = {
   mensajes: 6000,
   avisos: 20000,
   adminFallos: 40,
+  bajas: 300,
 } as const;
 
 // true si todavía hay cupo para hoy. Cuenta el intento aunque después falle, a propósito.
@@ -114,6 +115,7 @@ export const CUPOS_POR_PERSONA = {
   iaPorConexion: 250,
   vozPorConexion: 400,
   cuentasPorConexion: 300,
+  bajasPorConexion: 10,
 } as const;
 
 // La dirección de quien pide, como la informa Cloudflare. En desarrollo no hay: ahí no se frena por conexión.
