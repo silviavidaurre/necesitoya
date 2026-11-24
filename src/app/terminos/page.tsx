@@ -46,9 +46,10 @@ export default function Terminos() {
 
       <Seccion>Pagos dentro de la app</Seccion>
       <Punto>
-        Si el prestador cobra por la app, el vecino puede pagar protegido con Cosmos Pay, en USDC sobre la red Stellar: la plata queda retenida en un
-        contrato y se libera al prestador cuando el vecino confirma el trabajo. Si hay un problema, el vecino puede abrir una disputa del pago y la
-        resuelve Cosmos Pay con lo que muestren las dos partes.
+        Si el prestador cobra por la app, el vecino puede pagarle con Cosmos Pay, en USDC sobre la red Stellar. Hoy el pago es directo: le llega al
+        prestador en el momento, con la comisión de NecesitoYa separada. Cuando Cosmos Pay habilite el pago protegido, la app lo va a ofrecer y lo
+        va a mostrar antes de pagar: en ese caso la plata queda retenida en un contrato hasta que el vecino confirma el trabajo, y si hay un problema
+        el vecino puede abrir una disputa que resuelve Cosmos Pay con lo que muestren las dos partes.
       </Punto>
       <Punto>
         NecesitoYa cobra una comisión fija por trabajo pagado por la app, que se muestra antes de pagar. Cosmos Pay descuenta además su propia

@@ -1,5 +1,6 @@
 import { MAX_OFERTAS, RUBRO_IDS, type RubroId } from "@/lib/catalogo";
 import { cuentaDe, dentroDelCupo, dentroDelCupoDe, guardarFoto, leer, modificar, nuevoId, pedidoPublico } from "@/lib/db";
+import { sinContacto } from "@/lib/chat";
 import { completarDiagnostico } from "@/lib/diagnostico";
 import { fotoValida } from "@/lib/fotos";
 import { bloqueados } from "@/lib/moderacion";
@@ -59,8 +60,9 @@ export async function POST(request: Request) {
   const cuerpo = await request.json().catch(() => null);
   if (!cuerpo || typeof cuerpo !== "object") return Response.json({ error: "Datos inválidos." }, { status: 400 });
 
-  const titulo = texto(cuerpo.titulo, 80);
-  const descripcion = texto(cuerpo.descripcion, 500);
+  // Los teléfonos se tapan como en el chat: el contacto va por la app.
+  const titulo = sinContacto(texto(cuerpo.titulo, 80));
+  const descripcion = sinContacto(texto(cuerpo.descripcion, 500));
   const zona = texto(cuerpo.zona, 60);
   const rubro = (RUBRO_IDS as string[]).includes(cuerpo.rubro) ? (cuerpo.rubro as RubroId) : null;
   const urgencia = URGENCIAS.includes(cuerpo.urgencia) ? (cuerpo.urgencia as Urgencia) : "semana";
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
     ejemplo: false,
     estado: "abierto",
     creado: new Date().toISOString(),
-    relato: texto(cuerpo.relato, 1000),
+    relato: sinContacto(texto(cuerpo.relato, 1000)),
     diagnostico: completarDiagnostico(cuerpo.diagnostico, rubro, `${titulo} ${descripcion} ${texto(cuerpo.relato, 1000)}`),
     fotoId,
     clienteWhatsapp,

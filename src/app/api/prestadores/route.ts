@@ -1,5 +1,6 @@
 import { RUBRO_IDS, type RubroId } from "@/lib/catalogo";
 import { cuentaDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
+import { sinContacto } from "@/lib/chat";
 import { billeteraValida } from "@/lib/stellar";
 import { reputacionDe } from "@/lib/reglas";
 import { limpiarLista, limpiarTexto as texto } from "@/lib/texto";
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     rubros,
     zonas,
     aniosExperiencia: anios,
-    descripcion: texto(cuerpo.descripcion, 400),
+    descripcion: sinContacto(texto(cuerpo.descripcion, 400)),
     disponibilidad: texto(cuerpo.disponibilidad, 120),
     whatsapp,
   };

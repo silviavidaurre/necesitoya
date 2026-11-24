@@ -142,6 +142,19 @@ const tarde = await escribir(deBeto, { prestadorId: beto.id }, "Si cambiás de i
 ok("escribir en un presupuesto descartado: 409", tarde.estado === 409, tarde.datos?.error ?? "");
 ok("el vecino tampoco puede escribirle al descartado: 409", (await escribir(deBeto, comoVecino, "Gracias igual")).estado === 409);
 
+// --- Teléfonos fuera del chat --------------------------------------------------------------------
+// Lo mismo que en el chat: un teléfono escrito en el presupuesto, el pedido o el perfil se tapa.
+const conTelefono = (await j("/api/ofertas", { pedidoId: otroPedido.id, prestadorId: colado.id, precio: 30000, cuando: "Mañana", mensaje: "Llevo todo. Llamame al 388 412-3456." })).datos?.oferta;
+const vistaConTelefono = (await j(`/api/pedido?id=${otroPedido.id}&clave=${otroPedido.clave}`)).datos?.ofertas?.find((o) => o.id === conTelefono?.id);
+ok("el teléfono en el mensaje del presupuesto se tapa", vistaConTelefono?.mensaje === `Llevo todo. Llamame al ${OCULTO}.`, vistaConTelefono?.mensaje ?? "");
+const pedidoConTelefono = (await j("/api/pedidos", { titulo: "Prueba de chat: cambiar el flexible", descripcion: "Pierde el flexible del lavatorio. Mi celu es 3884123456.", relato: "escribime al wa.me/5493884123456", rubro: "plomeria", urgencia: "semana", zona: "Alto Comedero", clienteNombre: "Vecina Telefono", cuenta: await cuentaDePrueba(U, "vecina") })).datos;
+const vistoPorPrestador = (await j(`/api/pedidos?prestadorId=${colado.id}`)).datos;
+const publicado = JSON.stringify((vistoPorPrestador?.pedidos ?? vistoPorPrestador ?? []).find?.((p) => p.id === pedidoConTelefono?.id) ?? null);
+ok("el teléfono en la descripción y el relato del pedido se tapa", publicado.includes(OCULTO) && !publicado.includes("3884123456") && !publicado.includes("wa.me"), publicado.slice(0, 160));
+const conTelefonoEnPerfil = (await j("/api/prestadores", { nombre: "Dario Perfil", rubros: ["plomeria"], zonas: ["Alto Comedero"], aniosExperiencia: 3, descripcion: "Plomero. WhatsApp 388-512-3456.", cuenta: await cuentaDePrueba(U, "prestador") })).datos?.prestador;
+const perfilPublico = JSON.stringify((await j(`/api/perfil?id=${conTelefonoEnPerfil?.idPublico}`)).datos);
+ok("el teléfono en la descripción del perfil se tapa", perfilPublico.includes(OCULTO) && !perfilPublico.includes("512-3456"), perfilPublico.slice(0, 160));
+
 // --- Nada privado en las respuestas --------------------------------------------------------------
 await j("/api/pedidos");
 await j(`/api/pedidos?prestadorId=${beto.id}`);
