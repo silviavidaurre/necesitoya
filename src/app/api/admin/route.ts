@@ -1,6 +1,8 @@
 import { comprobarAdmin } from "@/lib/admin";
 import { mensajesDe } from "@/lib/chat";
+import { PLAZOS, eliminarCuenta } from "@/lib/bajas";
 import { borrarFotos, esCuentaDePrueba, leer, modificar } from "@/lib/db";
+import { huellasDeRevision, prepararRevision } from "@/lib/revision";
 import { metricas } from "@/lib/metricas";
 import { nivelDe } from "@/lib/moderacion";
 import { pagoDe } from "@/lib/pagos";
@@ -100,6 +102,14 @@ export async function GET(request: Request) {
 
   if (seccion === "metricas") return Response.json({ metricas: metricas(db) });
 
+  // Pedidos de eliminar cuenta hechos desde la página pública, sin entrar a la app.
+  if (seccion === "bajas") {
+    const pendientes = (db.bajas ?? [])
+      .filter((b) => b.estado === "pendiente")
+      .map((b) => ({ id: b.id, email: b.email, creado: b.creado, tieneCuenta: Boolean(db.cuentas?.some((c) => c.sub === `mail:${b.email}`)) }));
+    return Response.json({ bajas: pendientes });
+  }
+
   if (seccion === "pruebas") {
     const prueba = deLasPruebas(db);
     return Response.json({ pruebas: { cuentas: prueba.cuentas.size, pedidos: prueba.pedidos.size, prestadores: prueba.prestadores.size, presupuestos: prueba.ofertas.size, fotos: prueba.fotos.length } });
@@ -107,6 +117,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     resumen: {
+      bajas: (db.bajas ?? []).filter((b) => b.estado === "pendiente").length,
       verificaciones: (db.verificaciones ?? []).filter((v) => v.estado === "pendiente").length,
       denuncias: (db.denuncias ?? []).filter((d) => d.estado === "abierta").length,
       reclamos: (db.reclamos ?? []).filter((r) => r.estado === "abierto").length,
@@ -175,6 +186,37 @@ export async function POST(request: Request) {
       return true;
     });
     return hecho ? Response.json({ listo: true }) : Response.json({ error: "Ese reclamo ya no está abierto." }, { status: 404 });
+  }
+
+  // Resolver un pedido de baja de la página pública: se elimina la cuenta de ese mail (si existe).
+  if (accion === "baja") {
+    const resultado = await modificar((db) => {
+      const baja = (db.bajas ?? []).find((b) => b.id === id && b.estado === "pendiente");
+      if (!baja) return null;
+      const r = eliminarCuenta(db, `mail:${baja.email}`);
+      baja.estado = r.existia ? "hecha" : "sin-cuenta";
+      baja.resuelta = ahora;
+      return r;
+    });
+    if (!resultado) return Response.json({ error: "Ese pedido ya no está pendiente." }, { status: 404 });
+    await borrarFotos(resultado.fotos);
+    return Response.json({ eliminada: resultado.existia, borrados: resultado.borrados, anonimizados: resultado.anonimizados, plazos: PLAZOS });
+  }
+
+  // Cuentas para la revisión de Google Play (vecino y prestador verificado, con un pedido y un presupuesto de ejemplo).
+  if (accion === "preparar-revision") {
+    const datos = cuerpo?.datos;
+    const valido = (c: unknown) => {
+      const x = c as { email?: unknown; contrasena?: unknown } | null;
+      return typeof x?.email === "string" && /^[^@ ]+@[^@ ]+[.][^@ ]+$/.test(x.email) && typeof x?.contrasena === "string" && x.contrasena.length >= 8;
+    };
+    if (!valido(datos?.vecino) || !valido(datos?.prestador)) return Response.json({ error: "Faltan mail y contraseña (8 o más) de las dos cuentas." }, { status: 400 });
+    const huellas = await huellasDeRevision({
+      vecino: { email: datos.vecino.email.toLowerCase(), contrasena: datos.vecino.contrasena },
+      prestador: { email: datos.prestador.email.toLowerCase(), contrasena: datos.prestador.contrasena },
+    });
+    const listo = await modificar((db) => prepararRevision(db, huellas));
+    return Response.json({ listo });
   }
 
   // Borra SOLO lo que crearon las cuentas de las pruebas automáticas (mails .test). Nunca toca datos reales.

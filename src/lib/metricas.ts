@@ -1,5 +1,6 @@
 import { esCuentaDePrueba } from "./db";
 import { pagoDe } from "./pagos";
+import { cuentasDeRevision } from "./revision";
 import type { BaseDeDatos, Pedido } from "./tipos";
 
 // Métricas de uso real para el panel interno. Nunca cuentan lo de muestra (`ejemplo`), los pedidos donde el vecino
@@ -11,12 +12,15 @@ function porcentaje(parte: number, total: number) {
   return total > 0 ? Math.round((parte / total) * 1000) / 10 : null;
 }
 
+// Tampoco cuentan las cuentas de la revisión de Google Play.
 export function pedidosReales(db: BaseDeDatos): Pedido[] {
-  return db.pedidos.filter((p) => !p.ejemplo && !p.conMuestra && !esCuentaDePrueba(p.cuenta));
+  const revision = cuentasDeRevision(db);
+  return db.pedidos.filter((p) => !p.ejemplo && !p.conMuestra && !esCuentaDePrueba(p.cuenta) && !(p.cuenta && revision.has(p.cuenta)));
 }
 
 export function metricas(db: BaseDeDatos, ahora = Date.now()) {
-  const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || esCuentaDePrueba(p.cuenta)).map((p) => p.id));
+  const revision = cuentasDeRevision(db);
+  const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || esCuentaDePrueba(p.cuenta) || (p.cuenta && revision.has(p.cuenta))).map((p) => p.id));
   const pedidos = pedidosReales(db);
   const ofertasReales = db.ofertas.filter((o) => !o.ejemplo && !prestadoresDePrueba.has(o.prestadorId));
 

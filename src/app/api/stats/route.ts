@@ -1,6 +1,7 @@
 import { cosmosDisponible } from "@/lib/cosmos";
 import { mercadoPagoDisponible } from "@/lib/mercadopago";
 import { esCuentaDePrueba, leer } from "@/lib/db";
+import { cuentasDeRevision } from "@/lib/revision";
 import { iaDisponible } from "@/lib/ia";
 import { vozDisponible } from "@/lib/voz";
 
@@ -10,8 +11,11 @@ import { vozDisponible } from "@/lib/voz";
 export async function GET() {
   const db = await leer();
   // Tampoco cuenta lo creado por las cuentas de las pruebas automáticas (mails .test).
-  const pedidosQueNoCuentan = new Set(db.pedidos.filter((p) => p.ejemplo || p.conMuestra || esCuentaDePrueba(p.cuenta)).map((p) => p.id));
-  const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || esCuentaDePrueba(p.cuenta)).map((p) => p.id));
+  // Ni las cuentas de la revisión de Google Play.
+  const revision = cuentasDeRevision(db);
+  const deRevision = (cuenta: string | undefined) => Boolean(cuenta && revision.has(cuenta));
+  const pedidosQueNoCuentan = new Set(db.pedidos.filter((p) => p.ejemplo || p.conMuestra || esCuentaDePrueba(p.cuenta) || deRevision(p.cuenta)).map((p) => p.id));
+  const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || esCuentaDePrueba(p.cuenta) || deRevision(p.cuenta)).map((p) => p.id));
   const esDePrueba = (o: (typeof db.ofertas)[number]) => Boolean(o.ejemplo) || pedidosQueNoCuentan.has(o.pedidoId) || prestadoresDePrueba.has(o.prestadorId);
 
   return Response.json({
