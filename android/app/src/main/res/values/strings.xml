@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">NecesitoYa</string>
     <string name="title_activity_main">NecesitoYa</string>
-    <string name="package_name">com.necesitoya.app</string>
-    <string name="custom_url_scheme">com.necesitoya.app</string>
+    <string name="package_name">com.iturrelabs.necesitoya</string>
+    <string name="custom_url_scheme">com.iturrelabs.necesitoya</string>
 </resources>
