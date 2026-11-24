@@ -324,7 +324,7 @@ function PantallaTerminado({
       }
     >
       <Cabecera alVolver={alCerrar} cerrar />
-      <Titulo pregunta={`${pila} la ve y confirma. Si pagó por la app, ahí se libera tu pago.`}>¿Cómo quedó?</Titulo>
+      <Titulo pregunta={`${pila} la ve y confirma.${oferta.pago?.modo === "protegido" && oferta.pago.estado === "retenido" ? " Ahí se libera tu pago." : ""}`}>¿Cómo quedó?</Titulo>
       <p className="mt-4 text-base font-semibold text-ink">{oferta.pedido?.titulo}</p>
       <input ref={entrada} type="file" accept="image/*" className="hidden" onChange={(e) => elegir(e.target.files?.[0])} />
       <div className="mt-6">

@@ -44,6 +44,12 @@ export function ocultarContacto(texto: string): { texto: string; oculto: boolean
   return { texto: limpio, oculto };
 }
 
+// Solo el texto, sin teléfonos ni WhatsApp: para todo lo que lee la otra parte fuera del chat
+// (mensaje del presupuesto, descripción del pedido, perfil del prestador).
+export function sinContacto(texto: string) {
+  return ocultarContacto(texto).texto;
+}
+
 export function mensajesDe(db: BaseDeDatos, ofertaId: string): Mensaje[] {
   return (db.mensajes ?? []).filter((m) => m.ofertaId === ofertaId);
 }

@@ -22,7 +22,9 @@ export default function PerfilPublicoDePrestador() {
     let vigente = true;
     pedir<{ perfil: PerfilPublico }>(`/api/perfil?id=${encodeURIComponent(id)}`)
       .then((datos) => {
-        if (vigente) setPerfil(datos.perfil);
+        if (!vigente) return;
+        setPerfil(datos.perfil);
+        document.title = `${datos.perfil.nombre} · NecesitoYa`;
       })
       .catch((e) => {
         if (!vigente) return;

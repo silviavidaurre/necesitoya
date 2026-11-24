@@ -26,6 +26,9 @@ interface Tramite {
 export default function PerfilPrestador() {
   const router = useRouter();
   const { prestador, cargando, sinConexion, reintentar } = usePrestador();
+  useEffect(() => {
+    document.title = "Mi perfil · NecesitoYa";
+  }, []);
   const [perfil, setPerfil] = useState<PerfilPublico | null>(null);
   const [error, setError] = useState("");
   const [subiendo, setSubiendo] = useState(false);
@@ -215,7 +218,7 @@ export default function PerfilPrestador() {
           <button type="button" onClick={() => router.push("/prestador/editar")} className="flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left">
             <div>
               <p className="text-base font-semibold text-ink">Cobrar por la app</p>
-              <p className="text-sm text-ink-500">{prestador.billetera ? "Billetera cargada. Te pagan protegido." : "Cargá tu billetera Stellar en Editar perfil."}</p>
+              <p className="text-sm text-ink-500">{prestador.billetera ? "Billetera cargada. Te pueden pagar por la app." : "Cargá tu billetera Stellar en Editar perfil."}</p>
             </div>
             {prestador.billetera ? <Estado tono="bien">Listo</Estado> : <Estado>Pendiente</Estado>}
           </button>
