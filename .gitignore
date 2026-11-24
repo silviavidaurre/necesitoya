@@ -47,3 +47,6 @@ next-env.d.ts
 # salida de compilación y estado local de wrangler
 /dist
 /.wrangler
+
+# secretos para wrangler dev (copia de .env.local)
+.dev.vars
