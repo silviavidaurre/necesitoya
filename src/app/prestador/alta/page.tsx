@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CajaRelato } from "@/components/CajaRelato";
+import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { BotonPrimario, Cabecera, Campo, Chip, ErrorDePantalla, Falta, Pantalla, Titulo, claseCampo } from "@/components/ui";
 import { RUBROS, ZONAS, type RubroId } from "@/lib/catalogo";
 import { useSearchParams } from "react-router-dom";
 import { recordarPrestador } from "@/components/usePrestador";
-import { guardarPrestadorId, leerCuenta, leerPrestadorId, numeroNacional, pedir } from "@/lib/cliente";
+import { guardarPrestadorId, leerCuenta, leerPrestadorId, numeroNacional, pedir, type CuentaGuardada } from "@/lib/cliente";
 import { useRouter } from "@/lib/navegacion";
 import type { PerfilBorrador, Prestador } from "@/lib/tipos";
 
@@ -44,9 +45,12 @@ export default function AltaPrestador() {
   const destino = pedidoPendiente ? `/prestador?pedido=${encodeURIComponent(pedidoPendiente)}` : "/prestador";
   // Un identificador por alta: si la respuesta se pierde y se reintenta, no se crean dos perfiles.
   const idCliente = useRef(crypto.randomUUID());
+  // Para anotarse hace falta una cuenta: se pide al final, con el perfil ya armado.
+  const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
 
   useEffect(() => {
     if (leerPrestadorId()) router.replace(destino);
+    setCuenta(leerCuenta());
   }, [router, destino]);
 
   async function armarPerfil() {
@@ -93,7 +97,7 @@ export default function AltaPrestador() {
           whatsapp,
           transcripcion: relato,
           idCliente: idCliente.current,
-          cuenta: leerCuenta()?.clave,
+          cuenta: cuenta?.clave ?? leerCuenta()?.clave,
         }),
         espera: 45_000,
       });
@@ -128,8 +132,8 @@ export default function AltaPrestador() {
       <Pantalla
         pie={
           <>
-            {(faltas.nombre || faltas.rubros || faltas.whatsapp) && <Falta>Revisá lo marcado en rojo</Falta>}
-            <BotonPrimario onClick={guardar} cargando={guardando}>
+            {faltas.nombre || faltas.rubros || faltas.whatsapp ? <Falta>Revisá lo marcado en rojo</Falta> : !cuenta && <Falta>Falta entrar con tu cuenta</Falta>}
+            <BotonPrimario onClick={guardar} cargando={guardando} disabled={!cuenta}>
               {pedidoPendiente ? "Guardar y presupuestar" : "Guardar y ver pedidos"}
             </BotonPrimario>
             <p className="mt-2 text-center text-[15px] text-ink-500">Anotarte y presupuestar es gratis.</p>
@@ -181,6 +185,19 @@ export default function AltaPrestador() {
         <Campo etiqueta="Tu celular (opcional)" error={faltas.whatsapp} ayuda="No se le muestra a nadie. Los vecinos te escriben por el chat de la app.">
           <input className={claseCampo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" placeholder="388 4123456" />
         </Campo>
+
+        {!cuenta && (
+          <EntrarACuenta
+            abiertoAlInicio
+            titulo="Entrá para anotarte"
+            motivo="Tu perfil queda unido a tu cuenta y no lo perdés si cambiás de celular."
+            alEntrar={(nueva) => {
+              setCuenta(nueva);
+              // Si esa cuenta ya tenía un perfil, se va directo a sus pedidos.
+              if (leerPrestadorId()) router.replace(destino);
+            }}
+          />
+        )}
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
     );

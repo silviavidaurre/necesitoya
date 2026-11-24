@@ -207,6 +207,7 @@ export default function PedidosPrestador() {
         <PantallaOferta
           pedido={elegido}
           prestadorId={prestadorId}
+          conCuenta={prestador?.conCuenta !== false}
           alAnotarse={() => router.push(`/prestador/alta?pedido=${encodeURIComponent(elegido.id)}`)}
           alCerrar={() => setElegido(null)}
           alEnviar={() => {

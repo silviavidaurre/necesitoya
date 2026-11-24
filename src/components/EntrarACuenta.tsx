@@ -80,12 +80,19 @@ function loDeEsteCelular() {
 }
 
 // Al entrar, este celular pasa a mostrar lo de esa cuenta: su perfil (o ninguno) y sus pedidos.
-function abrirCuenta(entrada: Entrada) {
-  guardarCuenta({ nombre: entrada.nombre, clave: entrada.clave });
+// Con `alEntrar` la pantalla sigue donde estaba (por ejemplo, a mitad de un pedido); si no, se recarga.
+function abrirCuenta(entrada: Entrada, alEntrar?: (cuenta: CuentaGuardada) => void) {
+  const cuenta = { nombre: entrada.nombre, clave: entrada.clave };
+  guardarCuenta(cuenta);
   if (entrada.prestadorId) guardarPrestadorId(entrada.prestadorId);
   else borrarPrestadorId();
   recordarPrestador(null);
+  // Los pedidos de este celular que no eran de nadie ya quedaron unidos a la cuenta y vuelven en la lista.
   reemplazarMisPedidos(entrada.pedidos);
+  if (alEntrar) {
+    alEntrar(cuenta);
+    return;
+  }
   // Se vuelve a cargar: todas las pantallas leen de nuevo quién es el que está usando el celular.
   window.location.reload();
 }
@@ -101,15 +108,34 @@ function cerrarCuenta() {
 
 // Cuenta opcional, con mail y contraseña (se crea en el momento, sin código) o con Google.
 // Sirve para no perder el perfil ni los pedidos al cambiar de celular, y para pasar rápido de una cuenta a otra.
-export function EntrarACuenta({ motivo }: { motivo: string }) {
+export function EntrarACuenta({
+  motivo,
+  alEntrar,
+  abiertoAlInicio = false,
+  titulo = "Entrar o crear cuenta",
+}: {
+  motivo: string;
+  alEntrar?: (cuenta: CuentaGuardada) => void;
+  abiertoAlInicio?: boolean;
+  titulo?: string;
+}) {
   const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abiertoAlInicio);
   const [email, setEmail] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [entrando, setEntrando] = useState(false);
   const [error, setError] = useState("");
   const [hayGoogle, setHayGoogle] = useState(false);
   const destino = useRef<HTMLDivElement>(null);
+  // El aviso de "ya entré" se guarda en una referencia: el botón de Google lo llama desde afuera de React.
+  const alEntradaRef = useRef<typeof alEntrar>(undefined);
+  alEntradaRef.current = alEntrar
+    ? (nueva) => {
+        setCuenta(nueva);
+        setEntrando(false);
+        alEntrar(nueva);
+      }
+    : undefined;
 
   useEffect(() => {
     setCuenta(leerCuenta());
@@ -125,7 +151,7 @@ export function EntrarACuenta({ motivo }: { motivo: string }) {
       setError("");
       setEntrando(true);
       try {
-        abrirCuenta(await pedir<Entrada>("/api/cuenta", { method: "POST", body: JSON.stringify({ credencial: respuesta.credential, ...loDeEsteCelular() }) }));
+        abrirCuenta(await pedir<Entrada>("/api/cuenta", { method: "POST", body: JSON.stringify({ credencial: respuesta.credential, ...loDeEsteCelular() }) }), alEntradaRef.current);
       } catch (e) {
         if (vigente) {
           setError(e instanceof Error ? e.message : "No pudimos entrar con Google. Probá de nuevo.");
@@ -167,7 +193,7 @@ export function EntrarACuenta({ motivo }: { motivo: string }) {
     if (contrasena.length < 6) return setError("La contraseña tiene que tener al menos 6 caracteres.");
     setEntrando(true);
     try {
-      abrirCuenta(await pedir<Entrada>("/api/cuenta", { method: "POST", body: JSON.stringify({ email: email.trim(), contrasena, ...loDeEsteCelular() }) }));
+      abrirCuenta(await pedir<Entrada>("/api/cuenta", { method: "POST", body: JSON.stringify({ email: email.trim(), contrasena, ...loDeEsteCelular() }) }), alEntradaRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos entrar. Probá de nuevo.");
       setEntrando(false);
@@ -206,8 +232,8 @@ export function EntrarACuenta({ motivo }: { motivo: string }) {
         void conMail();
       }}
     >
-      <p className="text-lg font-bold text-ink">Entrar o crear cuenta</p>
-      <p className="mt-1 text-[15px] text-ink-500">Si el mail es nuevo, la cuenta se crea en el momento. No hay que confirmar nada.</p>
+      <p className="text-lg font-bold text-ink">{titulo}</p>
+      <p className="mt-1 text-[15px] text-ink-500">{abiertoAlInicio ? `${motivo} ` : ""}Si el mail es nuevo, la cuenta se crea en el momento. No hay que confirmar nada.</p>
       <Campo etiqueta="Tu mail">
         <input className={claseCampo} value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email" autoComplete="username" autoCapitalize="none" maxLength={120} />
       </Campo>

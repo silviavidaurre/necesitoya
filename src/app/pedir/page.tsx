@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { CajaRelato } from "@/components/CajaRelato";
+import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { Logo } from "@/components/Logo";
 import {
@@ -32,13 +33,14 @@ import {
   leerMisPedidos,
   leerPrestadorId,
   pedir,
+  type CuentaGuardada,
   type PedidoGuardado,
 } from "@/lib/cliente";
 import { frasePedidoPorRevisar } from "@/lib/frases";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { prepararParlante } from "@/lib/lectura";
 import { Link } from "@/lib/navegacion";
-import type { PedidoBorrador, Urgencia } from "@/lib/tipos";
+import type { Diagnostico as DatosDeDiagnostico, PedidoBorrador, Urgencia } from "@/lib/tipos";
 
 interface ResultadoPedido {
   pedido: PedidoBorrador;
@@ -71,9 +73,12 @@ export default function Pedir() {
   const [borrador] = useState(leerBorrador);
   const [misPedidos, setMisPedidos] = useState<PedidoGuardado[]>([]);
   const [esPrestador, setEsPrestador] = useState(false);
+  // Para publicar hace falta una cuenta. Se pide recién al final, cuando el pedido ya está armado.
+  const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
   useEffect(() => {
     setMisPedidos(leerMisPedidos());
     setEsPrestador(Boolean(leerPrestadorId()));
+    setCuenta(leerCuenta());
   }, []);
 
   // Contar
@@ -108,6 +113,7 @@ export default function Pedir() {
   const [rubro, setRubro] = useState<RubroId>("otros");
   const [urgencia, setUrgencia] = useState<Urgencia>("semana");
   const [rango, setRango] = useState<{ min: number; max: number } | null>(null);
+  const [diagnostico, setDiagnostico] = useState<DatosDeDiagnostico | null>(null);
   const [cambio, setCambio] = useState<Cambio>(null);
   const [leerSolo, setLeerSolo] = useState(false);
 
@@ -158,6 +164,7 @@ export default function Pedir() {
           ? { min: resultado.pedido.precioMin, max: resultado.pedido.precioMax }
           : null,
       );
+      setDiagnostico(resultado.pedido.diagnostico ?? null);
       setFuente(resultado.fuente);
       setCambio(resultado.fuente === "basico" ? "rubro" : null);
       setLeerSolo(usoLaVoz.current);
@@ -196,7 +203,8 @@ export default function Pedir() {
           clienteNombre: nombre,
           foto: foto ? { tipo: foto.tipo, base64: foto.base64 } : undefined,
           idCliente: idCliente.current,
-          cuenta: leerCuenta()?.clave,
+          diagnostico,
+          cuenta: cuenta?.clave ?? leerCuenta()?.clave,
         }),
         espera: 45_000,
       });
@@ -252,7 +260,7 @@ export default function Pedir() {
 
   if (enRevision) {
     const rubroActual = rubroPorId(rubro);
-    const falta = !zona.trim() ? "Falta elegir tu barrio" : titulo.trim().length < 4 ? "Falta decir qué necesitás" : "";
+    const falta = !zona.trim() ? "Falta elegir tu barrio" : titulo.trim().length < 4 ? "Falta decir qué necesitás" : !cuenta ? "Falta entrar con tu cuenta" : "";
     const resumenEnVoz = frasePedidoPorRevisar({
       titulo,
       rubro: rubroActual.nombre,
@@ -356,6 +364,12 @@ export default function Pedir() {
           </div>
         )}
 
+        {diagnostico && (
+          <div className="mt-2">
+            <Diagnostico diagnostico={diagnostico} />
+          </div>
+        )}
+
         <Seccion>¿Cómo te llamás?</Seccion>
         {cambiandoContacto ? (
           <Campo etiqueta="Tu nombre" error={faltas.nombre} ayuda="Te escriben por el chat de la app. Nadie ve tu teléfono.">
@@ -371,6 +385,18 @@ export default function Pedir() {
               Cambiar
             </button>
           </div>
+        )}
+
+        {!cuenta && (
+          <EntrarACuenta
+            abiertoAlInicio
+            titulo="Entrá para pedir"
+            motivo="Con tu cuenta seguís el pedido desde cualquier celular."
+            alEntrar={(nueva) => {
+              setCuenta(nueva);
+              if (nombre.trim().length < 2) setNombre(nueva.nombre);
+            }}
+          />
         )}
 
         {foto && <img src={foto.vistaPrevia} alt="Foto que mandaste" className="mt-6 max-h-52 w-full rounded-[22px] object-cover" />}
