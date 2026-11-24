@@ -143,3 +143,16 @@ button.text-brand {
   text-underline-offset: 3px;
   text-decoration-thickness: 1.5px;
 }
+
+/* Botón "Continuar con Google" de la app de Android, con los colores de la guía de marca de Google:
+   claro del lado del vecino y oscuro del lado del prestador. */
+.boton-google {
+  background-color: #ffffff;
+  border-color: #747775;
+  color: #1f1f1f;
+}
+.tema-oscuro .boton-google {
+  background-color: #131314;
+  border-color: #8e918f;
+  color: #e3e3e3;
+}
