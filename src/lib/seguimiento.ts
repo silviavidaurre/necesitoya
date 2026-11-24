@@ -3,6 +3,7 @@ import { resumenDeChat } from "./chat";
 import { pedidoPublico } from "./db";
 import { cosmosDisponible } from "./cosmos";
 import { pagoDe, pagoPublico } from "./pagos";
+import { bloqueados } from "./moderacion";
 import { reputacionDe } from "./reglas";
 import type { BaseDeDatos, OfertaParaCliente, Pedido } from "./tipos";
 
@@ -15,7 +16,8 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
     .sort((a, b) => a.creado.localeCompare(b.creado))
     .flatMap((oferta) => {
       const prestador = db.prestadores.find((p) => p.id === oferta.prestadorId);
-      if (!prestador) return [];
+      // Un prestador bloqueado (o que bloqueó) no aparece, salvo que ya sea el elegido: ese trabajo queda a la vista.
+      if (!prestador || (oferta.estado !== "elegida" && bloqueados(db, pedido, prestador))) return [];
       const { prestadorId: _secreto, leidoVecino: _vecino, leidoPrestador: _prestador, ...visible } = oferta;
       return [
         {
@@ -38,7 +40,11 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
       ];
     });
 
-  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS, pagos: cosmosDisponible() };
+  // Los reclamos del trabajo elegido: qué se reclamó y cómo se resolvió (sin las fotos).
+  const reclamos = (db.reclamos ?? [])
+    .filter((r) => r.pedidoId === pedido.id)
+    .map((r) => ({ de: r.de, motivo: r.motivo, estado: r.estado, resolucion: r.resolucion ?? "", creado: r.creado }));
+  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS, pagos: cosmosDisponible(), reclamos };
 }
 
 export type Seguimiento = ReturnType<typeof seguimientoDe>;

@@ -6,6 +6,7 @@ import { ErrorDePedido, guardarMiPedido, leerMisPedidos, pedir } from "@/lib/cli
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { ActivarAvisos } from "@/components/ActivarAvisos";
 import { Diagnostico } from "@/components/Diagnostico";
+import { PantallaCambiarDia, PantallaCancelar, PantallaReclamo } from "@/components/Gestiones";
 import { PantallaChat } from "@/components/PantallaChat";
 import { Estrellas, ResumenDeReputacion, Verificacion } from "@/components/Reputacion";
 import { claseCampo } from "@/components/ui";
@@ -72,6 +73,8 @@ export default function SeguimientoPedido() {
   const [pidiendoMuestra, setPidiendoMuestra] = useState(false);
   // Pagar o confirmar el trabajo: mientras se guarda, el botón principal muestra que está trabajando.
   const [trabajando, setTrabajando] = useState(false);
+  // Gestión abierta a pantalla completa: reclamar, cambiar el día o cancelar.
+  const [gestion, setGestion] = useState<"reclamo" | "dia" | "cancelar" | null>(null);
   // El presupuesto cuyo chat está abierto, si hay alguno.
   const [chat, setChat] = useState<OfertaParaCliente | null>(null);
   // Cada cambio hecho desde esta pantalla sube el contador: una consulta automática que salió antes
@@ -262,6 +265,33 @@ export default function SeguimientoPedido() {
       />
     ) : null;
 
+  if (gestion === "cancelar" && clave) {
+    return (
+      <PantallaCancelar
+        pedidoId={id}
+        clave={clave}
+        alCerrar={(cancelado) => {
+          setGestion(null);
+          if (cancelado) {
+            cambios.current += 1;
+            cargar();
+          }
+        }}
+      />
+    );
+  }
+
+  if (pedido.estado === "cancelado") {
+    return (
+      <Pantalla pie={<BotonPrimario onClick={() => router.replace("/")}>Ir al inicio</BotonPrimario>}>
+        <Cabecera volver="/" />
+        <Titulo pregunta={pedido.cancelacion?.motivo ? `Motivo: ${pedido.cancelacion.motivo.toLowerCase()}.` : undefined}>Pedido cancelado</Titulo>
+        <p className="mt-6 text-base font-semibold text-ink">{pedido.titulo}</p>
+        <p className="mt-1 text-[15px] text-ink-500">Los prestadores ya no lo ven.</p>
+      </Pantalla>
+    );
+  }
+
   // Confirmar la elección: paso que no se puede deshacer, a pantalla completa y con un solo botón principal.
   if (porConfirmar) {
     const pila = porConfirmar.prestador.nombre.split(" ")[0];
@@ -451,6 +481,41 @@ export default function SeguimientoPedido() {
               <p className="text-[15px] text-ink-500">Gracias por calificar a {pila}.</p>
             </div>
           )}
+          {datos.reclamos.length > 0 && (
+            <div className="mt-6 space-y-2">
+              {datos.reclamos.map((r) => (
+                <p key={r.creado}>
+                  {r.estado === "abierto" ? (
+                    <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado>
+                  ) : (
+                    <Estado>Reclamo resuelto: {r.resolucion}</Estado>
+                  )}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {!muestra && (
+            <div className="mt-6 divide-y divide-line border-t border-line">
+              {!terminado && !confirmado && (
+                <button type="button" onClick={() => setGestion("dia")} className="flex min-h-14 w-full items-center justify-between text-base font-semibold text-ink">
+                  Cambiar el día
+                  <Icono nombre="chevron" size={20} className="text-ink-400" />
+                </button>
+              )}
+              <button type="button" onClick={() => setGestion("reclamo")} className="flex min-h-14 w-full items-center justify-between text-base font-semibold text-ink">
+                Tengo un problema
+                <Icono nombre="chevron" size={20} className="text-ink-400" />
+              </button>
+              {!terminado && !confirmado && (!pago || pago.estado === "pendiente") && (
+                <button type="button" onClick={() => setGestion("cancelar")} className="flex min-h-14 w-full items-center justify-between text-base font-semibold text-danger">
+                  Cancelar el pedido
+                  <Icono nombre="chevron" size={20} className="text-ink-400" />
+                </button>
+              )}
+            </div>
+          )}
+
           {porLiberar && !pedido.calificacion && (
             <div className="mt-6">
               <BotonSecundario onClick={() => setCalificando(true)}>
@@ -462,6 +527,28 @@ export default function SeguimientoPedido() {
           {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
         </Pantalla>
         {pantallaDeChat}
+        {gestion === "reclamo" && clave && (
+          <PantallaReclamo
+            ofertaId={elegida.id}
+            quien={{ pedidoId: id, clave }}
+            nombre={pila}
+            alCerrar={(enviado) => {
+              setGestion(null);
+              if (enviado) cargar();
+            }}
+          />
+        )}
+        {gestion === "dia" && clave && (
+          <PantallaCambiarDia
+            ofertaId={elegida.id}
+            quien={{ pedidoId: id, clave }}
+            actual={elegida.cuando}
+            alCerrar={(nuevo) => {
+              setGestion(null);
+              if (nuevo) cargar();
+            }}
+          />
+        )}
       </>
     );
   }
@@ -575,6 +662,7 @@ export default function SeguimientoPedido() {
           {copiado ? "Enlace copiado" : "Copiar enlace del pedido"}
         </BotonSecundario>
         <p className="mt-3 text-center text-[13px] text-ink-500">Con ese enlace lo seguís desde cualquier celular.</p>
+        <BotonTexto onClick={() => setGestion("cancelar")}>Cancelar el pedido</BotonTexto>
       </div>
     </Pantalla>
     {pantallaDeChat}

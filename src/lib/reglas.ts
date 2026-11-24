@@ -21,7 +21,8 @@ export function minutosDeReserva(pedido: Pedido, ofertasRecibidas: number, ahora
 }
 
 export function reputacionDe(db: BaseDeDatos, prestadorId: string): Reputacion {
-  const elegidas = db.ofertas.filter((o) => o.prestadorId === prestadorId && o.estado === "elegida");
+  // Un trabajo elegido que el vecino después canceló no suma.
+  const elegidas = db.ofertas.filter((o) => o.prestadorId === prestadorId && o.estado === "elegida" && db.pedidos.find((p) => p.id === o.pedidoId)?.estado !== "cancelado");
   const notas = elegidas
     .map((o) => db.pedidos.find((p) => p.id === o.pedidoId)?.calificacion?.estrellas)
     .filter((n): n is number => typeof n === "number");
