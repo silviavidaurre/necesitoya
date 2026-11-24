@@ -1,4 +1,4 @@
-package com.necesitoya.app;
+package com.iturrelabs.necesitoya;
 
 import com.getcapacitor.BridgeActivity;
 

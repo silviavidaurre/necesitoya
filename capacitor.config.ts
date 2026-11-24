@@ -8,7 +8,7 @@ const URL_PUBLICADA = "https://necesitoya.gabriel13iturre.workers.dev";
 const usarCopiaLocal = process.env.NECESITOYA_ANDROID_LOCAL === "true";
 
 const config: CapacitorConfig = {
-  appId: "com.necesitoya.app",
+  appId: "com.iturrelabs.necesitoya",
   appName: "NecesitoYa",
   webDir: "dist",
   server: usarCopiaLocal
