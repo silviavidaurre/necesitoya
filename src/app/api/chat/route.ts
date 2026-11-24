@@ -129,6 +129,8 @@ export async function POST(request: Request) {
       const motivo = motivoDeCierre(db, oferta);
       if (motivo === "muestra") throw new ErrorDeChat("Es un presupuesto de muestra: no hay nadie del otro lado.", 409);
       if (motivo === "descartada") throw new ErrorDeChat("Este presupuesto no fue el elegido. El chat quedó solo para leer.", 409);
+      if (motivo === "bloqueado") throw new ErrorDeChat("Esta conversación está bloqueada.", 409);
+      if (motivo === "cancelado") throw new ErrorDeChat("El pedido se canceló. El chat quedó solo para leer.", 409);
 
       const anteriores = mensajesDe(db, oferta.id);
       if (anteriores.length >= MAX_MENSAJES_POR_CHAT) {

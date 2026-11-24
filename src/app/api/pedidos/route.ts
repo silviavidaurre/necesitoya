@@ -2,6 +2,7 @@ import { MAX_OFERTAS, RUBRO_IDS, type RubroId } from "@/lib/catalogo";
 import { cuentaDe, dentroDelCupo, dentroDelCupoDe, guardarFoto, leer, modificar, nuevoId, pedidoPublico } from "@/lib/db";
 import { completarDiagnostico } from "@/lib/diagnostico";
 import { fotoValida } from "@/lib/fotos";
+import { bloqueados } from "@/lib/moderacion";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto as texto } from "@/lib/texto";
 import type { Pedido, PedidoParaPrestador, Urgencia } from "@/lib/tipos";
@@ -21,7 +22,8 @@ export async function GET(request: Request) {
   const prestador = prestadorId ? db.prestadores.find((p) => p.id === prestadorId) : undefined;
 
   const pedidos: PedidoParaPrestador[] = db.pedidos
-    .filter((pedido) => pedido.estado === "abierto")
+    // Con un bloqueo de por medio, el prestador no ve los pedidos de ese vecino.
+    .filter((pedido) => pedido.estado === "abierto" && !bloqueados(db, pedido, prestador))
     .map((pedido) => {
       // Los presupuestos de muestra no ocupan lugar ni se cuentan: son solo para que el vecino pruebe.
       const ofertas = db.ofertas.filter((o) => o.pedidoId === pedido.id && !o.ejemplo);
