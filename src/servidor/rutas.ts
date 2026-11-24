@@ -4,6 +4,10 @@ import * as fotos from "@/app/api/fotos/route";
 import * as pedidoIa from "@/app/api/ia/pedido/route";
 import * as perfilIa from "@/app/api/ia/perfil/route";
 import * as ofertas from "@/app/api/ofertas/route";
+import * as terminar from "@/app/api/ofertas/terminar/route";
+import * as pagos from "@/app/api/pagos/route";
+import * as webhookDePagos from "@/app/api/pagos/webhook/route";
+import * as confirmar from "@/app/api/pedido/confirmar/route";
 import * as calificar from "@/app/api/pedido/calificar/route";
 import * as elegir from "@/app/api/pedido/elegir/route";
 import * as muestra from "@/app/api/pedido/muestra/route";
@@ -27,6 +31,10 @@ const RUTAS: Record<string, Ruta> = {
   "/api/ia/pedido": pedidoIa,
   "/api/ia/perfil": perfilIa,
   "/api/ofertas": ofertas,
+  "/api/ofertas/terminar": terminar,
+  "/api/pagos": pagos,
+  "/api/pagos/webhook": webhookDePagos,
+  "/api/pedido/confirmar": confirmar,
   "/api/pedido": pedido,
   "/api/pedido/calificar": calificar,
   "/api/pedido/elegir": elegir,

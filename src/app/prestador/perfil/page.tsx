@@ -155,6 +155,13 @@ export default function PerfilPrestador() {
               {(n.nivel === 1 ? Boolean(prestador.whatsapp) : prestador.nivel >= n.nivel) ? <Estado tono="bien">Listo</Estado> : <Estado>Pendiente</Estado>}
             </div>
           ))}
+          <button type="button" onClick={() => router.push("/prestador/editar")} className="flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left">
+            <div>
+              <p className="text-base font-semibold text-ink">Cobrar por la app</p>
+              <p className="text-sm text-ink-500">{prestador.billetera ? "Billetera cargada. Te pagan protegido." : "Cargá tu billetera Stellar en Editar perfil."}</p>
+            </div>
+            {prestador.billetera ? <Estado tono="bien">Listo</Estado> : <Estado>Pendiente</Estado>}
+          </button>
         </div>
 
         <EntrarACuenta motivo="Para no perder tu perfil si cambiás de celular." />

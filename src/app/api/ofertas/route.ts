@@ -1,6 +1,7 @@
 import { MAX_OFERTAS } from "@/lib/catalogo";
 import { resumenDeChat } from "@/lib/chat";
-import { dentroDelCupo, leer, modificar, nuevoId } from "@/lib/db";
+import { dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
+import { pagoDe, pagoPublico } from "@/lib/pagos";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto } from "@/lib/texto";
 import type { Oferta } from "@/lib/tipos";
@@ -30,7 +31,10 @@ export async function GET(request: Request) {
       const { leidoVecino: _vecino, leidoPrestador: _prestador, ...visible } = oferta;
       return {
         ...visible,
-        pedido: pedido ? { titulo: pedido.titulo, zona: pedido.zona, rubro: pedido.rubro, ejemplo: pedido.ejemplo } : null,
+        pedido: pedido
+          ? { titulo: pedido.titulo, zona: pedido.zona, rubro: pedido.rubro, ejemplo: pedido.ejemplo, estado: pedido.estado, confirmado: pedido.confirmado ?? null, calificacion: pedido.calificacion ?? null }
+          : null,
+        pago: pagoPublico(pagoDe(db, oferta.id)),
         cliente: pedido ? { nombre: pedido.clienteNombre.split(" ")[0] } : null,
         // Mensajes del chat con el vecino: cuántos hay y cuántos le faltan leer al prestador.
         ...resumenDeChat(db, oferta, "prestador"),
@@ -53,7 +57,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Escribí el precio de la mano de obra en pesos." }, { status: 400 });
   }
   if (!cuando) return Response.json({ error: "Decinos cuándo podés ir." }, { status: 400 });
-  if (!(await dentroDelCupo("ofertas"))) {
+  // Para presupuestar hace falta que el perfil esté unido a una cuenta.
+  const quien = (await leer()).prestadores.find((p) => p.id === prestadorId);
+  if (quien && !quien.cuenta) return Response.json({ error: "Entrá con tu cuenta para mandar presupuestos." }, { status: 401 });
+  if (quien?.suspendido) return Response.json({ error: "Tu perfil está en revisión. Escribinos para reactivarlo." }, { status: 403 });
+  if (!(await dentroDelCupo("ofertas")) || !(await dentroDelCupoDe("ofertas", quien?.cuenta))) {
     return Response.json({ error: "Hoy se enviaron demasiados presupuestos. Probá de nuevo mañana." }, { status: 429 });
   }
 
