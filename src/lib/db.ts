@@ -91,6 +91,46 @@ export async function dentroDelCupo(nombre: keyof typeof CUPOS): Promise<boolean
   }
 }
 
+// Topes diarios por persona (por cuenta), además de los globales: uno solo no puede gastar el cupo de todos.
+export const CUPOS_POR_PERSONA = {
+  ia: 60,
+  voz: 150,
+  pedidos: 15,
+  prestadores: 3,
+  ofertas: 60,
+  fotos: 60,
+  mensajes: 400,
+  reclamos: 10,
+  denuncias: 20,
+  pagos: 30,
+} as const;
+
+// Huella corta de quién es (cuenta o dirección): el contador no guarda mails ni direcciones.
+function huellaCorta(texto: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < texto.length; i++) {
+    h ^= texto.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+// true si esa persona todavía tiene cupo hoy. Sin `quien` (no se sabe quién es) no se frena por persona.
+export async function dentroDelCupoDe(nombre: keyof typeof CUPOS_POR_PERSONA, quien: string | undefined | null): Promise<boolean> {
+  if (!quien) return true;
+  try {
+    return (await actual().consumirCupo(`${nombre}@${huellaCorta(quien)}`)) <= CUPOS_POR_PERSONA[nombre];
+  } catch (error) {
+    console.error("[cupo]", error);
+    return true;
+  }
+}
+
+// Las cuentas de las pruebas automáticas usan mails de prueba (terminan en .test): lo suyo no cuenta en las métricas.
+export function esCuentaDePrueba(sub: string | undefined | null) {
+  return Boolean(sub && /[.]test$/i.test(sub));
+}
+
 export function nuevoId() {
   return crypto.randomUUID();
 }

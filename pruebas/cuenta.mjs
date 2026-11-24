@@ -32,20 +32,16 @@ const claveA = crypto.randomUUID();
 const claveB = crypto.randomUUID();
 const claveC = crypto.randomUUID();
 
-// Lo que "este celular" tiene antes de crear la cuenta: un perfil y un pedido sin dueño.
-const alta = await enviar("/api/prestadores", {
+// La cuenta es obligatoria para anotarse y para pedir.
+const datosDelPerfil = {
   nombre: "Tecnico Cuenta Prueba",
   rubros: ["plomeria"],
   zonas: ["Centro"],
   aniosExperiencia: 3,
   descripcion: "Perfil creado por la prueba de cuentas.",
   disponibilidad: "Todos los días",
-  idCliente: crypto.randomUUID(),
-});
-const prestadorId = alta.cuerpo?.prestador?.id;
-ver("crea un perfil sin cuenta", Boolean(prestadorId), `(${alta.estado})`);
-
-const pedido = await enviar("/api/pedidos", {
+};
+const datosDelPedido = {
   titulo: "Prueba de cuentas: cambiar una canilla",
   descripcion: "Canilla de la cocina.",
   rubro: "plomeria",
@@ -54,15 +50,24 @@ const pedido = await enviar("/api/pedidos", {
   precioMin: 20000,
   precioMax: 40000,
   clienteNombre: "Vecina Cuenta",
-  idCliente: crypto.randomUUID(),
-});
-ver("publica un pedido sin cuenta", Boolean(pedido.cuerpo?.id), `(${pedido.estado})`);
+};
+const sinCuenta = await enviar("/api/prestadores", { ...datosDelPerfil, idCliente: crypto.randomUUID() });
+ver("sin cuenta no se puede anotar", sinCuenta.estado === 401, `(${sinCuenta.estado})`);
+const pedidoSinCuenta = await enviar("/api/pedidos", { ...datosDelPedido, idCliente: crypto.randomUUID() });
+ver("sin cuenta no se puede pedir", pedidoSinCuenta.estado === 401, `(${pedidoSinCuenta.estado})`);
+const llaveFalsa = await enviar("/api/pedidos", { ...datosDelPedido, idCliente: crypto.randomUUID(), cuenta: crypto.randomUUID() });
+ver("con una llave inventada tampoco", llaveFalsa.estado === 401, `(${llaveFalsa.estado})`);
 
-// Crear la cuenta A desde ese celular.
-const creada = await enviar("/api/cuenta", { email: mailA, contrasena: claveA, prestadorId, pedidos: [{ id: pedido.cuerpo.id, clave: pedido.cuerpo.clave }] });
+// Crear la cuenta A y, con ella abierta, el perfil y un pedido.
+const creada = await enviar("/api/cuenta", { email: mailA, contrasena: claveA });
 ver("un mail nuevo crea la cuenta en el momento", creada.estado === 200 && creada.cuerpo?.nueva === true, `(${creada.estado}) ${creada.cuerpo?.error ?? ""}`);
-ver("el perfil del celular queda unido a la cuenta", creada.cuerpo?.prestadorId === prestadorId);
-ver("el pedido del celular queda unido a la cuenta", creada.cuerpo?.pedidos?.length === 1 && creada.cuerpo.pedidos[0].id === pedido.cuerpo.id);
+const alta = await enviar("/api/prestadores", { ...datosDelPerfil, idCliente: crypto.randomUUID(), cuenta: creada.cuerpo?.clave });
+const prestadorId = alta.cuerpo?.prestador?.id;
+ver("con la cuenta abierta se anota", alta.estado === 201 && Boolean(prestadorId) && alta.cuerpo.prestador.conCuenta === true && !("cuenta" in alta.cuerpo.prestador), `(${alta.estado})`);
+const segundo = await enviar("/api/prestadores", { ...datosDelPerfil, idCliente: crypto.randomUUID(), cuenta: creada.cuerpo?.clave });
+ver("una cuenta, un perfil", segundo.estado === 409, `(${segundo.estado})`);
+const pedido = await enviar("/api/pedidos", { ...datosDelPedido, idCliente: crypto.randomUUID(), cuenta: creada.cuerpo?.clave });
+ver("con la cuenta abierta pide", pedido.estado === 201 && Boolean(pedido.cuerpo?.id), `(${pedido.estado})`);
 
 // Entrar desde otro celular (no manda nada propio): recupera todo.
 const otra = await enviar("/api/cuenta", { email: mailA.toUpperCase(), contrasena: claveA });

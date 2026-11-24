@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { BotonMic } from "@/components/BotonMic";
+import { Diagnostico } from "@/components/Diagnostico";
+import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { useDictado } from "@/components/useDictado";
 import { BotonPrimario, Cabecera, Chip, ErrorDePantalla, Estado, Falta, Icono, claseCampo } from "@/components/ui";
 import { MAX_OFERTAS, pesos, rubroPorId } from "@/lib/catalogo";
@@ -23,6 +25,7 @@ function preciosRapidos(minimo: number | null, maximo: number | null) {
 export function PantallaOferta({
   pedido,
   prestadorId,
+  conCuenta = true,
   alAnotarse,
   alCerrar,
   alEnviar,
@@ -30,6 +33,8 @@ export function PantallaOferta({
   pedido: PedidoParaPrestador;
   // null = todavía no se anotó: puede ver el pedido completo, y para presupuestar primero arma su perfil.
   prestadorId: string | null;
+  // false = perfil viejo, creado antes de que la cuenta fuera obligatoria: para presupuestar tiene que entrar.
+  conCuenta?: boolean;
   alAnotarse?: () => void;
   alCerrar: () => void;
   alEnviar: () => void;
@@ -67,7 +72,7 @@ export function PantallaOferta({
   const numero = Number(precio);
   const rapidos = preciosRapidos(pedido.precioMin, pedido.precioMax);
   const faltaAlgo = numero < 1000 ? "Falta tu precio" : !cuando ? "Falta decir cuándo podés ir" : "";
-  const puedeEnviar = numero >= 1000 && Boolean(cuando) && !pedido.yaOferte && pedido.cupos > 0;
+  const puedeEnviar = numero >= 1000 && Boolean(cuando) && !pedido.yaOferte && pedido.cupos > 0 && conCuenta;
   const lejos =
     numero >= 1000 && pedido.precioMin !== null && pedido.precioMax !== null && (numero < pedido.precioMin * 0.6 || numero > pedido.precioMax * 1.6);
 
@@ -162,6 +167,12 @@ export function PantallaOferta({
           </div>
         )}
 
+        {pedido.diagnostico && (
+          <div className="mt-2">
+            <Diagnostico diagnostico={pedido.diagnostico} para="prestador" />
+          </div>
+        )}
+
         {pedido.yaOferte || pedido.cupos === 0 ? (
           <p className="mt-8 text-[17px] font-semibold text-ink">
             {pedido.yaOferte
@@ -172,6 +183,8 @@ export function PantallaOferta({
           </p>
         ) : prestadorId === null ? (
           <p className="mt-8 text-[15px] text-ink-500">Para mandar tu precio primero contanos qué hacés. Es gratis y tarda un minuto.</p>
+        ) : !conCuenta ? (
+          <EntrarACuenta abiertoAlInicio titulo="Entrá para presupuestar" motivo="Tu perfil queda unido a tu cuenta y no lo perdés si cambiás de celular." />
         ) : (
           <>
             <label className="mt-8 block">
@@ -256,6 +269,8 @@ export function PantallaOferta({
         <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
           {prestadorId === null ? (
             <BotonPrimario onClick={alAnotarse}>Anotarme y presupuestar</BotonPrimario>
+          ) : !conCuenta ? (
+            <Falta>Entrá con tu cuenta para mandar tu precio</Falta>
           ) : (
             <>
               {faltaAlgo && precio !== "" && <Falta>{faltaAlgo}</Falta>}

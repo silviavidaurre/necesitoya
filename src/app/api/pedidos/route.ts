@@ -1,5 +1,6 @@
 import { MAX_OFERTAS, RUBRO_IDS, type RubroId } from "@/lib/catalogo";
-import { cuentaDe, dentroDelCupo, guardarFoto, leer, modificar, nuevoId, pedidoPublico } from "@/lib/db";
+import { cuentaDe, dentroDelCupo, dentroDelCupoDe, guardarFoto, leer, modificar, nuevoId, pedidoPublico } from "@/lib/db";
+import { completarDiagnostico } from "@/lib/diagnostico";
 import { fotoValida } from "@/lib/fotos";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto as texto } from "@/lib/texto";
@@ -71,6 +72,13 @@ export async function POST(request: Request) {
   if (!zona) return Response.json({ error: "Decinos en qué barrio es." }, { status: 400 });
   if (clienteNombre.length < 2) return Response.json({ error: "Falta tu nombre." }, { status: 400 });
 
+  // Para pedir hace falta una cuenta (mail o Google): así el pedido no se pierde y se puede seguir desde otro celular.
+  const cuenta = cuentaDe(await leer(), cuerpo.cuenta);
+  if (!cuenta) return Response.json({ error: "Entrá con tu cuenta para pedir presupuestos." }, { status: 401 });
+  if (!(await dentroDelCupoDe("pedidos", cuenta))) {
+    return Response.json({ error: "Publicaste muchos pedidos hoy. Probá de nuevo mañana." }, { status: 429 });
+  }
+
   let foto;
   try {
     foto = fotoValida(cuerpo.foto);
@@ -102,6 +110,7 @@ export async function POST(request: Request) {
     estado: "abierto",
     creado: new Date().toISOString(),
     relato: texto(cuerpo.relato, 1000),
+    diagnostico: completarDiagnostico(cuerpo.diagnostico, rubro, `${titulo} ${descripcion} ${texto(cuerpo.relato, 1000)}`),
     fotoId,
     clienteWhatsapp,
     claveCliente: nuevoId(),
@@ -112,7 +121,7 @@ export async function POST(request: Request) {
   const guardado = await modificar((db) => {
     const repetido = pedido.idCliente ? db.pedidos.find((p) => p.idCliente === pedido.idCliente) : undefined;
     if (repetido) return repetido;
-    pedido.cuenta = cuentaDe(db, cuerpo.cuenta);
+    pedido.cuenta = cuenta;
     db.pedidos.push(pedido);
     return pedido;
   });

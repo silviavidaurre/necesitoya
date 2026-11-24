@@ -2,6 +2,7 @@
 // el contador de mensajes sin leer y los límites.
 // Uso: node pruebas/chat.mjs [url]   (por defecto http://localhost:3000)
 // Crea datos de prueba: después hay que borrarlos de la base.
+import { cuentaDePrueba } from "./comun.mjs";
 const U = process.argv[2] ?? "http://localhost:3000";
 const OCULTO = "[número oculto]";
 
@@ -21,9 +22,9 @@ const ok = (nombre, cond, extra = "") => {
 };
 
 const pedidoNuevo = async (titulo, nombre) =>
-  (await j("/api/pedidos", { titulo, descripcion: "Pedido de prueba del chat", rubro: "plomeria", urgencia: "hoy", zona: "Alto Comedero", precioMin: 30000, precioMax: 50000, relato: "prueba", clienteNombre: nombre })).datos;
+  (await j("/api/pedidos", { titulo, descripcion: "Pedido de prueba del chat", rubro: "plomeria", urgencia: "hoy", zona: "Alto Comedero", precioMin: 30000, precioMax: 50000, relato: "prueba", clienteNombre: nombre, cuenta: await cuentaDePrueba(U, "vecina") })).datos;
 const prestadorNuevo = async (nombre) =>
-  (await j("/api/prestadores", { nombre, rubros: ["plomeria"], zonas: ["Alto Comedero"], aniosExperiencia: 5, descripcion: "Prueba", whatsapp: "3885111222" })).datos.prestador;
+  (await j("/api/prestadores", { nombre, rubros: ["plomeria"], zonas: ["Alto Comedero"], aniosExperiencia: 5, descripcion: "Prueba", whatsapp: "3885111222", cuenta: await cuentaDePrueba(U, "prestador") })).datos.prestador;
 
 const { id, clave } = await pedidoNuevo("Prueba de chat: pierde la canilla", "Carla Gutierrez");
 const otroPedido = await pedidoNuevo("Prueba de chat: otro pedido", "Otra Vecina");
