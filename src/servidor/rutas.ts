@@ -1,3 +1,5 @@
+import * as avisos from "@/app/api/avisos/route";
+import * as ultimoAviso from "@/app/api/avisos/ultimo/route";
 import * as chat from "@/app/api/chat/route";
 import * as cuenta from "@/app/api/cuenta/route";
 import * as fotos from "@/app/api/fotos/route";
@@ -25,6 +27,8 @@ type Manejador = (peticion: Request) => Promise<Response>;
 type Ruta = { GET?: Manejador; POST?: Manejador };
 
 const RUTAS: Record<string, Ruta> = {
+  "/api/avisos": avisos,
+  "/api/avisos/ultimo": ultimoAviso,
   "/api/chat": chat,
   "/api/cuenta": cuenta,
   "/api/fotos": fotos,

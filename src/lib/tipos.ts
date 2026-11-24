@@ -261,4 +261,25 @@ export interface BaseDeDatos {
   // Puede faltar en bases creadas antes del chat: se trata como lista vacía.
   mensajes?: Mensaje[];
   pagos?: Pago[];
+  suscripciones?: Suscripcion[];
+  avisos?: AvisoGuardado[];
+}
+
+// Un celular que aceptó recibir avisos, unido a una cuenta. El endpoint lo da el navegador.
+export interface Suscripcion {
+  endpoint: string;
+  cuenta: string;
+  creado: string;
+}
+
+// Un aviso para una cuenta. El celular lo trae cuando lo despierta el push.
+export interface AvisoGuardado {
+  id: string;
+  cuenta: string;
+  tipo: string;
+  titulo: string;
+  texto: string;
+  url: string;
+  creado: string;
+  entregado?: boolean;
 }
