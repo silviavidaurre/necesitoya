@@ -37,7 +37,7 @@ declare global {
   }
 }
 
-interface Entrada {
+export interface Entrada {
   nombre: string;
   clave: string;
   nueva: boolean;
@@ -45,16 +45,19 @@ interface Entrada {
   pedidos: PedidoGuardado[];
 }
 
-// El identificador de la app en Google se pide una sola vez por visita.
-let idDeLaApp: Promise<string | null> | null = null;
-function pedirIdDeLaApp() {
-  idDeLaApp ??= pedir<{ google: string | null }>("/api/cuenta")
-    .then((datos) => datos.google)
+// Lo que el servidor tiene configurado (Google y recuperar la contraseña por mail) se pide una sola vez por visita.
+let configDeCuenta: Promise<{ google: string | null; recuperar: boolean }> | null = null;
+function pedirConfigDeCuenta() {
+  configDeCuenta ??= pedir<{ google: string | null; recuperar?: boolean }>("/api/cuenta")
+    .then((datos) => ({ google: datos.google, recuperar: Boolean(datos.recuperar) }))
     .catch(() => {
-      idDeLaApp = null;
-      return null;
+      configDeCuenta = null;
+      return { google: null, recuperar: false };
     });
-  return idDeLaApp;
+  return configDeCuenta;
+}
+function pedirIdDeLaApp() {
+  return pedirConfigDeCuenta().then((c) => c.google);
 }
 
 // El programa de Google que dibuja su botón se carga recién cuando hace falta.
@@ -85,7 +88,7 @@ function loDeEsteCelular() {
 
 // Al entrar, este celular pasa a mostrar lo de esa cuenta: su perfil (o ninguno) y sus pedidos.
 // Con `alEntrar` la pantalla sigue donde estaba (por ejemplo, a mitad de un pedido); si no, se recarga.
-function abrirCuenta(entrada: Entrada, alEntrar?: (cuenta: CuentaGuardada) => void) {
+export function abrirCuenta(entrada: Entrada, alEntrar?: (cuenta: CuentaGuardada) => void) {
   const cuenta = { nombre: entrada.nombre, clave: entrada.clave };
   guardarCuenta(cuenta);
   if (entrada.prestadorId) guardarPrestadorId(entrada.prestadorId);
@@ -133,6 +136,10 @@ export function EntrarACuenta({
   const [hayGoogle, setHayGoogle] = useState(false);
   // Adentro de la app de Android: el identificador web de Google para el inicio de sesión nativo.
   const [googleNativo, setGoogleNativo] = useState<string | null>(null);
+  // Recuperar la contraseña por mail: si el servidor lo tiene, y el aviso de que se mandó el enlace.
+  const [hayRecuperar, setHayRecuperar] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
+  const [recuperacionEnviada, setRecuperacionEnviada] = useState(false);
   const destino = useRef<HTMLDivElement>(null);
   // El aviso de "ya entré" se guarda en una referencia: el botón de Google lo llama desde afuera de React.
   const alEntradaRef = useRef<typeof alEntrar>(undefined);
@@ -147,6 +154,17 @@ export function EntrarACuenta({
   useEffect(() => {
     setCuenta(leerCuenta());
   }, []);
+
+  useEffect(() => {
+    if (!abierto) return;
+    let vigente = true;
+    void pedirConfigDeCuenta().then((c) => {
+      if (vigente) setHayRecuperar(c.recuperar);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [abierto]);
 
   // El botón de Google se dibuja cuando se abre el formulario, si el servidor lo tiene configurado.
   useEffect(() => {
@@ -217,6 +235,20 @@ export function EntrarACuenta({
     } catch (e) {
       setError(e instanceof ErrorDePedido ? e.message : "No pudimos entrar con Google. Probá de nuevo o entrá con tu mail.");
       setEntrando(false);
+    }
+  }
+
+  async function recuperarContrasena() {
+    setError("");
+    if (!email.includes("@")) return setError("Escribí arriba el mail de tu cuenta y tocá de nuevo.");
+    setRecuperando(true);
+    try {
+      await pedir("/api/cuenta/recuperar", { method: "POST", body: JSON.stringify({ email: email.trim() }) });
+      setRecuperacionEnviada(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos mandar el mail. Probá de nuevo.");
+    } finally {
+      setRecuperando(false);
     }
   }
 
@@ -291,6 +323,16 @@ export function EntrarACuenta({
       <Campo etiqueta="Contraseña" ayuda="6 caracteres o más.">
         <input className={claseCampo} value={contrasena} onChange={(e) => setContrasena(e.target.value)} type="password" autoComplete="current-password" maxLength={100} />
       </Campo>
+      {hayRecuperar &&
+        (recuperacionEnviada ? (
+          <p role="status" className="mt-2 text-[15px] text-ink-500">
+            Si hay una cuenta con ese mail, te mandamos un enlace para elegir otra contraseña. Vence en 30 minutos. Mirá también en spam.
+          </p>
+        ) : (
+          <button type="button" onClick={() => void recuperarContrasena()} disabled={recuperando} className="mt-1 flex min-h-12 items-center text-[15px] font-semibold text-brand">
+            {recuperando ? "Mandando…" : "¿Olvidaste tu contraseña?"}
+          </button>
+        ))}
       {error && (
         <p role="alert" className="mt-3 text-sm font-medium text-danger">
           {error}

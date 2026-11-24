@@ -81,6 +81,8 @@ export default function Privacidad() {
         <li>Cosmos Pay: procesa los pagos en USDC sobre la red Stellar.</li>
         <li>Mercado Pago: procesa los pagos en pesos, cuando esté disponible.</li>
         <li>El servicio de avisos de tu navegador (Google, Apple o Mozilla): entrega los avisos, sin su texto.</li>
+        <li>Firebase (Google): entrega los avisos de la app de Android, con su texto.</li>
+        <li>Resend: manda los mails para elegir otra contraseña o confirmar que se borre una cuenta (solo tu mail), cuando esté activado.</li>
       </ul>
       <Punto>A cada uno le mandamos solo lo necesario para su tarea.</Punto>
 

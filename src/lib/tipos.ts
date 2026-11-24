@@ -130,6 +130,8 @@ export interface Cuenta {
   // Contraseñas equivocadas seguidas, y hasta cuándo queda frenada si se pasó.
   fallos?: number;
   bloqueadaHasta?: string;
+  // Enlace para elegir otra contraseña que se mandó por mail (solo su huella) y cuándo vence.
+  recuperacion?: { huella: string; vence: string };
   nombre: string;
   // Llave que guarda el celular para que lo que cree después quede unido a la cuenta.
   clave: string;
@@ -147,6 +149,8 @@ export interface SolicitudDeBaja {
   estado: "pendiente" | "hecha" | "sin-cuenta";
   creado: string;
   resuelta?: string;
+  // Si hay correo: el enlace para confirmar la baja que se mandó al mail (solo su huella) y cuándo vence.
+  confirmacion?: { huella: string; vence: string };
 }
 
 export interface Oferta {
@@ -302,6 +306,16 @@ export interface BaseDeDatos {
   reclamos?: Reclamo[];
   denuncias?: Denuncia[];
   bajas?: SolicitudDeBaja[];
+  // Mails a direcciones .test: no se mandan, quedan acá para las pruebas (ver lib/correo.ts).
+  correos?: CorreoDePrueba[];
+}
+
+export interface CorreoDePrueba {
+  id: string;
+  para: string;
+  asunto: string;
+  texto: string;
+  creado: string;
 }
 
 // Un celular que aceptó recibir avisos, unido a una cuenta. El endpoint lo da el navegador.
