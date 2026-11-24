@@ -33,3 +33,12 @@ createRoot(document.getElementById("raiz")!).render(
     </BrowserRouter>
   </StrictMode>,
 );
+
+// App instalable y avisos: el service worker se registra cuando la página ya cargó, para no demorar el arranque.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Sin service worker la app anda igual: solo no se instala ni recibe avisos.
+    });
+  });
+}
