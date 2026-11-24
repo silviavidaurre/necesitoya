@@ -160,6 +160,7 @@ await j("/api/pedidos");
 await j(`/api/pedidos?prestadorId=${beto.id}`);
 await j(`/api/perfil?id=${ana.idPublico}`);
 const todo = respuestas.join(" ");
+if (process.env.DEPURAR) for (const r of respuestas) if (r.includes("3885111222") || r.includes("4123456")) console.log("FUGA:", r.slice(0, 400));
 ok(`en ${respuestas.length} respuestas nunca sale un teléfono`, !todo.includes("3885111222") && !todo.includes("4123456") && !todo.includes("whatsapp") && !todo.includes("clienteWhatsapp"));
 const paraElVecino = JSON.stringify([(await leer(deAna, comoVecino)).datos, (await j(`/api/pedido?id=${id}&clave=${clave}`)).datos]);
 ok("lo que ve el vecino no trae el id secreto de ningún prestador", ![ana, beto, colado].some((p) => paraElVecino.includes(p.id)));
