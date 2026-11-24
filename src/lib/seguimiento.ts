@@ -1,8 +1,7 @@
 import { MAX_OFERTAS } from "./catalogo";
 import { resumenDeChat } from "./chat";
 import { pedidoPublico } from "./db";
-import { cosmosDisponible } from "./cosmos";
-import { pagoDe, pagoPublico } from "./pagos";
+import { cobraPorLaApp, pagoDe, pagoProtegidoPara, pagoPublico, pagosDisponibles } from "./pagos";
 import { bloqueados } from "./moderacion";
 import { reputacionDe } from "./reglas";
 import type { BaseDeDatos, OfertaParaCliente, Pedido } from "./tipos";
@@ -33,7 +32,8 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
             fotos: prestador.fotos ?? [],
             reputacion: reputacionDe(db, prestador.id),
             ejemplo: Boolean(prestador.ejemplo),
-            cobraPorLaApp: Boolean(prestador.billetera),
+            cobraPorLaApp: cobraPorLaApp(prestador),
+            pagoProtegido: pagoProtegidoPara(prestador),
           },
           pago: pagoPublico(pagoDe(db, oferta.id)),
         },
@@ -44,7 +44,7 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
   const reclamos = (db.reclamos ?? [])
     .filter((r) => r.pedidoId === pedido.id)
     .map((r) => ({ de: r.de, motivo: r.motivo, estado: r.estado, resolucion: r.resolucion ?? "", creado: r.creado }));
-  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS, pagos: cosmosDisponible(), reclamos };
+  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS, pagos: pagosDisponibles(), reclamos };
 }
 
 export type Seguimiento = ReturnType<typeof seguimientoDe>;

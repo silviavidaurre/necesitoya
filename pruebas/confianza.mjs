@@ -6,7 +6,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import zlib from "node:zlib";
-import { cuentaDePrueba } from "./comun.mjs";
+import { cuentaDePrueba, secretoLocal } from "./comun.mjs";
 
 const U = process.argv[2] ?? "http://localhost:3000";
 let fallas = 0;
@@ -40,7 +40,8 @@ function secretoDelWebhook() {
 
 // Una dirección Stellar válida (con su dígito verificador) armada al azar, para la billetera de prueba.
 function billeteraDePrueba() {
-  if (process.env.PRUEBA_BILLETERA) return process.env.PRUEBA_BILLETERA;
+  // Para el pago real hace falta una billetera de testnet que acepte USDC (PRUEBA_BILLETERA); si no, una inventada.
+  if (secretoLocal("PRUEBA_BILLETERA")) return secretoLocal("PRUEBA_BILLETERA");
   const crc = (bytes) => {
     let c = 0;
     for (const b of bytes) {
@@ -157,7 +158,7 @@ let pago = null;
 if (stats.pagos) {
   const creado = await j("/api/pagos", { id, clave });
   pago = creado.datos?.pago;
-  ok("arma el pago protegido en Cosmos", creado.estado === 201 && pago?.modo === "protegido" && /^https:/.test(pago?.urlDePago ?? ""), `(${creado.estado}) ${creado.datos?.error ?? creado.datos?.codigo ?? ""}`);
+  ok("arma el pago en Cosmos (protegido si Cosmos ya lo tiene, si no directo con merchantFee)", creado.estado === 201 && (pago?.modo === "protegido" || pago?.modo === "directo") && /^https:/.test(pago?.urlDePago ?? ""), `(${creado.estado}) ${pago?.modo ?? ""} ${creado.datos?.error ?? creado.datos?.codigo ?? ""}`);
   ok("el pago dice el monto en USDC y la comisión aparte", Number(pago?.monto) >= 1 && Number(pago?.comision) > 0 && pago?.moneda === "USDC");
   const otraVez = await j("/api/pagos", { id, clave });
   ok("pedirlo de nuevo no arma otro", otraVez.datos?.pago?.urlDePago === pago?.urlDePago);
@@ -165,6 +166,12 @@ if (stats.pagos) {
 } else {
   console.log("(sin Cosmos configurado: se salta el pago real)");
 }
+
+// --- Mercado Pago (armado detrás de configuración) -------------------------------------------------
+const conectarMp = await j("/api/mercadopago/conectar", { prestadorId: pr.id });
+ok("Mercado Pago responde según su configuración", stats.mercadopago ? conectarMp.estado === 200 && /mercadopago/.test(conectarMp.datos?.url ?? "") : conectarMp.estado === 503, `(${conectarMp.estado})`);
+const avisoMpFalso = await j(`/api/mercadopago/webhook?oferta=${oferta.datos.oferta.id}`, { type: "payment", data: { id: "123" } });
+ok("una notificación de Mercado Pago sin firma se rechaza", avisoMpFalso.estado === 400, `(${avisoMpFalso.estado})`);
 
 // --- Webhook firmado -----------------------------------------------------------------------------
 const sinFirma = await j("/api/pagos/webhook", { type: "PROTECTED_PAYMENT_FUNDED", data: { id: "x", status: "FUNDED" } });
@@ -183,16 +190,22 @@ const confirmado = await j("/api/pedido/confirmar", { id, clave });
 ok("el vecino confirma", confirmado.estado === 200 && Boolean(confirmado.datos.pedido.confirmado));
 
 if (secreto && pago) {
-  // Los pagos protegidos llevan como referencia el id de la oferta: con eso se reconoce el pago.
-  const evento = (tipo, status) => JSON.stringify({ id: crypto.randomUUID(), type: tipo, createdAt: new Date().toISOString(), data: { id: "pp-prueba", status, reference: oferta.datos.oferta.id } });
-  const fondeado = evento("PROTECTED_PAYMENT_FUNDED", "FUNDED");
-  ok("un aviso firmado se acepta", (await j("/api/pagos/webhook", fondeado, { "x-cosmos-signature": firmar(fondeado) })).estado === 200);
+  // Se simula el aviso de Cosmos con la firma correcta. Protegido: se reconoce por la referencia (el id de la oferta).
+  // Directo: por el id del cobro, que es el final de la página de pago.
+  const directo = pago.modo === "directo";
+  const idDelCobro = pago.urlDePago.split("/").pop();
+  const evento = (tipo, status) =>
+    JSON.stringify({ id: crypto.randomUUID(), type: tipo, createdAt: new Date().toISOString(), data: directo ? { id: idDelCobro, status } : { id: "pp-prueba", status, reference: oferta.datos.oferta.id } });
+  const primero = directo ? evento("PAYMENT_INTENT_SUCCEEDED", "SUCCEEDED") : evento("PROTECTED_PAYMENT_FUNDED", "FUNDED");
+  ok("un aviso firmado se acepta", (await j("/api/pagos/webhook", primero, { "x-cosmos-signature": firmar(primero) })).estado === 200);
   const enSeg = (await j(`/api/pedido?id=${id}&clave=${clave}`)).datos.ofertas.find((o) => o.estado === "elegida");
-  ok("con el aviso de Cosmos el pago queda retenido", enSeg?.pago?.estado === "retenido", enSeg?.pago?.estado);
-  const liberado = evento("PROTECTED_PAYMENT_RELEASED", "RELEASED");
-  await j("/api/pagos/webhook", liberado, { "x-cosmos-signature": firmar(liberado) });
+  ok(directo ? "con el aviso de Cosmos el pago queda pagado" : "con el aviso de Cosmos el pago queda retenido", enSeg?.pago?.estado === (directo ? "pagado" : "retenido"), enSeg?.pago?.estado);
+  if (!directo) {
+    const liberado = evento("PROTECTED_PAYMENT_RELEASED", "RELEASED");
+    await j("/api/pagos/webhook", liberado, { "x-cosmos-signature": firmar(liberado) });
+  }
   const delPrestador = (await j(`/api/ofertas?prestadorId=${pr.id}`)).datos.ofertas[0];
-  ok("el prestador ve el pago liberado", delPrestador?.pago?.estado === "liberado");
+  ok("el prestador ve el pago cobrado", delPrestador?.pago?.estado === (directo ? "pagado" : "liberado"));
   const historial = (await j(`/api/perfil?id=${pr.idPublico}`)).datos.perfil.reputacion;
   ok("el historial suma el trabajo terminado y cobrado por la app", historial.terminados === 1 && historial.cobrados === 1, JSON.stringify(historial));
 } else {

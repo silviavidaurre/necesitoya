@@ -13,6 +13,9 @@ import * as cuenta from "@/app/api/cuenta/route";
 import * as fotos from "@/app/api/fotos/route";
 import * as pedidoIa from "@/app/api/ia/pedido/route";
 import * as perfilIa from "@/app/api/ia/perfil/route";
+import * as conectarMercadoPago from "@/app/api/mercadopago/conectar/route";
+import * as vueltaDeMercadoPago from "@/app/api/mercadopago/vuelta/route";
+import * as webhookDeMercadoPago from "@/app/api/mercadopago/webhook/route";
 import * as ofertas from "@/app/api/ofertas/route";
 import * as terminar from "@/app/api/ofertas/terminar/route";
 import * as pagos from "@/app/api/pagos/route";
@@ -50,6 +53,9 @@ const RUTAS: Record<string, Ruta> = {
   "/api/fotos": fotos,
   "/api/ia/pedido": pedidoIa,
   "/api/ia/perfil": perfilIa,
+  "/api/mercadopago/conectar": conectarMercadoPago,
+  "/api/mercadopago/vuelta": vueltaDeMercadoPago,
+  "/api/mercadopago/webhook": webhookDeMercadoPago,
   "/api/ofertas": ofertas,
   "/api/ofertas/terminar": terminar,
   "/api/pagos": pagos,
