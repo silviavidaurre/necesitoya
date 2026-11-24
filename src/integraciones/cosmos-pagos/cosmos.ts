@@ -76,31 +76,41 @@ export async function sondearProtegidos() {
 async function llamar<T>(metodo: "GET" | "POST", ruta: string, cuerpo?: unknown, idempotencia?: string): Promise<T> {
   const llave = clave();
   if (!llave) throw new ErrorDeCosmos("Cosmos Pay no está configurado.", "sin_configurar", 503);
-  const corte = new AbortController();
-  const reloj = setTimeout(() => corte.abort(), 20_000);
   let respuesta: Response;
-  try {
-    respuesta = await fetch(BASE + ruta, {
-      method: metodo,
-      headers: {
-        authorization: `Bearer ${llave}`,
-        "content-type": "application/json",
-        ...(idempotencia ? { "idempotency-key": idempotencia } : {}),
-      },
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
-      signal: corte.signal,
-    });
-  } catch {
-    throw new ErrorDeCosmos("No pudimos conectar con Cosmos Pay.", "sin_conexion", 502);
-  } finally {
-    clearTimeout(reloj);
-  }
-  const texto = await respuesta.text().catch(() => "");
+  let texto = "";
   let datos: Record<string, unknown> | null = null;
-  try {
-    datos = JSON.parse(texto) as Record<string, unknown>;
-  } catch {
-    datos = null;
+  // La API de Cosmos está detrás de la protección antibots de su proveedor, que a veces frena con un desafío
+  // ("Just a moment...") un pedido que sale de un servidor. Ese pedido no llegó a la API, así que se reintenta.
+  for (let intento = 0; ; intento++) {
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), 20_000);
+    try {
+      respuesta = await fetch(BASE + ruta, {
+        method: metodo,
+        headers: {
+          authorization: `Bearer ${llave}`,
+          accept: "application/json",
+          "content-type": "application/json",
+          "user-agent": "NecesitoYa/1.0 (+https://necesitoya.gabriel13iturre.workers.dev)",
+          ...(idempotencia ? { "idempotency-key": idempotencia } : {}),
+        },
+        body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+        signal: corte.signal,
+      });
+    } catch {
+      throw new ErrorDeCosmos("No pudimos conectar con Cosmos Pay.", "sin_conexion", 502);
+    } finally {
+      clearTimeout(reloj);
+    }
+    texto = await respuesta.text().catch(() => "");
+    try {
+      datos = JSON.parse(texto) as Record<string, unknown>;
+    } catch {
+      datos = null;
+    }
+    const desafio = !datos && (respuesta.status === 403 || respuesta.status === 503) && /just a moment|challenge|cf-chl/i.test(texto);
+    if (!desafio || intento >= 3) break;
+    await new Promise((listo) => setTimeout(listo, 700 * (intento + 1)));
   }
   if (!respuesta.ok) {
     const codigo = typeof datos?.code === "string" ? datos.code : `http_${respuesta.status}`;
