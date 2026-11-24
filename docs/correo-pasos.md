@@ -1,4 +1,6 @@
-# Mails de NecesitoYa: qué tiene que hacer la usuaria
+# Mails de NecesitoYa
+
+**Estado (24 de noviembre de 2026): prendido en producción.** Sale por Resend, desde la cuenta de Gabriel, con el dominio verificado `gabrieliturre.tech`. Remitente: `NecesitoYa <necesitoya@gabrieliturre.tech>`. La clave se llama "NecesitoYa" en Resend, solo puede mandar mails y solo desde ese dominio. Los pasos de abajo quedan para rehacerlo con otro dominio.
 
 ## Lo que ya funciona hoy, sin mandar mails
 
@@ -17,8 +19,6 @@ El código ya está hecho, detrás de configuración (`src/integraciones/resend-
 Mientras no esté configurado, esos botones no aparecen y todo sigue como hoy.
 
 ## Pasos (con el proveedor Resend)
-
-No creé ninguna cuenta. Lo tiene que hacer la usuaria:
 
 1. Crear una cuenta en https://resend.com. El plan gratis alcanza: 3.000 mails por mes.
 2. **Verificar un dominio** en Resend → Domains → Add Domain. Por ejemplo `necesitoya.com.ar`, o un subdominio como `mail.iturrelabs.com`. Resend muestra registros DNS (SPF, DKIM y opcionalmente DMARC) para cargar donde se administra ese dominio. Hay que esperar a que diga "Verified".
