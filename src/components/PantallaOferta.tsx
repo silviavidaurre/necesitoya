@@ -140,6 +140,7 @@ export function PantallaOferta({
           <Icono nombre={rubro.id} size={18} className="text-ink" />
           {rubro.nombre} · {pedido.zona} · {URGENCIA[pedido.urgencia]}
           {pedido.ejemplo ? " · Ejemplo" : ""}
+          {pedido.demo ? " · Demostración" : ""}
         </p>
         {pedido.fotoId && <img src={`/api/fotos?id=${pedido.fotoId}`} alt="Foto que mandó el vecino" className="mt-4 max-h-60 w-full rounded-[22px] object-cover" />}
         <p className="mt-4 text-base text-ink">{pedido.descripcion}</p>

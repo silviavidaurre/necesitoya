@@ -64,7 +64,8 @@ export async function POST(request: Request) {
   }
   const enviado = { enviado: true, vence: VENCE_MIN };
   const sub = `mail:${email}`;
-  if (!(await leer()).cuentas?.some((c) => c.sub === sub && c.hash)) return Response.json(enviado);
+  // Las cuentas de demostración tienen una contraseña pública y un mail inventado: no se recuperan.
+  if (!(await leer()).cuentas?.some((c) => c.sub === sub && c.hash && !c.demo)) return Response.json(enviado);
 
   const { token, vence } = nuevoEnlace(VENCE_MIN);
   const guardada = await huellaDeEnlace(token);

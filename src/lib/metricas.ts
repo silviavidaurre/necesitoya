@@ -15,14 +15,15 @@ function porcentaje(parte: number, total: number) {
 // Tampoco cuentan las cuentas de la revisión de Google Play.
 export function pedidosReales(db: BaseDeDatos): Pedido[] {
   const revision = cuentasDeRevision(db);
-  return db.pedidos.filter((p) => !p.ejemplo && !p.conMuestra && !p.dePrueba && !esCuentaDePrueba(p.cuenta) && !(p.cuenta && revision.has(p.cuenta)));
+  // Ni el barrio de demostración.
+  return db.pedidos.filter((p) => !p.ejemplo && !p.demo && !p.conMuestra && !p.dePrueba && !esCuentaDePrueba(p.cuenta) && !(p.cuenta && revision.has(p.cuenta)));
 }
 
 export function metricas(db: BaseDeDatos, ahora = Date.now()) {
   const revision = cuentasDeRevision(db);
-  const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || esCuentaDePrueba(p.cuenta) || (p.cuenta && revision.has(p.cuenta))).map((p) => p.id));
+  const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || p.demo || esCuentaDePrueba(p.cuenta) || (p.cuenta && revision.has(p.cuenta))).map((p) => p.id));
   const pedidos = pedidosReales(db);
-  const ofertasReales = db.ofertas.filter((o) => !o.ejemplo && !prestadoresDePrueba.has(o.prestadorId));
+  const ofertasReales = db.ofertas.filter((o) => !o.ejemplo && !o.demo && !prestadoresDePrueba.has(o.prestadorId));
 
   // Presupuesto en menos de una hora: sobre los pedidos que ya tuvieron una hora para recibirlo.
   const conHoraCumplida = pedidos.filter((p) => ahora - Date.parse(p.creado) >= HORA);

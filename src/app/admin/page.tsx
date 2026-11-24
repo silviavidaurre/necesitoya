@@ -77,7 +77,7 @@ function Conversacion({ mensajes, resaltado }: { mensajes: Mensaje[]; resaltado?
   );
 }
 
-type Vista = "pendientes" | "metricas" | "pruebas";
+type Vista = "pendientes" | "metricas" | "pruebas" | "demo";
 
 export default function PanelInterno() {
   const [secreto, setSecreto] = useState("");
@@ -182,6 +182,7 @@ export default function PanelInterno() {
             { id: "pendientes", texto: "Revisar" },
             { id: "metricas", texto: "Métricas" },
             { id: "pruebas", texto: "Pruebas" },
+            { id: "demo", texto: "Demo" },
           ]}
           valor={vista}
           alCambiar={(v) => {
@@ -374,6 +375,43 @@ export default function PanelInterno() {
                 </div>
               );
             })}
+          </div>
+        </>
+      )}
+
+      {vista === "demo" && datos.demo && (
+        <>
+          <p className="mt-4 text-[15px] text-ink-500">
+            Barrio de demostración para el jurado: prestadores, vecinos, pedidos, chats y reseñas inventados. No cuenta en las métricas y no se
+            cruza con lo real. Cuentas para entrar: vecina@necesitoya.demo y prestador@necesitoya.demo (contraseña demo2026).
+          </p>
+          <div className="mt-2 divide-y divide-line">
+            {Object.entries(datos.demo as Record<string, number>).map(([k, v]) => (
+              <div key={k} className="flex min-h-12 items-center justify-between py-2">
+                <span className="text-[15px] capitalize text-ink-500">{k}</span>
+                <span className="text-base font-semibold text-ink">{v}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 space-y-3">
+            <BotonSecundario
+              disabled={ocupado}
+              onClick={() => {
+                if (window.confirm("¿Cargar el barrio demo? Si ya hay uno, se reemplaza con fechas de hoy. No toca datos reales.")) void hacer({ accion: "cargar-demo", confirmar: true });
+              }}
+            >
+              {datos.demo.pedidos > 0 ? "Volver a cargar el barrio demo" : "Cargar el barrio demo"}
+            </BotonSecundario>
+            {datos.demo.pedidos > 0 && (
+              <BotonSecundario
+                disabled={ocupado}
+                onClick={() => {
+                  if (window.confirm("¿Borrar todo el barrio demo? No toca datos reales.")) void hacer({ accion: "borrar-demo", confirmar: true });
+                }}
+              >
+                Borrar el barrio demo
+              </BotonSecundario>
+            )}
           </div>
         </>
       )}

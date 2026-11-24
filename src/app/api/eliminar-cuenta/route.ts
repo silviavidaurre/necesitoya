@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Hubo demasiados pedidos. Probá de nuevo mañana o escribinos." }, { status: 429 });
   }
   const porMail = correoDisponible();
-  const conCuenta = porMail && Boolean((await leer()).cuentas?.some((c) => c.sub === `mail:${email}`));
+  const conCuenta = porMail && Boolean((await leer()).cuentas?.some((c) => c.sub === `mail:${email}` && !c.demo));
   const enlace = conCuenta ? nuevoEnlace(VENCE_HORAS * 60) : null;
   const confirmacion = enlace ? { huella: await huellaDeEnlace(enlace.token), vence: enlace.vence } : undefined;
   await modificar((db) => {

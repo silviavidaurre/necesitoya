@@ -33,6 +33,7 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
             fotos: prestador.fotos ?? [],
             reputacion: reputacionDe(db, prestador.id),
             ejemplo: Boolean(prestador.ejemplo),
+            demo: Boolean(prestador.demo),
             cobraPorLaApp: cobraPorLaApp(prestador),
             pagoProtegido: pagoProtegidoPara(prestador),
           },

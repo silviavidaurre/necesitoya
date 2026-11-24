@@ -1,6 +1,7 @@
 import { RUBRO_IDS, type RubroId } from "@/lib/catalogo";
 import { cuentaDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { sinContacto } from "@/lib/chat";
+import { esCuentaDemo } from "@/lib/demo";
 import { billeteraValida } from "@/lib/stellar";
 import { reputacionDe } from "@/lib/reglas";
 import { limpiarLista, limpiarTexto as texto } from "@/lib/texto";
@@ -100,6 +101,8 @@ export async function POST(request: Request) {
     idCliente,
     cuenta,
     billetera: billeteraCruda || undefined,
+    // El perfil de una cuenta de demostración queda en el barrio demo.
+    ...(esCuentaDemo(db, cuenta) ? { demo: true } : {}),
   };
 
   // Mismo intento que llega dos veces (se perdió la respuesta y el celular reintentó): se devuelve el que ya existe.
