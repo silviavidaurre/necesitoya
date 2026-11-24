@@ -1,0 +1,86 @@
+# Arma la app de Android de NecesitoYa (Capacitor) y deja el paquete .aab firmado para subir a Google Play.
+# Corre a mano (Actions > Android > Run workflow) o al subir una etiqueta android-v* (por ejemplo android-v1.0.0).
+# No hace falta tener el kit de Android en ninguna compu.
+#
+# Secretos del repositorio (Settings > Secrets and variables > Actions):
+#   NECESITOYA_UPLOAD_KEYSTORE_BASE64  la llave de subida (.jks) en base64
+#   NECESITOYA_UPLOAD_STORE_PASSWORD   contraseña del almacén
+#   NECESITOYA_UPLOAD_KEY_PASSWORD     contraseña de la llave
+#   NECESITOYA_GOOGLE_SERVICES_JSON_BASE64  el google-services.json de Firebase en base64 (avisos nativos)
+# Sin los de la llave el paquete sale sin firmar: sirve para ver que compila, no para subirlo a Play.
+# Sin el de Firebase la app sale igual, pero sin avisos nativos (la web no los ofrece adentro de la app).
+name: Android
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "android-v*"
+
+jobs:
+  paquete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Las máquinas ubuntu de GitHub ya traen el kit de Android (ANDROID_HOME) con las licencias aceptadas.
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Agregar Firebase (avisos nativos)
+        env:
+          FIREBASE: ${{ secrets.NECESITOYA_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -n "$FIREBASE" ]; then
+            echo "$FIREBASE" | base64 -d > android/app/google-services.json
+          else
+            echo "::warning::Sin google-services.json: la app sale sin avisos nativos."
+          fi
+
+      - name: Armar la web y copiarla al proyecto de Android
+        run: |
+          npx vite build
+          npx cap sync android
+
+      - name: Preparar la llave de subida
+        env:
+          LLAVE: ${{ secrets.NECESITOYA_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$LLAVE" ]; then
+            echo "$LLAVE" | base64 -d > "$RUNNER_TEMP/necesitoya-upload.jks"
+            echo "NECESITOYA_UPLOAD_STORE_FILE=$RUNNER_TEMP/necesitoya-upload.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sin la llave de subida: el paquete sale sin firmar y Play no lo acepta."
+          fi
+
+      - name: Armar el paquete para Play
+        working-directory: android
+        env:
+          NECESITOYA_UPLOAD_STORE_PASSWORD: ${{ secrets.NECESITOYA_UPLOAD_STORE_PASSWORD }}
+          NECESITOYA_UPLOAD_KEY_PASSWORD: ${{ secrets.NECESITOYA_UPLOAD_KEY_PASSWORD }}
+          NECESITOYA_UPLOAD_KEY_ALIAS: necesitoya-upload
+          # Play exige que cada versión subida tenga un número mayor que la anterior.
+          NECESITOYA_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Guardar el paquete
+        uses: actions/upload-artifact@v4
+        with:
+          name: necesitoya-android-${{ github.run_number }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 30
