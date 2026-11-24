@@ -2,6 +2,23 @@ import type { RubroId } from "./catalogo";
 
 export type Urgencia = "hoy" | "semana" | "flexible";
 
+export type Riesgo = "bajo" | "medio" | "alto";
+
+// Orientación de la IA sobre el problema, antes de que vaya el prestador. Es orientativa: no reemplaza la visita.
+export interface Diagnostico {
+  // La causa más probable, dicha como probabilidad ("lo más probable es que...").
+  causa: string;
+  riesgo: Riesgo;
+  queHacerYa: string[];
+  materiales: string[];
+  // Preguntas que conviene hacerle al prestador antes de elegirlo.
+  preguntas: string[];
+  // Gas o electricidad: siempre hace falta un matriculado. "" si no aplica.
+  matriculado: "" | "gasista" | "electricista";
+  // Pasos de seguridad para hacer ya (gas o electricidad). Van antes que el resto.
+  seguridad: string[];
+}
+
 export interface PerfilBorrador {
   nombre: string;
   rubros: RubroId[];
@@ -29,8 +46,14 @@ export interface Prestador extends PerfilBorrador {
   ejemplo?: boolean;
   // Identificador del intento de alta, generado en el celular: evita perfiles duplicados al reintentar.
   idCliente?: string;
-  // Cuenta de Google a la que quedó unido (su identificador en Google). Sirve para recuperarlo en otro celular.
+  // Cuenta a la que quedó unido. Sirve para recuperarlo en otro celular. Privado.
   cuenta?: string;
+  // Billetera Stellar (G...) donde cobra los pagos protegidos. Privada: solo la usa el servidor para armar el pago.
+  billetera?: string;
+  // true = moderación lo sacó de la vista (por denuncias). No aparece en presupuestos nuevos.
+  suspendido?: boolean;
+  // Solo en la respuesta del perfil propio: si está unido a una cuenta (no se guarda).
+  conCuenta?: boolean;
 }
 
 // Lo que el vecino opinó del trabajo una vez hecho.
@@ -48,6 +71,7 @@ export interface PedidoBorrador {
   urgencia: Urgencia;
   precioMin: number | null;
   precioMax: number | null;
+  diagnostico?: Diagnostico | null;
 }
 
 export interface Pedido extends PedidoBorrador {
@@ -56,7 +80,8 @@ export interface Pedido extends PedidoBorrador {
   clienteNombre: string;
   // true = pedido de muestra cargado por nosotros, no cuenta como uso real.
   ejemplo: boolean;
-  estado: "abierto" | "cerrado";
+  // abierto: recibe presupuestos · cerrado: ya eligió uno · cancelado: el vecino lo dio de baja.
+  estado: "abierto" | "cerrado" | "cancelado";
   creado: string;
   // Lo que el vecino dijo o escribió, sin tocar. El técnico lo ve junto al resumen de la IA.
   relato?: string;
@@ -69,8 +94,11 @@ export interface Pedido extends PedidoBorrador {
   claveCliente?: string;
   // Identificador del intento, generado en el celular: si llega dos veces el mismo, no se duplica el pedido.
   idCliente?: string;
-  // Cuenta de Google del vecino, si entró con Google. Privado.
+  // Cuenta del vecino. Privado.
   cuenta?: string;
+  // Cuándo el vecino confirmó que el trabajo quedó bien. Recién ahí puede calificar y se libera el pago.
+  confirmado?: string;
+  cancelacion?: { creado: string; motivo: string } | null;
 }
 
 export type PedidoPublico = Omit<Pedido, "clienteWhatsapp" | "claveCliente" | "idCliente" | "cuenta">;
@@ -106,6 +134,50 @@ export interface Oferta {
   // Hasta cuándo leyó el chat cada lado (fecha ISO). Sirve para contar los mensajes sin leer.
   leidoVecino?: string;
   leidoPrestador?: string;
+  // El prestador marcó "Trabajo terminado", con la foto del después.
+  terminado?: { creado: string; fotoId: string | null } | null;
+}
+
+export type EstadoDePago = "pendiente" | "retenido" | "liberado" | "en_disputa" | "resuelto" | "vencido" | "cancelado" | "pagado";
+
+// Un pago hecho dentro de la app por un trabajo elegido.
+export interface Pago {
+  id: string;
+  ofertaId: string;
+  pedidoId: string;
+  proveedor: "cosmos" | "mercadopago";
+  // protegido: la plata queda retenida en un contrato hasta que el vecino confirma · directo: va al prestador en el momento.
+  modo: "protegido" | "directo";
+  estado: EstadoDePago;
+  montoArs: number;
+  // En la moneda del proveedor (USDC en Cosmos, pesos en Mercado Pago), como texto decimal.
+  monto: string;
+  moneda: "USDC" | "ARS";
+  comision: string;
+  comisionPagada: boolean;
+  // Identificadores del lado del proveedor y páginas donde se paga.
+  externoId: string;
+  urlDePago: string;
+  comisionId?: string;
+  urlDeComision?: string;
+  cotizacion?: number;
+  eventos: { tipo: string; creado: string }[];
+  creado: string;
+  actualizado: string;
+}
+
+// Lo que ven el vecino y el prestador de un pago: sin identificadores internos de más.
+export interface PagoPublico {
+  proveedor: Pago["proveedor"];
+  modo: Pago["modo"];
+  estado: EstadoDePago;
+  monto: string;
+  moneda: Pago["moneda"];
+  montoArs: number;
+  comision: string;
+  comisionPagada: boolean;
+  urlDePago: string;
+  urlDeComision?: string;
 }
 
 // Un mensaje del chat de un presupuesto, entre el vecino dueño del pedido y el prestador que lo mandó.
@@ -128,7 +200,12 @@ export interface PedidoParaPrestador extends PedidoPublico {
 }
 
 export interface Reputacion {
+  // Presupuestos elegidos.
   trabajos: number;
+  // Trabajos que el vecino confirmó como terminados.
+  terminados: number;
+  // Trabajos cobrados por la app (pago protegido liberado o pago directo).
+  cobrados: number;
   calificaciones: number;
   promedio: number | null;
 }
@@ -170,7 +247,10 @@ export interface OfertaParaCliente extends Omit<Oferta, "prestadorId" | "leidoVe
     reputacion: Reputacion;
     // true = prestador de muestra.
     ejemplo: boolean;
+    // true = cargó su billetera: se le puede pagar protegido por la app.
+    cobraPorLaApp: boolean;
   };
+  pago: PagoPublico | null;
 }
 
 export interface BaseDeDatos {
@@ -180,4 +260,5 @@ export interface BaseDeDatos {
   cuentas?: Cuenta[];
   // Puede faltar en bases creadas antes del chat: se trata como lista vacía.
   mensajes?: Mensaje[];
+  pagos?: Pago[];
 }
