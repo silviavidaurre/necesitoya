@@ -8,7 +8,8 @@ Publicada en https://necesitoya.gabriel13iturre.workers.dev
 
 - **Diagnóstico.** El vecino cuenta lo que le pasa hablando, escribiendo o con una foto. La IA arma el pedido y un diagnóstico orientativo: lo más probable, el riesgo, qué hacer ya, materiales y preguntas para el prestador. Con gas o electricidad siempre avisa que hace falta un matriculado y da los pasos de seguridad.
 - **Presupuestos.** Hasta tres prestadores mandan su precio; el último lugar queda reservado 15 minutos para los del barrio. Cada uno dice si está **verificado** (DNI y, si tiene, matrícula revisados a mano) o **sin verificar**.
-- **Chat dentro de la app.** Nadie ve el teléfono de nadie: los números que se pegan se ocultan. Se puede denunciar o bloquear desde el chat.
+- **Trabajo tipo Uber.** El prestador ofrece días y franjas al presupuestar; el vecino elige uno y carga la dirección, que es privada (solo la ve el prestador elegido mientras el trabajo está activo, y se borra al terminar o cancelar). El prestador avanza los estados con un botón (Confirmado, En camino, Llegó, Trabajando, Terminado) y el vecino los sigue en vivo sobre un mapa dibujado. Llamadas sin mostrar el número: pendiente (necesita un proveedor de telefonía).
+- **Chat dentro de la app**, como acción secundaria para las excepciones. Nadie ve el teléfono de nadie: los números que se pegan se ocultan. Se puede denunciar o bloquear desde el chat.
 - **Pago por la app (Cosmos Pay, USDC en Stellar).** Protegido: la plata queda retenida hasta que el vecino confirma. Mientras Cosmos no publique los pagos protegidos en su API, se cobra directo con la comisión fija separada en la misma transacción (`merchantFee`). Mercado Pago marketplace está armado detrás de configuración.
 - **Cierre del trabajo.** El prestador marca "Trabajo terminado" con la foto del después, el vecino confirma y recién ahí califica. El perfil público muestra el historial: trabajos terminados, cobrados por la app y reseñas.
 - **Reclamos y cancelaciones.** Cancelar, cambiar el día y reclamar con fotos (el chat sirve de prueba), conectado a la disputa del pago protegido.
@@ -18,7 +19,7 @@ Publicada en https://necesitoya.gabriel13iturre.workers.dev
 
 ## Con qué está hecha
 
-- Vite, React 19, React Router 7, Tailwind 4 y TypeScript.
+- Vite, React 19, React Router 7, Tailwind 4 y TypeScript. Diseño: negro, blanco y un acento naranja; Space Grotesk e Inter; el lado del prestador va oscuro (tokens en `src/app/globals.css`).
 - API en `src/app/api/**/route.ts`, registrada en `src/servidor/rutas.ts`.
 - En producción corre en un Worker de Cloudflare con una base D1 (`src/servidor/worker.ts`, `wrangler.jsonc`), con una tabla por colección (`src/servidor/almacen-d1.ts`). La primera vez migra sola desde la fila única `estado`, que queda intacta como respaldo. En desarrollo guarda en un archivo local.
 - IA: Claude, con el SDK de Anthropic (`src/lib/ia.ts`). Sin clave, la app sigue andando en un modo básico por reglas.
@@ -46,7 +47,7 @@ Con la app corriendo, cada tanda se corre contra una dirección:
 node pruebas/circuito.mjs http://localhost:3000
 ```
 
-Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta`, `voz`, `confianza` (diagnóstico, verificado, cierre, pagos, webhook), `avisos` (push y app instalable) y `moderacion` (verificación, reclamos, denuncias, bloqueos, panel, límites, métricas). Usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con:
+Las tandas son `circuito`, `prestador`, `muestra`, `chat`, `cuenta`, `voz`, `confianza` (diagnóstico, verificado, cierre, pagos, webhook), `avisos` (push y app instalable), `turnos` (días, dirección privada y estados) y `moderacion` (verificación, reclamos, denuncias, bloqueos, panel, límites, métricas). Usan cuentas con mail `.test`: lo que crean no cuenta en las métricas y se borra con:
 
 ```bash
 node pruebas/limpiar.mjs https://necesitoya.gabriel13iturre.workers.dev --borrar
