@@ -13,10 +13,15 @@ import type { PerfilPublico } from "@/lib/tipos";
 // La confianza se gana por escalones: se empieza a trabajar con el primero
 // y cada uno suma frente al vecino, en vez de exigir todo antes del primer pedido.
 const NIVELES = [
-  { nivel: 1, titulo: "Celular cargado", detalle: "Opcional. No se le muestra a nadie" },
-  { nivel: 2, titulo: "Identidad verificada", detalle: "Con tu DNI. Muy pronto" },
-  { nivel: 3, titulo: "Oficio certificado", detalle: "Curso o matrícula. Muy pronto" },
+  { tipo: "dni" as const, titulo: "Identidad verificada", detalle: "Con tu DNI y una selfie" },
+  { tipo: "matricula" as const, titulo: "Oficio certificado", detalle: "Matrícula o certificado del curso" },
 ];
+
+interface Tramite {
+  tipo: "dni" | "matricula";
+  estado: "pendiente" | "aprobada" | "rechazada";
+  motivo: string;
+}
 
 export default function PerfilPrestador() {
   const router = useRouter();
@@ -25,6 +30,7 @@ export default function PerfilPrestador() {
   const [error, setError] = useState("");
   const [subiendo, setSubiendo] = useState(false);
   const [compartido, setCompartido] = useState(false);
+  const [tramites, setTramites] = useState<Tramite[]>([]);
   const entradaFoto = useRef<HTMLInputElement>(null);
 
   // El id secreto (prestadorId) solo se usa para cambiar cosas propias. Para mostrar y compartir va el público.
@@ -35,10 +41,14 @@ export default function PerfilPrestador() {
     try {
       const datos = await pedir<{ perfil: PerfilPublico }>(`/api/perfil?id=${encodeURIComponent(idPublico)}`);
       setPerfil(datos.perfil);
+      if (prestadorId) {
+        const verificacion = await pedir<{ tramites: Tramite[] }>(`/api/verificacion?prestadorId=${encodeURIComponent(prestadorId)}`).catch(() => null);
+        if (verificacion) setTramites(verificacion.tramites);
+      }
     } catch {
       setError("Sin conexión. No pudimos actualizar tu perfil.");
     }
-  }, [idPublico]);
+  }, [idPublico, prestadorId]);
 
   useEffect(() => {
     cargar();
@@ -146,15 +156,36 @@ export default function PerfilPrestador() {
 
         <Seccion>Tu confianza</Seccion>
         <div className="mt-1 divide-y divide-line">
-          {NIVELES.map((n) => (
-            <div key={n.nivel} className="flex min-h-16 items-center justify-between gap-4 py-3">
-              <div>
-                <p className="text-base font-semibold text-ink">{n.titulo}</p>
-                <p className="text-sm text-ink-500">{n.detalle}</p>
-              </div>
-              {(n.nivel === 1 ? Boolean(prestador.whatsapp) : prestador.nivel >= n.nivel) ? <Estado tono="bien">Listo</Estado> : <Estado>Pendiente</Estado>}
-            </div>
-          ))}
+          {NIVELES.map((n) => {
+            // El último trámite de ese tipo dice en qué está; el nivel del perfil confirma lo aprobado.
+            const ultimo = tramites.find((t) => t.tipo === n.tipo);
+            const listo = n.tipo === "dni" ? prestador.nivel >= 2 : prestador.nivel >= 3 || ultimo?.estado === "aprobada";
+            const detalle = listo
+              ? n.tipo === "matricula" && prestador.nivel < 3
+                ? "Aprobado. Se ve cuando verifiques tu identidad"
+                : n.detalle
+              : ultimo?.estado === "pendiente"
+                ? "Lo estamos revisando"
+                : ultimo?.estado === "rechazada"
+                  ? `No se aprobó: ${ultimo.motivo}. Probá de nuevo`
+                  : n.detalle;
+            const puedeMandar = !listo && ultimo?.estado !== "pendiente";
+            return (
+              <button
+                key={n.tipo}
+                type="button"
+                disabled={!puedeMandar}
+                onClick={() => router.push(`/prestador/verificar?tipo=${n.tipo}`)}
+                className="flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left"
+              >
+                <div>
+                  <p className="text-base font-semibold text-ink">{n.titulo}</p>
+                  <p className="text-sm text-ink-500">{detalle}</p>
+                </div>
+                {listo ? <Estado tono="bien">Listo</Estado> : ultimo?.estado === "pendiente" ? <Estado>En revisión</Estado> : ultimo?.estado === "rechazada" ? <Estado tono="mal">Rechazado</Estado> : <Estado>Pendiente</Estado>}
+              </button>
+            );
+          })}
           <button type="button" onClick={() => router.push("/prestador/editar")} className="flex min-h-16 w-full items-center justify-between gap-4 py-3 text-left">
             <div>
               <p className="text-base font-semibold text-ink">Cobrar por la app</p>

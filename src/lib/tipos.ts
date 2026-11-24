@@ -118,6 +118,8 @@ export interface Cuenta {
   // Llave que guarda el celular para que lo que cree después quede unido a la cuenta.
   clave: string;
   creado: string;
+  // A quiénes bloqueó: "p:<id del prestador>" o "c:<cuenta del vecino>". Con un bloqueo no se cruzan más.
+  bloqueos?: string[];
 }
 
 export interface Oferta {
@@ -263,6 +265,9 @@ export interface BaseDeDatos {
   pagos?: Pago[];
   suscripciones?: Suscripcion[];
   avisos?: AvisoGuardado[];
+  verificaciones?: Verificacion[];
+  reclamos?: Reclamo[];
+  denuncias?: Denuncia[];
 }
 
 // Un celular que aceptó recibir avisos, unido a una cuenta. El endpoint lo da el navegador.
@@ -282,4 +287,50 @@ export interface AvisoGuardado {
   url: string;
   creado: string;
   entregado?: boolean;
+}
+
+// Un trámite de verificación del prestador, que alguien del equipo revisa a mano.
+// dni: foto del frente del DNI y una selfie sosteniéndolo · matricula: foto de la matrícula o certificado del oficio.
+export interface Verificacion {
+  id: string;
+  prestadorId: string;
+  tipo: "dni" | "matricula";
+  // Ids en el almacén de fotos privadas (empiezan con "doc-"): nunca se sirven por /api/fotos.
+  documentos: string[];
+  numero?: string;
+  estado: "pendiente" | "aprobada" | "rechazada";
+  motivo?: string;
+  creado: string;
+  revisado?: string;
+}
+
+// Un reclamo sobre un trabajo elegido. La prueba es lo que adjunta y el chat del presupuesto.
+export interface Reclamo {
+  id: string;
+  pedidoId: string;
+  ofertaId: string;
+  de: "vecino" | "prestador";
+  motivo: string;
+  detalle: string;
+  fotos: string[];
+  estado: "abierto" | "resuelto";
+  resolucion?: string;
+  creado: string;
+  resuelto?: string;
+}
+
+// Una denuncia sobre un perfil o un mensaje del chat.
+export interface Denuncia {
+  id: string;
+  tipo: "perfil" | "mensaje";
+  // Perfil: el id público del prestador · mensaje: el id del mensaje.
+  objetivo: string;
+  // Para un mensaje: el presupuesto donde está la conversación.
+  ofertaId?: string;
+  motivo: string;
+  detalle: string;
+  cuenta: string;
+  estado: "abierta" | "resuelta" | "descartada";
+  creado: string;
+  resuelta?: string;
 }
