@@ -95,12 +95,20 @@ async function llamar<T>(metodo: "GET" | "POST", ruta: string, cuerpo?: unknown,
   } finally {
     clearTimeout(reloj);
   }
-  const datos = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null;
+  const texto = await respuesta.text().catch(() => "");
+  let datos: Record<string, unknown> | null = null;
+  try {
+    datos = JSON.parse(texto) as Record<string, unknown>;
+  } catch {
+    datos = null;
+  }
   if (!respuesta.ok) {
     const codigo = typeof datos?.code === "string" ? datos.code : `http_${respuesta.status}`;
     const mensaje = typeof datos?.message === "string" ? datos.message : "Cosmos Pay rechazó el pedido.";
-    // Solo el código y el mensaje de Cosmos: nunca la clave ni los encabezados.
-    console.error("[cosmos]", metodo, ruta.replace(/[?].*$/, ""), respuesta.status, codigo, mensaje);
+    // Solo el código y el mensaje de Cosmos: nunca la clave ni los encabezados. Si la respuesta no es de la API
+    // (por ejemplo, una página de bloqueo de su proveedor), se anota el principio del texto para saber quién la cortó.
+    const pista = datos ? "" : texto.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    console.error("[cosmos]", metodo, ruta.replace(/[?].*$/, ""), respuesta.status, codigo, mensaje, pista);
     throw new ErrorDeCosmos(mensaje, codigo, respuesta.status);
   }
   return datos as T;

@@ -59,6 +59,9 @@ if (config.datos?.disponible) {
   for (let intento = 0; intento < 10 && !aviso; intento++) {
     await new Promise((listo) => setTimeout(listo, 300));
     aviso = (await j("/api/avisos/ultimo", { endpoint })).datos?.aviso;
+    // En producción Google responde que este celular inventado no existe y el servidor lo da de baja
+    // (como debe hacer con uno vencido). El aviso queda guardado en la cuenta: se vuelve a anotar y se busca de nuevo.
+    if (!aviso && intento >= 2) await j("/api/avisos", { cuenta, suscripcion: { endpoint } });
   }
   ok("el service worker trae el aviso del presupuesto nuevo", aviso?.tipo === "presupuesto" && aviso.url === `/pedido/${pedido.id}`, JSON.stringify(aviso));
   ok("con un endpoint que no es de nadie no trae nada", (await j("/api/avisos/ultimo", { endpoint: `https://fcm.googleapis.com/fcm/send/otro-${crypto.randomUUID()}` })).datos?.aviso === null);
