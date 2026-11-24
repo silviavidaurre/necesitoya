@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { BotonPrimario, Cabecera, Chip, ErrorDePantalla, Icono, claseCampo } from "@/components/ui";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { pedir } from "@/lib/cliente";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { MOTIVOS_DE_RECLAMO } from "@/lib/motivos";
@@ -41,6 +42,7 @@ export function PantallaReclamo({ ofertaId, quien, nombre, alCerrar }: { ofertaI
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [enviado, setEnviado] = useState<{ disputa: string | null } | null>(null);
+  useCerrarConAtras(() => alCerrar(Boolean(enviado)));
   const entrada = useRef<HTMLInputElement>(null);
   const esVecino = "clave" in quien;
   const motivos = MOTIVOS_DE_RECLAMO.filter((m) => (esVecino ? m !== "No me paga" : m !== "Cobró de más" && m !== "No vino"));
@@ -162,6 +164,7 @@ export function PantallaCambiarDia({
   const [cuando, setCuando] = useState("");
   const [otro, setOtro] = useState("");
   const [turno, setTurno] = useState<Turno | null>(null);
+  useCerrarConAtras(() => alCerrar());
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const elegido = turno ? textoDeTurno(turno) : (cuando === "otro" ? otro : cuando).trim();
@@ -212,6 +215,7 @@ export function PantallaCambiarDia({
 // Cancelar el pedido: pide el motivo (tocando) y confirma. No se puede deshacer.
 export function PantallaCancelar({ pedidoId, clave, alCerrar }: { pedidoId: string; clave: string; alCerrar: (cancelado: boolean) => void }) {
   const motivos = ["Ya lo resolví", "Me arreglé con otra persona", "Ya no lo necesito", "Otro motivo"];
+  useCerrarConAtras(() => alCerrar(false));
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");

@@ -3,6 +3,7 @@ import { ErrorDePedido, pedir } from "@/lib/cliente";
 import { grabar, puedeGrabar, type Grabacion } from "@/lib/grabadora";
 import { callar } from "@/lib/lectura";
 import { vozEnServidor } from "@/lib/voz-cliente";
+import { esAppNativa } from "@/lib/nativo";
 
 // Dictado por voz. Tiene dos caminos y quien lo usa no nota la diferencia:
 // 1. El reconocimiento del navegador (Chrome y derivados): gratis y muestra el texto mientras la persona habla.
@@ -39,7 +40,8 @@ function obtenerConstructor(): Constructor | null {
 const FALLAS_CON_RESPALDO = ["service-not-allowed", "network", "language-not-supported"];
 
 // Si el reconocimiento del navegador falló una vez y hay respaldo, el resto de la visita se graba directamente.
-let reconocimientoRoto = false;
+// Dentro de la app de Android el reconocimiento del navegador no anda: se graba desde el principio.
+let reconocimientoRoto = esAppNativa();
 
 export function useDictado(alTerminarFrase: (frase: string) => void) {
   const [soportado, setSoportado] = useState(false);

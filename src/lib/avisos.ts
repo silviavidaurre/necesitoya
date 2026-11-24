@@ -1,4 +1,5 @@
 import { modificar, nuevoId } from "./db";
+import { enviarFcm, fcmDisponible } from "./fcm";
 import { despertar, pushDisponible } from "./push";
 import { enSegundoPlano } from "./segundo-plano";
 import type { AvisoGuardado } from "./tipos";
@@ -18,7 +19,7 @@ const AVISOS_POR_CUENTA = 20;
 const AVISOS_EN_TOTAL = 3000;
 
 export function avisar(cuenta: string | undefined | null, aviso: Aviso) {
-  if (!cuenta || !pushDisponible()) return;
+  if (!cuenta || (!pushDisponible() && !fcmDisponible())) return;
   enSegundoPlano(mandar(cuenta, aviso));
 }
 
@@ -34,7 +35,13 @@ async function mandar(cuenta: string, aviso: Aviso) {
     return suscripciones.map((s) => s.endpoint);
   });
   if (endpoints.length === 0) return;
-  const resultados = await Promise.all(endpoints.map(async (endpoint) => ({ endpoint, estado: await despertar(endpoint) })));
+  // Celulares con la app de Android: aviso por Firebase, con el texto adentro. Navegadores: web push que despierta.
+  const resultados = await Promise.all(
+    endpoints.map(async (endpoint) => ({
+      endpoint,
+      estado: endpoint.startsWith("fcm:") ? await enviarFcm(endpoint.slice(4), aviso) : await despertar(endpoint),
+    })),
+  );
   const vencidas = new Set(resultados.filter((r) => r.estado === "vencida").map((r) => r.endpoint));
   if (vencidas.size > 0) {
     await modificar((db) => {
