@@ -76,3 +76,36 @@ export async function avisosNativosActivos() {
   if (!appConAvisosNativos()) return false;
   return (await PushNotifications.checkPermissions()).receive === "granted";
 }
+
+// --- Entrar con Google adentro de la app ----------------------------------------------------------
+// Google no deja entrar desde una página web dentro de la app (WebView). La app 1.1.1 en adelante trae el inicio
+// de sesión nativo de Android (Credential Manager). Las versiones anteriores no lo tienen: se pregunta si está.
+// Se pide con el identificador web de Google, así el token que vuelve es el mismo que valida el servidor.
+export function googleNativoDisponible() {
+  try {
+    return esAppNativa() && Capacitor.isPluginAvailable("SocialLogin");
+  } catch {
+    return false;
+  }
+}
+
+let googleIniciado: string | null = null;
+
+// Devuelve el token de Google para mandarle al servidor, o null si la persona cerró la ventana de Google.
+export async function entrarConGoogleNativo(idWebDeGoogle: string): Promise<string | null> {
+  const { SocialLogin } = await import("@capgo/capacitor-social-login");
+  if (googleIniciado !== idWebDeGoogle) {
+    // Sin el paso de "autorización" extra: solo hace falta saber quién es (nombre y mail).
+    await SocialLogin.initialize({ google: { webClientId: idWebDeGoogle, skipAuthOnlyAuthorizationAfterSignIn: true } });
+    googleIniciado = idWebDeGoogle;
+  }
+  try {
+    const respuesta = await SocialLogin.login({ provider: "google", options: {} });
+    const resultado = respuesta.result as { idToken?: string | null };
+    return resultado.idToken ?? null;
+  } catch (error) {
+    // Cerrar la ventana de Google no es un error para mostrar.
+    if (/cancel/i.test(String((error as { message?: string })?.message ?? error))) return null;
+    throw error;
+  }
+}

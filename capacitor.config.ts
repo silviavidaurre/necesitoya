@@ -35,6 +35,11 @@ const config: CapacitorConfig = {
       backgroundColor: "#0D0D0D",
       showSpinner: false,
     },
+    // Entrar con Google nativo (Credential Manager). Solo Google: los demás no se empaquetan.
+    SocialLogin: {
+      providers: { google: true, facebook: false, apple: false, twitter: false },
+      logLevel: 1,
+    },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },

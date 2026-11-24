@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { recordarPrestador } from "@/components/usePrestador";
 import { PantallaEliminarCuenta } from "@/components/EliminarCuenta";
 import { Link } from "@/lib/navegacion";
-import { esAppNativa } from "@/lib/nativo";
+import { entrarConGoogleNativo, esAppNativa, googleNativoDisponible } from "@/lib/nativo";
 import { BotonSecundario, Campo, claseCampo } from "@/components/ui";
 import {
   borrarPrestadorId,
@@ -11,6 +11,7 @@ import {
   leerCuenta,
   leerMisPedidos,
   leerPrestadorId,
+  ErrorDePedido,
   pedir,
   reemplazarMisPedidos,
   type CuentaGuardada,
@@ -130,6 +131,8 @@ export function EntrarACuenta({
   const [entrando, setEntrando] = useState(false);
   const [error, setError] = useState("");
   const [hayGoogle, setHayGoogle] = useState(false);
+  // Adentro de la app de Android: el identificador web de Google para el inicio de sesión nativo.
+  const [googleNativo, setGoogleNativo] = useState<string | null>(null);
   const destino = useRef<HTMLDivElement>(null);
   // El aviso de "ya entré" se guarda en una referencia: el botón de Google lo llama desde afuera de React.
   const alEntradaRef = useRef<typeof alEntrar>(undefined);
@@ -164,9 +167,18 @@ export function EntrarACuenta({
       }
     }
 
-    // Dentro de la app de Android, Google no deja entrar desde una página web (WebView): queda mail y contraseña.
-    // Para Google adentro de la app hace falta el inicio de sesión nativo (pendiente).
-    if (esAppNativa()) return;
+    // Dentro de la app de Android, Google no deja entrar desde una página web (WebView): se usa el inicio de
+    // sesión nativo si esta versión de la app lo trae; si no, queda mail y contraseña.
+    if (esAppNativa()) {
+      if (googleNativoDisponible()) {
+        void pedirIdDeLaApp().then((id) => {
+          if (vigente && id) setGoogleNativo(id);
+        });
+      }
+      return () => {
+        vigente = false;
+      };
+    }
     pedirIdDeLaApp().then(async (id) => {
       if (!id || !vigente) return;
       try {
@@ -193,6 +205,20 @@ export function EntrarACuenta({
       vigente = false;
     };
   }, [abierto, cuenta]);
+
+  async function conGoogleNativo() {
+    if (!googleNativo) return;
+    setError("");
+    setEntrando(true);
+    try {
+      const credencial = await entrarConGoogleNativo(googleNativo);
+      if (!credencial) return setEntrando(false);
+      abrirCuenta(await pedir<Entrada>("/api/cuenta", { method: "POST", body: JSON.stringify({ credencial, ...loDeEsteCelular() }) }), alEntradaRef.current);
+    } catch (e) {
+      setError(e instanceof ErrorDePedido ? e.message : "No pudimos entrar con Google. Probá de nuevo o entrá con tu mail.");
+      setEntrando(false);
+    }
+  }
 
   async function conMail() {
     setError("");
@@ -275,6 +301,17 @@ export function EntrarACuenta({
           {entrando ? "Entrando" : "Entrar"}
         </BotonSecundario>
       </div>
+      {googleNativo && (
+        <button
+          type="button"
+          onClick={() => void conGoogleNativo()}
+          disabled={entrando}
+          className="boton-google mt-4 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border px-4 text-[15px] font-medium disabled:opacity-60"
+        >
+          <LogoDeGoogle />
+          Continuar con Google
+        </button>
+      )}
       <div className={hayGoogle ? "mt-4" : "hidden"}>
         {/* El botón lo dibuja Google: así lo exigen sus reglas de marca. */}
         <div ref={destino} className="flex min-h-11 w-full justify-center" />
@@ -291,5 +328,17 @@ export function EntrarACuenta({
         .
       </p>
     </form>
+  );
+}
+
+// La "G" de Google, como pide su guía de marca para los botones propios.
+function LogoDeGoogle() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   );
 }
