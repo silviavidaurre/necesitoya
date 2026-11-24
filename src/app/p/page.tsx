@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Denunciar } from "@/components/Denunciar";
 import { FichaPrestador } from "@/components/FichaPrestador";
 import { Logo } from "@/components/Logo";
 import { BotonPrimario, Cargando, Pantalla, Titulo } from "@/components/ui";
@@ -15,6 +16,7 @@ export default function PerfilPublicoDePrestador() {
   const router = useRouter();
   const [perfil, setPerfil] = useState<PerfilPublico | null>(null);
   const [error, setError] = useState("");
+  const [denunciando, setDenunciando] = useState(false);
 
   useEffect(() => {
     let vigente = true;
@@ -61,6 +63,12 @@ export default function PerfilPublicoDePrestador() {
         </Link>
       </header>
       <FichaPrestador perfil={perfil} />
+      {!perfil.ejemplo && (
+        <button type="button" onClick={() => setDenunciando(true)} className="mx-auto mt-8 flex min-h-12 items-center px-4 text-[15px] font-semibold text-ink-500">
+          Denunciar este perfil
+        </button>
+      )}
+      {denunciando && <Denunciar tipo="perfil" objetivo={perfil.id} nombre={pila} alCerrar={() => setDenunciando(false)} />}
     </Pantalla>
   );
 }
