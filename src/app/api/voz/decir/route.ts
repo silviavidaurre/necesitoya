@@ -1,4 +1,4 @@
-import { dentroDelCupo } from "@/lib/db";
+import { conexionDe, dentroDelCupo, dentroDelCupoDe } from "@/lib/db";
 import { ErrorDeVoz, MAXIMO_TEXTO, decir } from "@/lib/voz";
 
 // Lee en voz alta un texto corto. Devuelve el audio en MP3.
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "El texto es muy largo para leerlo en voz alta." }, { status: 413 });
   }
 
-  if (!(await dentroDelCupo("voz"))) return Response.json({ error: "La voz no está disponible por hoy." }, { status: 429 });
+  if (!(await dentroDelCupo("voz")) || !(await dentroDelCupoDe("vozPorConexion", conexionDe(request)))) return Response.json({ error: "La voz no está disponible por hoy." }, { status: 429 });
 
   try {
     const audio = await decir(texto);

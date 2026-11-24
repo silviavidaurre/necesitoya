@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Estrellas, ResumenDeReputacion } from "@/components/Reputacion";
+import { Estrellas, ResumenDeReputacion, Verificacion } from "@/components/Reputacion";
 import { Seccion } from "@/components/ui";
 import { rubroPorId } from "@/lib/catalogo";
 import type { PerfilPublico } from "@/lib/tipos";
@@ -27,12 +27,17 @@ export function FichaPrestador({ perfil, acciones, fotosExtra }: { perfil: Perfi
   return (
     <>
       <div className="mt-6 flex flex-col items-center text-center">
-        <span className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-50 text-[34px] font-bold text-brand-600">{iniciales(perfil.nombre)}</span>
+        <span className="flex h-24 w-24 items-center justify-center rounded-full bg-subtle text-[34px] font-bold text-ink">{iniciales(perfil.nombre)}</span>
         <h1 className="mt-4 text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">{perfil.nombre}</h1>
         <p className="mt-1 text-[17px] text-ink-500">{perfil.rubros.map((id) => rubroPorId(id).nombre).join(" · ")}</p>
         <p className="mt-2">
           <ResumenDeReputacion reputacion={perfil.reputacion} aniosExperiencia={perfil.aniosExperiencia} />
         </p>
+        {!perfil.ejemplo && (
+          <p className="mt-2">
+            <Verificacion nivel={perfil.nivel} />
+          </p>
+        )}
       </div>
 
       {perfil.descripcion && <p className="mt-6 text-center text-base text-ink">{perfil.descripcion}</p>}
@@ -57,8 +62,18 @@ export function FichaPrestador({ perfil, acciones, fotosExtra }: { perfil: Perfi
         {perfil.aniosExperiencia > 0 && <Dato etiqueta="Experiencia" valor={`${perfil.aniosExperiencia} años`} />}
         {perfil.zonas.length > 0 && <Dato etiqueta="Barrios" valor={perfil.zonas.join(", ")} />}
         {perfil.disponibilidad && <Dato etiqueta="Horarios" valor={perfil.disponibilidad} />}
-        <Dato etiqueta="Trabajos por NecesitoYa" valor={String(perfil.reputacion.trabajos)} />
+        <Dato etiqueta="Identidad (DNI)" valor={perfil.nivel >= 2 ? "Verificada" : "Sin verificar"} />
+        <Dato etiqueta="Matrícula o certificado" valor={perfil.nivel >= 3 ? "Verificado" : "Sin verificar"} />
       </div>
+
+      {/* Historial que no depende de lo que diga el prestador: sale de los trabajos hechos por la app. */}
+      <Seccion>Historial en NecesitoYa</Seccion>
+      <div className="mt-1 divide-y divide-line">
+        <Dato etiqueta="Trabajos terminados" valor={String(perfil.reputacion.terminados)} />
+        <Dato etiqueta="Cobrados por la app" valor={String(perfil.reputacion.cobrados)} />
+        <Dato etiqueta="Opiniones" valor={perfil.reputacion.calificaciones > 0 ? `${perfil.reputacion.calificaciones} · ${String(perfil.reputacion.promedio ?? "").replace(".", ",")} de 5` : "Todavía ninguna"} />
+      </div>
+      <p className="mt-2 text-[13px] text-ink-500">Terminado quiere decir que el vecino confirmó que quedó bien.</p>
 
       {perfil.resenas.length > 0 && (
         <>

@@ -1,5 +1,6 @@
 // Prueba lo nuevo: presupuestos de muestra, pedidos sin duplicar al reintentar y la lista abierta sin anotarse.
 // Uso: node pruebas/muestra.mjs http://localhost:3000
+import { cuentaDePrueba } from "./comun.mjs";
 const base = process.argv[2] ?? "http://localhost:3000";
 let fallas = 0;
 
@@ -33,6 +34,7 @@ const pedido = {
   // Ya no se pide. Se manda igual, como haría una versión vieja de la app, para comprobar que no se le muestra a nadie.
   clienteWhatsapp: "388 4123456",
   idCliente,
+  cuenta: await cuentaDePrueba(base, "vecina"),
 };
 const primero = await j("/api/pedidos", { method: "POST", body: JSON.stringify(pedido) });
 ver("publica el pedido", (primero.estado === 200 || primero.estado === 201) && Boolean(primero.cuerpo?.id), `(${primero.estado})`);

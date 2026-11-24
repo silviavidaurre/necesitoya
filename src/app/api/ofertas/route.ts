@@ -1,8 +1,13 @@
 import { MAX_OFERTAS } from "@/lib/catalogo";
 import { resumenDeChat } from "@/lib/chat";
-import { dentroDelCupo, leer, modificar, nuevoId } from "@/lib/db";
+import { dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
+import { avisar } from "@/lib/avisos";
+import { pagoDe, pagoPublico } from "@/lib/pagos";
+import { bloqueados } from "@/lib/moderacion";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto } from "@/lib/texto";
+import { trabajoActivo, trabajoDe } from "@/lib/trabajo";
+import { limpiarTurnos, resumenDeTurnos, turnosDesdeCuando } from "@/lib/turnos";
 import type { Oferta } from "@/lib/tipos";
 
 
@@ -30,7 +35,14 @@ export async function GET(request: Request) {
       const { leidoVecino: _vecino, leidoPrestador: _prestador, ...visible } = oferta;
       return {
         ...visible,
-        pedido: pedido ? { titulo: pedido.titulo, zona: pedido.zona, rubro: pedido.rubro, ejemplo: pedido.ejemplo } : null,
+        // La dirección solo la ve el prestador elegido y solo mientras el trabajo está activo.
+        direccion: pedido && trabajoActivo(oferta, pedido) ? (pedido.direccion ?? null) : null,
+        trabajo: trabajoDe(oferta),
+        pedido: pedido
+          ? { titulo: pedido.titulo, zona: pedido.zona, rubro: pedido.rubro, ejemplo: pedido.ejemplo, estado: pedido.estado, confirmado: pedido.confirmado ?? null, calificacion: pedido.calificacion ?? null }
+          : null,
+        pago: pagoPublico(pagoDe(db, oferta.id)),
+        reclamos: (db.reclamos ?? []).filter((r) => r.ofertaId === oferta.id).map((r) => ({ de: r.de, motivo: r.motivo, estado: r.estado, resolucion: r.resolucion ?? "" })),
         cliente: pedido ? { nombre: pedido.clienteNombre.split(" ")[0] } : null,
         // Mensajes del chat con el vecino: cuántos hay y cuántos le faltan leer al prestador.
         ...resumenDeChat(db, oferta, "prestador"),
@@ -45,7 +57,11 @@ export async function POST(request: Request) {
   const pedidoId = typeof cuerpo?.pedidoId === "string" ? cuerpo.pedidoId : "";
   const prestadorId = typeof cuerpo?.prestadorId === "string" ? cuerpo.prestadorId : "";
   const precio = Number(cuerpo?.precio);
-  const cuando = limpiarTexto(cuerpo?.cuando, 80);
+  // Días y franjas que ofrece. Las versiones viejas de la app mandan solo "Hoy", "Mañana"...: se traducen.
+  const turnosPedidos = limpiarTurnos(cuerpo?.turnos);
+  const cuandoEscrito = limpiarTexto(cuerpo?.cuando, 80);
+  const turnos = turnosPedidos.length > 0 ? turnosPedidos : turnosDesdeCuando(cuandoEscrito);
+  const cuando = turnosPedidos.length > 0 ? resumenDeTurnos(turnosPedidos) : cuandoEscrito;
   const mensaje = limpiarTexto(cuerpo?.mensaje, 500);
 
   if (!pedidoId || !prestadorId) return Response.json({ error: "Faltan datos de la oferta." }, { status: 400 });
@@ -53,7 +69,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Escribí el precio de la mano de obra en pesos." }, { status: 400 });
   }
   if (!cuando) return Response.json({ error: "Decinos cuándo podés ir." }, { status: 400 });
-  if (!(await dentroDelCupo("ofertas"))) {
+  // Para presupuestar hace falta que el perfil esté unido a una cuenta.
+  const quien = (await leer()).prestadores.find((p) => p.id === prestadorId);
+  if (quien && !quien.cuenta) return Response.json({ error: "Entrá con tu cuenta para mandar presupuestos." }, { status: 401 });
+  if (quien?.suspendido) return Response.json({ error: "Tu perfil está en revisión. Escribinos para reactivarlo." }, { status: 403 });
+  if (!(await dentroDelCupo("ofertas")) || !(await dentroDelCupoDe("ofertas", quien?.cuenta))) {
     return Response.json({ error: "Hoy se enviaron demasiados presupuestos. Probá de nuevo mañana." }, { status: 429 });
   }
 
@@ -63,6 +83,7 @@ export async function POST(request: Request) {
       if (!pedido || pedido.estado !== "abierto") throw new ErrorDeOferta("Ese pedido ya no está disponible.", 404);
       const prestador = db.prestadores.find((p) => p.id === prestadorId);
       if (!prestador) throw new ErrorDeOferta("No encontramos tu perfil.", 404);
+      if (bloqueados(db, pedido, prestador)) throw new ErrorDeOferta("Ese pedido ya no está disponible.", 404);
 
       const delPedido = db.ofertas.filter((o) => o.pedidoId === pedidoId);
       if (delPedido.some((o) => o.prestadorId === prestadorId)) {
@@ -89,15 +110,18 @@ export async function POST(request: Request) {
         prestadorId,
         precio: Math.round(precio),
         cuando,
+        turnos,
         mensaje,
         estado: "enviada",
         creado: new Date().toISOString(),
       };
       db.ofertas.push(oferta);
-      return { oferta, posicion: reales.length + 1 };
+      return { oferta, posicion: reales.length + 1, aviso: { cuenta: pedido.cuenta, pedidoId: pedido.id, quien: prestador.nombre.split(" ")[0] } };
     });
 
-    return Response.json({ ...resultado, maximo: MAX_OFERTAS }, { status: 201 });
+    const { aviso, ...respuesta } = resultado;
+    avisar(aviso.cuenta, { tipo: "presupuesto", titulo: "Llegó un presupuesto", texto: `${aviso.quien} te pasó su precio. Entrá a compararlo.`, url: `/pedido/${aviso.pedidoId}` });
+    return Response.json({ ...respuesta, maximo: MAX_OFERTAS }, { status: 201 });
   } catch (error) {
     if (error instanceof ErrorDeOferta) {
       return Response.json({ error: error.message }, { status: error.estado });

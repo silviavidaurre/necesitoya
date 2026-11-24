@@ -63,3 +63,14 @@ export function ResumenDeReputacion({ reputacion, aniosExperiencia = 0 }: { repu
     </span>
   );
 }
+
+// "Verificado" cuando revisamos su DNI (nivel 2) o además su matrícula (nivel 3). Si no, "Sin verificar".
+export function Verificacion({ nivel }: { nivel: number }) {
+  const verificado = nivel >= 2;
+  return (
+    <span className={`inline-flex items-center gap-2 text-sm font-medium ${verificado ? "text-success" : "text-ink-500"}`}>
+      <span className={`h-2.5 w-2.5 rounded-full ${verificado ? "bg-success" : "bg-ink-400"}`} aria-hidden="true" />
+      {nivel >= 3 ? "Verificado con matrícula" : verificado ? "Verificado" : "Sin verificar"}
+    </span>
+  );
+}

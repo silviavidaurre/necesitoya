@@ -15,6 +15,7 @@ export interface Almacen {
   // Las fotos van aparte del resto de los datos para no engordar cada lectura.
   guardarFoto(id: string, foto: Foto): Promise<void>;
   leerFoto(id: string): Promise<Foto | null>;
+  borrarFotos(ids: string[]): Promise<void>;
   // Suma uno al contador de hoy para ese nombre y devuelve cuánto lleva.
   consumirCupo(nombre: string): Promise<number>;
 }
@@ -67,6 +68,10 @@ export function leerFoto(id: string): Promise<Foto | null> {
   return actual().leerFoto(id);
 }
 
+export function borrarFotos(ids: string[]): Promise<void> {
+  return ids.length > 0 ? actual().borrarFotos(ids) : Promise.resolve();
+}
+
 // Topes diarios para todo lo que cuesta plata o llena la base. Son globales (no por persona) porque en un
 // evento todos comparten la misma conexión; su trabajo es que un abuso no vacíe las cuentas ni rompa la app.
 export const CUPOS = {
@@ -78,6 +83,9 @@ export const CUPOS = {
   fotos: 500,
   cuentas: 3000,
   mensajes: 6000,
+  avisos: 20000,
+  adminFallos: 40,
+  bajas: 300,
 } as const;
 
 // true si todavía hay cupo para hoy. Cuenta el intento aunque después falle, a propósito.
@@ -91,6 +99,56 @@ export async function dentroDelCupo(nombre: keyof typeof CUPOS): Promise<boolean
   }
 }
 
+// Topes diarios por persona (por cuenta), además de los globales: uno solo no puede gastar el cupo de todos.
+export const CUPOS_POR_PERSONA = {
+  ia: 60,
+  voz: 150,
+  pedidos: 15,
+  prestadores: 3,
+  ofertas: 60,
+  fotos: 60,
+  mensajes: 400,
+  reclamos: 10,
+  denuncias: 20,
+  pagos: 30,
+  // Por dirección de conexión, para lo que se usa antes de tener cuenta. Holgados: en un evento muchos comparten el wifi.
+  iaPorConexion: 250,
+  vozPorConexion: 400,
+  cuentasPorConexion: 300,
+  bajasPorConexion: 10,
+} as const;
+
+// La dirección de quien pide, como la informa Cloudflare. En desarrollo no hay: ahí no se frena por conexión.
+export function conexionDe(request: Request) {
+  return request.headers.get("cf-connecting-ip") ?? undefined;
+}
+
+// Huella corta de quién es (cuenta o dirección): el contador no guarda mails ni direcciones.
+function huellaCorta(texto: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < texto.length; i++) {
+    h ^= texto.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+// true si esa persona todavía tiene cupo hoy. Sin `quien` (no se sabe quién es) no se frena por persona.
+export async function dentroDelCupoDe(nombre: keyof typeof CUPOS_POR_PERSONA, quien: string | undefined | null): Promise<boolean> {
+  if (!quien) return true;
+  try {
+    return (await actual().consumirCupo(`${nombre}@${huellaCorta(quien)}`)) <= CUPOS_POR_PERSONA[nombre];
+  } catch (error) {
+    console.error("[cupo]", error);
+    return true;
+  }
+}
+
+// Las cuentas de las pruebas automáticas usan mails de prueba (terminan en .test): lo suyo no cuenta en las métricas.
+export function esCuentaDePrueba(sub: string | undefined | null) {
+  return Boolean(sub && /[.]test$/i.test(sub));
+}
+
 export function nuevoId() {
   return crypto.randomUUID();
 }
@@ -98,7 +156,7 @@ export function nuevoId() {
 // Quita del pedido lo privado: el teléfono (si quedó de antes) y la clave de seguimiento.
 // Del nombre del vecino solo queda el de pila: la lista de pedidos la puede leer cualquiera.
 export function pedidoPublico(pedido: Pedido): PedidoPublico {
-  const { clienteWhatsapp: _whatsapp, claveCliente: _clave, idCliente: _intento, cuenta: _cuenta, ...publico } = pedido;
+  const { clienteWhatsapp: _whatsapp, claveCliente: _clave, idCliente: _intento, cuenta: _cuenta, direccion: _direccion, ...publico } = pedido;
   return { ...publico, clienteNombre: pedido.clienteNombre.split(" ")[0] };
 }
 

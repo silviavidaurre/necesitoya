@@ -1,36 +1,26 @@
-// Claves de la IA y de la voz. En Cloudflare las entrega el Worker en cada pedido; en desarrollo salen de .env.local.
+// Claves y ajustes del servidor. En Cloudflare los entrega el Worker en cada pedido (secretos y `vars`);
+// en desarrollo salen de .env.local, que vite.config.ts vuelca en process.env.
+// Ningún valor de acá se imprime ni se manda al navegador, salvo los que dicen "público".
 
-let claveIa: string | undefined;
+type Entorno = Record<string, unknown>;
 
-export function configurarIa(clave: string | undefined) {
-  claveIa = clave || undefined;
+let entorno: Entorno = {};
+
+export function configurarEntorno(nuevo: Entorno) {
+  entorno = nuevo;
 }
 
-export function claveDeIa(): string | undefined {
-  if (claveIa) return claveIa;
-  return typeof process !== "undefined" ? process.env?.ANTHROPIC_API_KEY || undefined : undefined;
+export function variable(nombre: string): string | undefined {
+  const valor = entorno[nombre];
+  if (typeof valor === "string" && valor.trim()) return valor.trim();
+  if (typeof process === "undefined") return undefined;
+  const local = process.env?.[nombre];
+  return local && local.trim() ? local.trim() : undefined;
 }
 
+export const claveDeIa = () => variable("ANTHROPIC_API_KEY");
+export const claveDeVoz = () => variable("ELEVENLABS_API_KEY");
 // Identificador público de la app en Google, para "Continuar con Google". No es secreto: viaja al navegador.
-let google: string | undefined;
-
-export function configurarGoogle(id: string | undefined) {
-  google = id || undefined;
-}
-
-export function idDeGoogle(): string | undefined {
-  if (google) return google;
-  return typeof process !== "undefined" ? process.env?.GOOGLE_CLIENT_ID || undefined : undefined;
-}
-
-// Clave de la voz (ElevenLabs): mismo camino que la de la IA.
-let claveVoz: string | undefined;
-
-export function configurarVoz(clave: string | undefined) {
-  claveVoz = clave || undefined;
-}
-
-export function claveDeVoz(): string | undefined {
-  if (claveVoz) return claveVoz;
-  return typeof process !== "undefined" ? process.env?.ELEVENLABS_API_KEY || undefined : undefined;
-}
+export const idDeGoogle = () => variable("GOOGLE_CLIENT_ID");
+// Secreto del panel interno de moderación y métricas.
+export const secretoDeAdministracion = () => variable("ADMIN_SECRET");

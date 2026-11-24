@@ -14,6 +14,10 @@
     { "binding": "DB", "database_name": "necesitoya", "database_id": "edc474a3-5e5a-4d72-8ea5-3f47e811f4d0" }
   ],
   // Identificador público de la app en Google ("Continuar con Google"). No es un secreto: viaja al navegador.
-  "vars": { "GOOGLE_CLIENT_ID": "537001149894-g93qpovht1i7efem2gqr93cjpjdg9066.apps.googleusercontent.com" },
+  // VAPID_PUBLIC_KEY: clave pública de los avisos web push. Tampoco es secreta; la privada va como secreto del Worker.
+  "vars": {
+    "GOOGLE_CLIENT_ID": "537001149894-g93qpovht1i7efem2gqr93cjpjdg9066.apps.googleusercontent.com",
+    "VAPID_PUBLIC_KEY": "BIeCPsoMWpstYIpAVgYgEQbeUy716AT5uZCWJs2UnuOITCfpeTKfcIUHJd3GoxUbERy5Dkp_hY72ZJkDil1_7GI"
+  },
   "observability": { "enabled": true }
 }

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { CajaRelato } from "@/components/CajaRelato";
+import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
-import { Logo } from "@/components/Logo";
+import { Mapa, MarcaEnPildora } from "@/components/Mapa";
 import {
   BotonPrimario,
   BotonSecundario,
@@ -32,13 +33,14 @@ import {
   leerMisPedidos,
   leerPrestadorId,
   pedir,
+  type CuentaGuardada,
   type PedidoGuardado,
 } from "@/lib/cliente";
 import { frasePedidoPorRevisar } from "@/lib/frases";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { prepararParlante } from "@/lib/lectura";
 import { Link } from "@/lib/navegacion";
-import type { PedidoBorrador, Urgencia } from "@/lib/tipos";
+import type { Diagnostico as DatosDeDiagnostico, PedidoBorrador, Urgencia } from "@/lib/tipos";
 
 interface ResultadoPedido {
   pedido: PedidoBorrador;
@@ -55,7 +57,8 @@ const URGENCIAS: { id: Urgencia; texto: string }[] = [
 ];
 const TEXTO_URGENCIA: Record<Urgencia, string> = { hoy: "Para hoy", semana: "Esta semana", flexible: "Sin apuro" };
 
-const ATAJOS = ["Tengo una pérdida de agua", "Necesito un electricista", "Necesito que corten el pasto", "Necesito un flete"];
+// Accesos por oficio en el inicio: tocar uno empieza el relato.
+const OFICIOS_DEL_INICIO: RubroId[] = ["plomeria", "electricidad", "gas", "cerrajeria", "albanileria", "pintura"];
 const OTRO_BARRIO = "__otro__";
 
 // "Llegás y pedís": el inicio ya es el pedido. Se habla (o se escribe, o se saca una foto), la IA lo ordena
@@ -71,9 +74,12 @@ export default function Pedir() {
   const [borrador] = useState(leerBorrador);
   const [misPedidos, setMisPedidos] = useState<PedidoGuardado[]>([]);
   const [esPrestador, setEsPrestador] = useState(false);
+  // Para publicar hace falta una cuenta. Se pide recién al final, cuando el pedido ya está armado.
+  const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
   useEffect(() => {
     setMisPedidos(leerMisPedidos());
     setEsPrestador(Boolean(leerPrestadorId()));
+    setCuenta(leerCuenta());
   }, []);
 
   // Contar
@@ -108,6 +114,7 @@ export default function Pedir() {
   const [rubro, setRubro] = useState<RubroId>("otros");
   const [urgencia, setUrgencia] = useState<Urgencia>("semana");
   const [rango, setRango] = useState<{ min: number; max: number } | null>(null);
+  const [diagnostico, setDiagnostico] = useState<DatosDeDiagnostico | null>(null);
   const [cambio, setCambio] = useState<Cambio>(null);
   const [leerSolo, setLeerSolo] = useState(false);
 
@@ -158,6 +165,7 @@ export default function Pedir() {
           ? { min: resultado.pedido.precioMin, max: resultado.pedido.precioMax }
           : null,
       );
+      setDiagnostico(resultado.pedido.diagnostico ?? null);
       setFuente(resultado.fuente);
       setCambio(resultado.fuente === "basico" ? "rubro" : null);
       setLeerSolo(usoLaVoz.current);
@@ -196,7 +204,8 @@ export default function Pedir() {
           clienteNombre: nombre,
           foto: foto ? { tipo: foto.tipo, base64: foto.base64 } : undefined,
           idCliente: idCliente.current,
-          cuenta: leerCuenta()?.clave,
+          diagnostico,
+          cuenta: cuenta?.clave ?? leerCuenta()?.clave,
         }),
         espera: 45_000,
       });
@@ -252,7 +261,7 @@ export default function Pedir() {
 
   if (enRevision) {
     const rubroActual = rubroPorId(rubro);
-    const falta = !zona.trim() ? "Falta elegir tu barrio" : titulo.trim().length < 4 ? "Falta decir qué necesitás" : "";
+    const falta = !zona.trim() ? "Falta elegir tu barrio" : titulo.trim().length < 4 ? "Falta decir qué necesitás" : !cuenta ? "Falta entrar con tu cuenta" : "";
     const resumenEnVoz = frasePedidoPorRevisar({
       titulo,
       rubro: rubroActual.nombre,
@@ -356,6 +365,12 @@ export default function Pedir() {
           </div>
         )}
 
+        {diagnostico && (
+          <div className="mt-2">
+            <Diagnostico diagnostico={diagnostico} />
+          </div>
+        )}
+
         <Seccion>¿Cómo te llamás?</Seccion>
         {cambiandoContacto ? (
           <Campo etiqueta="Tu nombre" error={faltas.nombre} ayuda="Te escriben por el chat de la app. Nadie ve tu teléfono.">
@@ -373,6 +388,18 @@ export default function Pedir() {
           </div>
         )}
 
+        {!cuenta && (
+          <EntrarACuenta
+            abiertoAlInicio
+            titulo="Entrá para pedir"
+            motivo="Con tu cuenta seguís el pedido desde cualquier celular."
+            alEntrar={(nueva) => {
+              setCuenta(nueva);
+              if (nombre.trim().length < 2) setNombre(nueva.nombre);
+            }}
+          />
+        )}
+
         {foto && <img src={foto.vistaPrevia} alt="Foto que mandaste" className="mt-6 max-h-52 w-full rounded-[22px] object-cover" />}
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
@@ -385,42 +412,44 @@ export default function Pedir() {
   return (
     <Pantalla
       key="contar"
+      mapa={
+        <Mapa alto={190} variante="inicio" etiqueta={zona || "San Salvador de Jujuy"}>
+          <MarcaEnPildora />
+          <Link href="/prestador" className="flex h-12 items-center rounded-full bg-white px-4 text-[15px] font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
+            {esPrestador ? "Ver pedidos" : "Tengo un oficio"}
+          </Link>
+        </Mapa>
+      }
       pie={
         <>
           {error ? <ErrorDePantalla>{error}</ErrorDePantalla> : falta && (relato || foto || zona) ? <Falta>{falta}</Falta> : null}
           <BotonPrimario onClick={armar} disabled={Boolean(falta)}>
             Continuar
+            <Icono nombre="flecha" size={22} />
           </BotonPrimario>
         </>
       }
     >
-      <header className="flex h-[60px] items-center justify-between">
-        <Logo />
-        <Link href="/prestador" className="flex min-h-12 items-center text-base font-semibold text-brand">
-          {esPrestador ? "Ver pedidos" : "Tengo un oficio"}
-        </Link>
-      </header>
-
-      <div className="mt-3">
-        <Titulo>¿Qué necesitás?</Titulo>
+      <div className="flex items-center justify-between gap-3">
+        <Titulo>¿Qué se rompió?</Titulo>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-3">
         {eligiendoZona ? (
           <label className="block">
             <span className="text-[15px] font-semibold text-ink">¿En qué barrio es?</span>
             <div className="mt-2">{selectorDeBarrio}</div>
           </label>
         ) : (
-          <button type="button" onClick={() => setEligiendoZona(true)} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#8f96a1] px-4 text-[15px] text-ink">
+          <button type="button" onClick={() => setEligiendoZona(true)} className="inline-flex min-h-12 items-center gap-2 rounded-[14px] bg-subtle px-4 text-[15px] text-ink">
             <Icono nombre="pin" size={18} />
             <span className="font-semibold">{zona}</span>
-            <span className="font-semibold text-brand">Cambiar</span>
+            <span className="font-semibold text-ink-500 underline underline-offset-2">Cambiar</span>
           </button>
         )}
       </div>
 
-      <div className="mt-7">
+      <div className="mt-5">
         <CajaRelato
           valor={relato}
           alCambiar={setRelato}
@@ -431,16 +460,6 @@ export default function Pedir() {
           alOcuparse={setVozOcupada}
         />
       </div>
-
-      {!relato && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {ATAJOS.map((atajo) => (
-            <button key={atajo} type="button" onClick={() => setRelato(atajo)} className="inline-flex min-h-11 items-center rounded-full bg-subtle px-4 text-[15px] font-medium text-ink">
-              {atajo}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Sin `capture`: así el celular deja elegir entre sacar la foto o usar una de la galería. */}
       <input ref={entradaFoto} type="file" accept="image/*" className="hidden" onChange={(e) => elegirFoto(e.target.files?.[0])} />
@@ -456,17 +475,39 @@ export default function Pedir() {
         ) : (
           <BotonSecundario onClick={() => entradaFoto.current?.click()} disabled={cargandoFoto}>
             <Icono nombre="camara" size={20} />
-            {cargandoFoto ? "Preparando la foto" : "Sumar una foto"}
+            {cargandoFoto ? "Preparando la foto" : "Sacar una foto"}
           </BotonSecundario>
         )}
       </div>
+
+      {!relato && (
+        <>
+          <Seccion>Oficios</Seccion>
+          <div className="mt-3 grid grid-cols-3 gap-2.5">
+            {OFICIOS_DEL_INICIO.map((id) => {
+              const oficio = rubroPorId(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setRelato(`Necesito un trabajo de ${oficio.nombre.toLowerCase()}: `)}
+                  className="flex h-[90px] flex-col justify-between rounded-2xl bg-subtle p-3.5 text-left text-ink active:bg-line"
+                >
+                  <Icono nombre={id} size={26} />
+                  <span className="text-sm font-semibold">{oficio.nombre}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {misPedidos.length > 0 && (
         <>
           <Seccion>Tus pedidos</Seccion>
           <div className="mt-1 divide-y divide-line">
             {misPedidos.slice(0, 3).map((pedido) => (
-              <Fila key={pedido.id} href={`/pedido/${pedido.id}`} icono={<IconoCirculo nombre="lista" />} titulo={pedido.titulo} detalle="Ver presupuestos" />
+              <Fila key={pedido.id} href={`/pedido/${pedido.id}`} icono={<IconoCirculo nombre="lista" />} titulo={pedido.titulo} detalle="Ver cómo va" />
             ))}
           </div>
         </>

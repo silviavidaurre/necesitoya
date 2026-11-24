@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { claveDeIa } from "./config";
 import { RUBROS, RUBRO_IDS, ZONAS, normalizar, type RubroId } from "./catalogo";
+import { completarDiagnostico, diagnosticoBasico } from "./diagnostico";
 import type { PedidoBorrador, PerfilBorrador } from "./tipos";
 
 const MODELO = "claude-opus-5-5";
@@ -157,6 +158,13 @@ const PedidoSchema = z.object({
   urgencia: z.enum(["hoy", "semana", "flexible"]),
   precioMin: z.number(),
   precioMax: z.number(),
+  diagnostico: z.object({
+    causa: z.string(),
+    riesgo: z.enum(["bajo", "medio", "alto"]),
+    queHacerYa: z.array(z.string()),
+    materiales: z.array(z.string()),
+    preguntas: z.array(z.string()),
+  }),
 });
 
 const SISTEMA_PEDIDO = `Sos el asistente de NecesitoYa, una app de San Salvador de Jujuy y Palpalá (Argentina) donde un vecino cuenta qué necesita y trabajadores de oficios de su zona le mandan presupuestos.
@@ -170,7 +178,14 @@ Campos:
 - descripcion: dos o tres oraciones con lo que un técnico necesita saber para presupuestar: qué pasa, dónde, con qué equipo o material, y lo que se ve en la foto si aporta. Español rioplatense simple, en primera persona del vecino.
 - rubro: el oficio que corresponde, usando solo uno de estos identificadores: ${RUBROS.map((r) => `${r.id} (${r.nombre})`).join(", ")}. Usá "otros" solo si no entra en ninguno.
 - urgencia: "hoy" si dice que es urgente o para hoy; "semana" si lo quiere en estos días; "flexible" si no tiene apuro. Si no dijo nada sobre el apuro: "hoy" cuando el problema no deja usar la casa con normalidad (sin agua, sin luz, pérdida de gas, inodoro tapado), y "semana" en el resto.
-- precioMin y precioMax: rango orientativo de la mano de obra en pesos argentinos, sin materiales. Es una ayuda para que el vecino sepa qué esperar; el precio real lo pone cada técnico. Referencias de mano de obra en Argentina a noviembre de 2026: cambiar una térmica desde $25.000; arreglar una canilla desde $43.000; destapación desde $50.000; arreglo de calefón desde $60.000; instalar un split desde $130.000. Usá esas referencias para ubicar trabajos parecidos y dá un rango amplio, donde el máximo sea entre 1,5 y 2 veces el mínimo. Si con lo que contó no se puede estimar (por ejemplo una obra sin medidas), poné 0 en los dos.`;
+- precioMin y precioMax: rango orientativo de la mano de obra en pesos argentinos, sin materiales. Es una ayuda para que el vecino sepa qué esperar; el precio real lo pone cada técnico. Referencias de mano de obra en Argentina a noviembre de 2026: cambiar una térmica desde $25.000; arreglar una canilla desde $43.000; destapación desde $50.000; arreglo de calefón desde $60.000; instalar un split desde $130.000. Usá esas referencias para ubicar trabajos parecidos y dá un rango amplio, donde el máximo sea entre 1,5 y 2 veces el mínimo. Si con lo que contó no se puede estimar (por ejemplo una obra sin medidas), poné 0 en los dos.
+- diagnostico: una orientación para el vecino antes de que vaya el técnico. No es un diagnóstico seguro: lo ve el vecino con el aviso de que es orientativo.
+  - causa: la causa más probable en una o dos oraciones, empezando con "Lo más probable es que". Si con lo que contó y la foto no se puede saber, decí qué suele causar ese problema ("Suele pasar por..."). Nunca lo afirmes como un hecho.
+  - riesgo: "alto" si hay peligro para las personas (olor a gas, chispas, cables a la vista, agua cerca de la electricidad, estructura que se puede caer); "medio" si el problema empeora o hace daño si se espera (pérdida de agua que moja paredes, sin agua o sin luz); "bajo" en el resto.
+  - queHacerYa: hasta 3 pasos cortos y seguros que el vecino puede hacer ahora mismo, sin herramientas ni conocimientos (cerrar la llave de paso, desenchufar, poner un balde). Nunca le indiques que arregle algo de gas o de electricidad por su cuenta.
+  - materiales: hasta 5 materiales o repuestos que probablemente hagan falta, con nombres comunes ("cuerito de canilla", "flexible de 40 cm"). Lista vacía si no se puede saber.
+  - preguntas: 2 o 3 preguntas cortas que conviene hacerle al técnico antes de elegirlo, pensadas para este problema.
+  Con gas o electricidad, una de las preguntas tiene que ser si tiene matrícula.`;
 
 function recortar(texto: string, maximo: number) {
   const limpio = texto.trim().replace(/\s+/g, " ");
@@ -180,7 +195,7 @@ function recortar(texto: string, maximo: number) {
 // Modo básico del pedido: detecta el rubro por palabras clave y no estima precio.
 export function pedidoBasico(texto: string): PedidoBorrador {
   const limpio = normalizar(texto);
-  const rubro = RUBROS.find((r) => r.claves.some((clave) => limpio.includes(clave)))?.id ?? "otros";
+  const rubro: RubroId = RUBROS.find((r) => r.claves.some((clave) => (limpio as string).includes(clave)))?.id ?? "otros";
   const urgencia = /urgente|hoy|ya mismo|cuanto antes|lo antes posible/.test(limpio) ? "hoy" : "semana";
   const primeraFrase = texto.split(/[.!?\n]/)[0] ?? texto;
   return {
@@ -190,6 +205,7 @@ export function pedidoBasico(texto: string): PedidoBorrador {
     urgencia,
     precioMin: null,
     precioMax: null,
+    diagnostico: diagnosticoBasico(rubro, texto),
   };
 }
 
@@ -204,6 +220,7 @@ function limpiarPedido(crudo: z.infer<typeof PedidoSchema>, texto: string): Pedi
     urgencia: crudo.urgencia,
     precioMin: hayRango ? min : null,
     precioMax: hayRango ? max : null,
+    diagnostico: completarDiagnostico(crudo.diagnostico, crudo.rubro, `${crudo.titulo} ${crudo.descripcion} ${texto}`),
   };
 }
 
@@ -213,7 +230,7 @@ export async function armarPedido(texto: string, foto?: FotoParaIa): Promise<Res
   }
 
   try {
-    const cliente = new Anthropic({ apiKey: claveDeIa(), timeout: 25_000, maxRetries: 1 });
+    const cliente = new Anthropic({ apiKey: claveDeIa(), timeout: 38_000, maxRetries: 1 });
     const contenido: Anthropic.ContentBlockParam[] = [];
     if (foto) {
       contenido.push({ type: "image", source: { type: "base64", media_type: foto.tipo, data: foto.base64 } });

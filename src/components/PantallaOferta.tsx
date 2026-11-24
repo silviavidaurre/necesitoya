@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { BotonMic } from "@/components/BotonMic";
+import { Diagnostico } from "@/components/Diagnostico";
+import { EntrarACuenta } from "@/components/EntrarACuenta";
+import { OfrecerTurnos, combinarTurnos } from "@/components/Turnos";
+import { hoyEnJujuy, sumarDias, type Franja } from "@/lib/turnos";
 import { useDictado } from "@/components/useDictado";
 import { BotonPrimario, Cabecera, Chip, ErrorDePantalla, Estado, Falta, Icono, claseCampo } from "@/components/ui";
 import { MAX_OFERTAS, pesos, rubroPorId } from "@/lib/catalogo";
@@ -8,7 +12,6 @@ import { pedir } from "@/lib/cliente";
 import { frasePedidoParaPresupuestar } from "@/lib/frases";
 import type { PedidoParaPrestador } from "@/lib/tipos";
 
-const CUANDO = ["Hoy", "Mañana", "Esta semana", "A coordinar"];
 const URGENCIA = { hoy: "Para hoy", semana: "Esta semana", flexible: "Sin apuro" } as const;
 
 // Tres precios para tocar en vez de escribir: el piso, el medio y el techo de lo que suele costar.
@@ -23,6 +26,7 @@ function preciosRapidos(minimo: number | null, maximo: number | null) {
 export function PantallaOferta({
   pedido,
   prestadorId,
+  conCuenta = true,
   alAnotarse,
   alCerrar,
   alEnviar,
@@ -30,12 +34,17 @@ export function PantallaOferta({
   pedido: PedidoParaPrestador;
   // null = todavía no se anotó: puede ver el pedido completo, y para presupuestar primero arma su perfil.
   prestadorId: string | null;
+  // false = perfil viejo, creado antes de que la cuenta fuera obligatoria: para presupuestar tiene que entrar.
+  conCuenta?: boolean;
   alAnotarse?: () => void;
   alCerrar: () => void;
   alEnviar: () => void;
 }) {
   const [precio, setPrecio] = useState("");
-  const [cuando, setCuando] = useState(pedido.urgencia === "hoy" ? "Hoy" : "");
+  // Días y franjas que ofrece. Si el pedido es para hoy, arranca con hoy a la tarde marcado.
+  const [dias, setDias] = useState<string[]>(pedido.urgencia === "hoy" ? [hoyEnJujuy()] : [sumarDias(hoyEnJujuy(), 1)]);
+  const [franjas, setFranjas] = useState<Franja[]>(["tarde"]);
+  const turnos = combinarTurnos(dias, franjas);
   const [mensaje, setMensaje] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
@@ -66,8 +75,8 @@ export function PantallaOferta({
   const rubro = rubroPorId(pedido.rubro);
   const numero = Number(precio);
   const rapidos = preciosRapidos(pedido.precioMin, pedido.precioMax);
-  const faltaAlgo = numero < 1000 ? "Falta tu precio" : !cuando ? "Falta decir cuándo podés ir" : "";
-  const puedeEnviar = numero >= 1000 && Boolean(cuando) && !pedido.yaOferte && pedido.cupos > 0;
+  const faltaAlgo = numero < 1000 ? "Falta tu precio" : turnos.length === 0 ? "Elegí al menos un día y un horario" : "";
+  const puedeEnviar = numero >= 1000 && turnos.length > 0 && !pedido.yaOferte && pedido.cupos > 0 && conCuenta;
   const lejos =
     numero >= 1000 && pedido.precioMin !== null && pedido.precioMax !== null && (numero < pedido.precioMin * 0.6 || numero > pedido.precioMax * 1.6);
 
@@ -85,7 +94,7 @@ export function PantallaOferta({
     try {
       const datos = await pedir<{ posicion: number }>("/api/ofertas", {
         method: "POST",
-        body: JSON.stringify({ pedidoId: pedido.id, prestadorId, precio: numero, cuando, mensaje: mensajeAlDia.current }),
+        body: JSON.stringify({ pedidoId: pedido.id, prestadorId, precio: numero, turnos, mensaje: mensajeAlDia.current }),
       });
       setPosicion(datos.posicion);
     } catch (e) {
@@ -162,6 +171,12 @@ export function PantallaOferta({
           </div>
         )}
 
+        {pedido.diagnostico && (
+          <div className="mt-2">
+            <Diagnostico diagnostico={pedido.diagnostico} para="prestador" />
+          </div>
+        )}
+
         {pedido.yaOferte || pedido.cupos === 0 ? (
           <p className="mt-8 text-[17px] font-semibold text-ink">
             {pedido.yaOferte
@@ -172,14 +187,16 @@ export function PantallaOferta({
           </p>
         ) : prestadorId === null ? (
           <p className="mt-8 text-[15px] text-ink-500">Para mandar tu precio primero contanos qué hacés. Es gratis y tarda un minuto.</p>
+        ) : !conCuenta ? (
+          <EntrarACuenta abiertoAlInicio titulo="Entrá para presupuestar" motivo="Tu perfil queda unido a tu cuenta y no lo perdés si cambiás de celular." />
         ) : (
           <>
-            <label className="mt-8 block">
-              <span className="text-sm font-semibold text-ink">Tu precio por la mano de obra</span>
-              <div className="mt-2 flex items-baseline border-b-2 border-line pb-2 focus-within:border-brand">
-                <span className="text-[40px] font-bold leading-none text-ink-400">$</span>
+            <label className="mt-8 block text-center">
+              <span className="text-sm font-semibold text-ink-500">Tu precio</span>
+              <div className="mx-auto mt-1 flex max-w-[280px] items-baseline justify-center border-b-2 border-line pb-2 focus-within:border-acento">
+                <span className="cifra text-[44px] font-bold leading-none text-ink-500">$</span>
                 <input
-                  className="w-full bg-transparent pl-2 text-[44px] font-bold leading-none tracking-[-0.03em] text-ink outline-none placeholder:text-ink-400"
+                  className="cifra w-full bg-transparent pl-1 text-center text-[60px] font-bold leading-none tracking-[-0.04em] text-ink outline-none placeholder:text-ink-500"
                   value={precio ? new Intl.NumberFormat("es-AR").format(Number(precio)) : ""}
                   onChange={(e) => setPrecio(e.target.value.replace(/\D/g, "").slice(0, 8))}
                   inputMode="numeric"
@@ -188,7 +205,7 @@ export function PantallaOferta({
                 />
               </div>
               <span id="ayuda-precio" className="mt-2 block text-[13px] text-ink-500">
-                El vecino ve este precio junto a los otros presupuestos.
+                {pedido.precioMin !== null && pedido.precioMax !== null ? `Suele costar ${pesos(pedido.precioMin)} a ${pesos(pedido.precioMax)}` : "Mano de obra. Los materiales van aparte."}
               </span>
               {lejos && <span className="mt-1 block text-sm font-medium text-ink">Está lejos de lo habitual. Contá por qué en el mensaje.</span>}
             </label>
@@ -203,14 +220,13 @@ export function PantallaOferta({
             )}
 
             <div className="mt-6">
-              <span className="text-sm font-semibold text-ink">¿Cuándo podés ir?</span>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CUANDO.map((opcion) => (
-                  <Chip key={opcion} activo={cuando === opcion} onClick={() => setCuando(opcion)}>
-                    {opcion}
-                  </Chip>
-                ))}
+              <span className="text-sm font-bold text-ink-500">Puedo ir</span>
+              <div className="mt-2">
+                <OfrecerTurnos dias={dias} franjas={franjas} alCambiarDias={setDias} alCambiarFranjas={setFranjas} />
               </div>
+              <p className="mt-2 text-[13px] text-ink-500">
+                {turnos.length === 0 ? "Marcá días y horarios." : `${turnos.length} ${turnos.length === 1 ? "horario" : "horarios"} para que el vecino elija.`}
+              </p>
             </div>
 
             <div className="mt-6">
@@ -256,6 +272,8 @@ export function PantallaOferta({
         <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
           {prestadorId === null ? (
             <BotonPrimario onClick={alAnotarse}>Anotarme y presupuestar</BotonPrimario>
+          ) : !conCuenta ? (
+            <Falta>Entrá con tu cuenta para mandar tu precio</Falta>
           ) : (
             <>
               {faltaAlgo && precio !== "" && <Falta>{faltaAlgo}</Falta>}

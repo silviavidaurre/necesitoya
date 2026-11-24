@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Denunciar } from "@/components/Denunciar";
 import { Cabecera, Estado, claseCampo } from "@/components/ui";
 import { ErrorDePedido, pedir } from "@/lib/cliente";
 import type { Mensaje } from "@/lib/tipos";
@@ -12,7 +13,7 @@ interface VistaDeChat {
   pedido: { titulo: string };
   mensajes: Mensaje[];
   abierto: boolean;
-  motivo: "" | "muestra" | "descartada" | "lleno";
+  motivo: "" | "muestra" | "descartada" | "lleno" | "bloqueado" | "cancelado";
 }
 
 const MAX_LARGO = 500;
@@ -22,6 +23,8 @@ const CERRADO: Record<string, string> = {
   muestra: "Es un presupuesto de muestra: no hay nadie del otro lado.",
   descartada: "Este presupuesto no fue el elegido. El chat quedó solo para leer.",
   lleno: "Esta conversación llegó al máximo de mensajes.",
+  bloqueado: "Esta conversación está bloqueada.",
+  cancelado: "El pedido se canceló. El chat quedó solo para leer.",
 };
 
 function hora(fecha: string) {
@@ -57,6 +60,7 @@ export function PantallaChat({
   const [aviso, setAviso] = useState(false);
   const [marco, setMarco] = useState<{ top: number; height: number } | null>(null);
   const lista = useRef<HTMLDivElement>(null);
+  const [denunciando, setDenunciando] = useState(false);
   const ultimo = useRef("");
 
   const credenciales = JSON.stringify(quien);
@@ -159,7 +163,17 @@ export function PantallaChat({
       aria-label={`Chat con ${nombre}`}
     >
       <div className="shrink-0 border-b border-line px-6 pb-3">
-        <Cabecera alVolver={alCerrar} cerrar />
+        <Cabecera
+          alVolver={alCerrar}
+          cerrar
+          derecha={
+            motivo !== "muestra" && soy ? (
+              <button type="button" onClick={() => setDenunciando(true)} className="flex min-h-12 items-center text-[15px] font-semibold text-ink-500">
+                Denunciar o bloquear
+              </button>
+            ) : undefined
+          }
+        />
         <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-ink">{nombre}</h1>
         <p className="mt-0.5 truncate text-[15px] text-ink-500">{titulo}</p>
       </div>
@@ -232,6 +246,18 @@ export function PantallaChat({
           <p className="py-2 text-center text-[15px] text-ink-500">{CERRADO[motivo]}</p>
         )}
       </div>
+      {denunciando && (
+        <Denunciar
+          tipo="mensaje"
+          objetivo={[...(mensajes ?? [])].reverse().find((m) => m.de !== soy)?.id ?? null}
+          nombre={nombre}
+          bloquear={motivo === "bloqueado" ? undefined : { ofertaId, ...(JSON.parse(credenciales) as Record<string, string>) }}
+          alCerrar={(resultado) => {
+            setDenunciando(false);
+            if (resultado?.bloqueado) setMotivo("bloqueado");
+          }}
+        />
+      )}
     </div>
   );
 }
