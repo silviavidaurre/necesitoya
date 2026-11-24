@@ -1,3 +1,4 @@
+import { esCuentaDePrueba } from "./db";
 import { pagoDe } from "./pagos";
 import type { BaseDeDatos } from "./tipos";
 
@@ -74,6 +75,7 @@ export function eliminarCuenta(db: BaseDeDatos, sub: string): ResultadoDeBaja {
       continue;
     }
     // Se queda solo lo necesario para el pago o el reclamo, sin nada que identifique a la persona.
+    if (esCuentaDePrueba(sub)) pedido.dePrueba = true;
     pedido.cuenta = undefined;
     pedido.claveCliente = undefined;
     pedido.clienteWhatsapp = undefined;

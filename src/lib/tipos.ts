@@ -106,6 +106,8 @@ export interface Pedido extends PedidoBorrador {
   // Dirección del trabajo. PRIVADA: solo la ven el vecino y el prestador elegido, y este solo mientras el trabajo
   // está activo. Se borra cuando el trabajo termina o se cancela. Nunca sale en listas ni en respuestas para otros.
   direccion?: { calle: string; referencia: string } | null;
+  // true = quedó anonimizado de una cuenta de las pruebas automáticas: no cuenta en métricas y se limpia con ellas.
+  dePrueba?: boolean;
 }
 
 // Cómo va el trabajo elegido: el estado actual, el turno acordado y cuándo pasó cada cosa.
