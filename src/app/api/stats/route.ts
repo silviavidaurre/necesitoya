@@ -14,7 +14,7 @@ export async function GET() {
   // Ni las cuentas de la revisión de Google Play.
   const revision = cuentasDeRevision(db);
   const deRevision = (cuenta: string | undefined) => Boolean(cuenta && revision.has(cuenta));
-  const pedidosQueNoCuentan = new Set(db.pedidos.filter((p) => p.ejemplo || p.conMuestra || esCuentaDePrueba(p.cuenta) || deRevision(p.cuenta)).map((p) => p.id));
+  const pedidosQueNoCuentan = new Set(db.pedidos.filter((p) => p.ejemplo || p.conMuestra || p.dePrueba || esCuentaDePrueba(p.cuenta) || deRevision(p.cuenta)).map((p) => p.id));
   const prestadoresDePrueba = new Set(db.prestadores.filter((p) => p.ejemplo || esCuentaDePrueba(p.cuenta) || deRevision(p.cuenta)).map((p) => p.id));
   const esDePrueba = (o: (typeof db.ofertas)[number]) => Boolean(o.ejemplo) || pedidosQueNoCuentan.has(o.pedidoId) || prestadoresDePrueba.has(o.prestadorId);
 

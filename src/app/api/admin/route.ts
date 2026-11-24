@@ -21,7 +21,7 @@ function conversacion(db: BaseDeDatos, ofertaId: string | undefined) {
 
 // Lo que crearon las cuentas de las pruebas automáticas (mails .test): pedidos, perfiles y todo lo que cuelga de ellos.
 function deLasPruebas(db: BaseDeDatos) {
-  const pedidos = new Set(db.pedidos.filter((p) => esCuentaDePrueba(p.cuenta)).map((p) => p.id));
+  const pedidos = new Set(db.pedidos.filter((p) => p.dePrueba || esCuentaDePrueba(p.cuenta)).map((p) => p.id));
   const prestadores = new Set(db.prestadores.filter((p) => !p.ejemplo && esCuentaDePrueba(p.cuenta)).map((p) => p.id));
   const ofertas = new Set(db.ofertas.filter((o) => pedidos.has(o.pedidoId) || prestadores.has(o.prestadorId)).map((o) => o.id));
   const cuentas = new Set((db.cuentas ?? []).filter((c) => esCuentaDePrueba(c.sub)).map((c) => c.sub));

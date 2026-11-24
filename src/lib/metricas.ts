@@ -15,7 +15,7 @@ function porcentaje(parte: number, total: number) {
 // Tampoco cuentan las cuentas de la revisión de Google Play.
 export function pedidosReales(db: BaseDeDatos): Pedido[] {
   const revision = cuentasDeRevision(db);
-  return db.pedidos.filter((p) => !p.ejemplo && !p.conMuestra && !esCuentaDePrueba(p.cuenta) && !(p.cuenta && revision.has(p.cuenta)));
+  return db.pedidos.filter((p) => !p.ejemplo && !p.conMuestra && !p.dePrueba && !esCuentaDePrueba(p.cuenta) && !(p.cuenta && revision.has(p.cuenta)));
 }
 
 export function metricas(db: BaseDeDatos, ahora = Date.now()) {
