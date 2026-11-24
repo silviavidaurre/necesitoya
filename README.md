@@ -63,3 +63,12 @@ npx wrangler deploy
 ```
 
 Secretos del Worker (nunca en el repositorio): `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `VAPID_PRIVATE_KEY`, `ADMIN_SECRET`, `COSMOS_API_KEY`, `COSMOS_WALLET_COMISION`, `COSMOS_WEBHOOK_SECRET` y, para Mercado Pago, `MP_CLIENT_ID`, `MP_CLIENT_SECRET` y `MP_WEBHOOK_SECRET`. Ajustes opcionales: `COMISION_USDC` (por defecto 1), `COMISION_ARS` (1500), `ARS_POR_USDC` (si no, el dólar cripto del día), `COSMOS_MODO` (`protegido` o `directo`).
+
+## App de Android (Google Play)
+
+La app de Android se arma con Capacitor, igual que KILO, y abre la versión publicada en Cloudflare: casi todos los cambios llegan a los celulares solo con publicar la web. Hace falta una versión nueva en Play solo cuando cambia algo nativo (permisos, íconos, complementos).
+
+- Configuración: `capacitor.config.ts`. Proyecto de Android: `android/`.
+- El paquete para Play lo arma GitHub Actions (`.github/workflows/android.yml`): a mano desde la pestaña Actions o al subir una etiqueta `android-v1.0.1`. No hace falta el kit de Android en ninguna compu.
+- Firma: la llave de subida nunca va al repo. En GitHub va como secretos `NECESITOYA_UPLOAD_*`; en una compu, en `android/keystore.properties` (ver `android/keystore.properties.example`). La llave definitiva de la app la guarda Google (firma de apps de Play).
+- Íconos: se generan desde `assets/` con `npx @capacitor/assets generate --android`.
