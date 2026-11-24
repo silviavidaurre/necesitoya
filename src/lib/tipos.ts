@@ -1,4 +1,5 @@
 import type { RubroId } from "./catalogo";
+import type { EstadoDeTrabajo, Turno } from "./turnos";
 
 export type Urgencia = "hoy" | "semana" | "flexible";
 
@@ -102,9 +103,19 @@ export interface Pedido extends PedidoBorrador {
   // Cuándo el vecino confirmó que el trabajo quedó bien. Recién ahí puede calificar y se libera el pago.
   confirmado?: string;
   cancelacion?: { creado: string; motivo: string } | null;
+  // Dirección del trabajo. PRIVADA: solo la ven el vecino y el prestador elegido, y este solo mientras el trabajo
+  // está activo. Se borra cuando el trabajo termina o se cancela. Nunca sale en listas ni en respuestas para otros.
+  direccion?: { calle: string; referencia: string } | null;
 }
 
-export type PedidoPublico = Omit<Pedido, "clienteWhatsapp" | "claveCliente" | "idCliente" | "cuenta">;
+// Cómo va el trabajo elegido: el estado actual, el turno acordado y cuándo pasó cada cosa.
+export interface Trabajo {
+  estado: EstadoDeTrabajo;
+  turno: Turno | null;
+  historial: { estado: EstadoDeTrabajo; creado: string }[];
+}
+
+export type PedidoPublico = Omit<Pedido, "clienteWhatsapp" | "claveCliente" | "idCliente" | "cuenta" | "direccion">;
 
 // Una cuenta. Con Google se guarda lo mínimo: el identificador que da Google y el nombre de pila (ni mail ni foto).
 // Con mail y contraseña se guarda el mail y una huella de la contraseña que no se puede dar vuelta.
@@ -141,6 +152,10 @@ export interface Oferta {
   leidoPrestador?: string;
   // El prestador marcó "Trabajo terminado", con la foto del después.
   terminado?: { creado: string; fotoId: string | null } | null;
+  // Días y franjas en que el prestador puede ir (los ofrece al presupuestar).
+  turnos?: Turno[];
+  // Solo en la oferta elegida.
+  trabajo?: Trabajo | null;
 }
 
 export type EstadoDePago = "pendiente" | "retenido" | "liberado" | "en_disputa" | "resuelto" | "vencido" | "cancelado" | "pagado";

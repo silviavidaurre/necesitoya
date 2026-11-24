@@ -27,6 +27,8 @@ export async function POST(request: Request) {
       // Con los de muestra no hay nadie que marque el trabajo como terminado: se puede confirmar para probar.
       if (!elegida.terminado && !elegida.ejemplo) throw new ErrorDeConfirmacion("Todavía no marcó el trabajo como terminado.", 409);
       if (!pedido.confirmado) pedido.confirmado = new Date().toISOString();
+      // Trabajo cerrado: la dirección ya no hace falta y se borra.
+      pedido.direccion = null;
       return seguimientoDe(db, pedido);
     });
     return Response.json(seguimiento);

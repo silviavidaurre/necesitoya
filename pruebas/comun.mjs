@@ -66,3 +66,17 @@ export function png(gris = 120) {
   const crudo = Buffer.concat(Array.from({ length: 64 }, () => fila));
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), trozo("IHDR", ihdr), trozo("IDAT", zlib.deflateSync(crudo, { level: 0 })), trozo("IEND", Buffer.alloc(0))]).toString("base64");
 }
+
+// Dirección de prueba (privada: no tiene que aparecer en ninguna respuesta para otros) y el turno que corresponde
+// a un presupuesto mandado con "Hoy" o "Mañana" (la API los traduce a días y franjas).
+export const DIRECCION = { calle: "Calle de Prueba 4321", referencia: "Portón verde de prueba" };
+
+export function hoyEnJujuy(dias = 0) {
+  const fecha = new Date(Date.now() - 3 * 3600_000);
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+}
+
+export function turnoPara(cuando = "Hoy") {
+  return cuando === "Mañana" ? { dia: hoyEnJujuy(1), franja: "manana" } : { dia: hoyEnJujuy(0), franja: "tarde" };
+}

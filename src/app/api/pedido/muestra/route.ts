@@ -2,6 +2,7 @@ import { MAX_OFERTAS } from "@/lib/catalogo";
 import { asegurarPrestadoresDeMuestra, modificar, nuevoId } from "@/lib/db";
 import { seguimientoDe } from "@/lib/seguimiento";
 import type { Oferta } from "@/lib/tipos";
+import { turnosDesdeCuando } from "@/lib/turnos";
 
 class ErrorDeMuestra extends Error {
   constructor(
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
           prestadorId: prestador.id,
           precio,
           cuando: i === 0 ? "Hoy" : "Mañana",
+          turnos: turnosDesdeCuando(i === 0 ? "Hoy" : "Mañana"),
           mensaje: MENSAJES[i % MENSAJES.length],
           estado: "enviada",
           creado: new Date(Date.now() + i).toISOString(),

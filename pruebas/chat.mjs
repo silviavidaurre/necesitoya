@@ -2,7 +2,7 @@
 // el contador de mensajes sin leer y los límites.
 // Uso: node pruebas/chat.mjs [url]   (por defecto http://localhost:3000)
 // Crea datos de prueba: después hay que borrarlos de la base.
-import { cuentaDePrueba } from "./comun.mjs";
+import { DIRECCION, cuentaDePrueba, turnoPara } from "./comun.mjs";
 const U = process.argv[2] ?? "http://localhost:3000";
 const OCULTO = "[número oculto]";
 
@@ -131,7 +131,7 @@ ok("un mensaje vacío se rechaza", (await escribir(deAna, comoVecino, "   ")).es
 ok("un mensaje que no es texto se rechaza", (await escribir(deAna, comoVecino, { texto: "hola" })).estado === 400);
 
 // --- Después de elegir ---------------------------------------------------------------------------
-const eleccion = await j("/api/pedido/elegir", { id, clave, ofertaId: deAna });
+const eleccion = await j("/api/pedido/elegir", { id, clave, ofertaId: deAna, direccion: DIRECCION, turno: turnoPara("Hoy") });
 ok("el vecino elige a Ana", eleccion.estado === 200);
 const coordinar = await escribir(deAna, comoVecino, "Listo Ana, te elegí. ¿Mañana a las 9?");
 ok("con el elegido el chat sigue abierto", coordinar.estado === 201 && (await leer(deAna, { prestadorId: ana.id })).datos.abierto === true);

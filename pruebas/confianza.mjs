@@ -6,7 +6,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import zlib from "node:zlib";
-import { cuentaDePrueba, secretoLocal } from "./comun.mjs";
+import { DIRECCION, cuentaDePrueba, secretoLocal, turnoPara } from "./comun.mjs";
 
 const U = process.argv[2] ?? "http://localhost:3000";
 let fallas = 0;
@@ -143,7 +143,7 @@ ok("el perfil público dice el nivel y el historial", perfil.nivel === 1 && perf
 
 // --- Pago -----------------------------------------------------------------------------------------
 ok("no se paga antes de elegir", (await j("/api/pagos", { id, clave })).estado === 409);
-await j("/api/pedido/elegir", { id, clave, ofertaId: oferta.datos.oferta.id });
+await j("/api/pedido/elegir", { id, clave, ofertaId: oferta.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 ok("otro no puede pagar ni ver el pago", (await j("/api/pagos", { id, clave: "otra" })).estado === 403 && (await j(`/api/pagos?id=${id}&clave=otra`)).estado === 403);
 const sinBilletera = await j("/api/pagos", { id, clave });
 ok("sin billetera del prestador (o sin Cosmos) no se arma el pago", sinBilletera.estado === 409 || sinBilletera.estado === 503, `(${sinBilletera.estado}) ${sinBilletera.datos?.error ?? ""}`);

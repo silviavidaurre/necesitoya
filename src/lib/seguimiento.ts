@@ -4,6 +4,7 @@ import { pedidoPublico } from "./db";
 import { cobraPorLaApp, pagoDe, pagoProtegidoPara, pagoPublico, pagosDisponibles } from "./pagos";
 import { bloqueados } from "./moderacion";
 import { reputacionDe } from "./reglas";
+import { trabajoDe } from "./trabajo";
 import type { BaseDeDatos, OfertaParaCliente, Pedido } from "./tipos";
 
 // Arma lo que ve el vecino dueño de un pedido: el pedido y los presupuestos que recibió.
@@ -36,6 +37,7 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
             pagoProtegido: pagoProtegidoPara(prestador),
           },
           pago: pagoPublico(pagoDe(db, oferta.id)),
+          trabajo: trabajoDe(oferta),
         },
       ];
     });
@@ -44,7 +46,8 @@ export function seguimientoDe(db: BaseDeDatos, pedido: Pedido) {
   const reclamos = (db.reclamos ?? [])
     .filter((r) => r.pedidoId === pedido.id)
     .map((r) => ({ de: r.de, motivo: r.motivo, estado: r.estado, resolucion: r.resolucion ?? "", creado: r.creado }));
-  return { pedido: pedidoPublico(pedido), ofertas, maximo: MAX_OFERTAS, pagos: pagosDisponibles(), reclamos };
+  // La dirección es del vecino: se la devolvemos solo a él (esta vista es la del dueño del pedido).
+  return { pedido: pedidoPublico(pedido), direccion: pedido.direccion ?? null, ofertas, maximo: MAX_OFERTAS, pagos: pagosDisponibles(), reclamos };
 }
 
 export type Seguimiento = ReturnType<typeof seguimientoDe>;
