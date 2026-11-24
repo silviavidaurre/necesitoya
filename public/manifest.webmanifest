@@ -1,0 +1,22 @@
+{
+  "name": "NecesitoYa",
+  "short_name": "NecesitoYa",
+  "description": "Contá qué se te rompió y recibí presupuestos de gente de tu barrio, en San Salvador de Jujuy y Palpalá.",
+  "lang": "es-AR",
+  "start_url": "/?origen=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "categories": ["lifestyle", "utilities"],
+  "icons": [
+    { "src": "/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Pedir un trabajo", "url": "/pedir", "icons": [{ "src": "/icono-192.png", "sizes": "192x192" }] },
+    { "name": "Ver pedidos (prestadores)", "url": "/prestador", "icons": [{ "src": "/icono-192.png", "sizes": "192x192" }] }
+  ]
+}
