@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PantallaCambiarDia, PantallaReclamo } from "@/components/Gestiones";
 import { NavPrestador } from "@/components/NavPrestador";
 import { PantallaChat } from "@/components/PantallaChat";
 import { usePrestador } from "@/components/usePrestador";
@@ -21,8 +22,9 @@ const PAGO_PARA_EL_PRESTADOR: Record<EstadoDePago, string> = {
 };
 
 interface OfertaConPedido extends Oferta {
-  pedido: { titulo: string; zona: string; rubro: RubroId; ejemplo: boolean; confirmado: string | null } | null;
+  pedido: { titulo: string; zona: string; rubro: RubroId; ejemplo: boolean; confirmado: string | null; estado: "abierto" | "cerrado" | "cancelado" } | null;
   pago: PagoPublico | null;
+  reclamos: { de: "vecino" | "prestador"; motivo: string; estado: "abierto" | "resuelto"; resolucion: string }[];
   // Solo el nombre de pila del vecino: se le escribe por el chat de la app, su teléfono no se muestra.
   cliente: { nombre: string } | null;
   // Mensajes del chat con el vecino: cuántos hay y cuántos faltan leer.
@@ -39,6 +41,7 @@ export default function MisOfertas() {
   const [chat, setChat] = useState<OfertaConPedido | null>(null);
   // El trabajo que está marcando como terminado (pantalla con la foto del después).
   const [cerrando, setCerrando] = useState<OfertaConPedido | null>(null);
+  const [gestion, setGestion] = useState<{ oferta: OfertaConPedido; tipo: "reclamo" | "dia" } | null>(null);
 
   const prestadorId = prestador?.id;
   const cargar = useCallback(async () => {
@@ -135,6 +138,11 @@ export default function MisOfertas() {
                       {oferta.pedido?.confirmado ? <Estado tono="bien">{pila} confirmó que quedó bien</Estado> : <Estado>Esperando que {pila} confirme</Estado>}
                     </p>
                   )}
+                  {oferta.reclamos.map((r) => (
+                    <p key={`${r.de}-${r.motivo}`}>
+                      {r.estado === "abierto" ? <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado> : <Estado>Reclamo resuelto: {r.resolucion}</Estado>}
+                    </p>
+                  ))}
                   {oferta.pago && (
                     <p>
                       <Estado tono={oferta.pago.estado === "en_disputa" ? "mal" : oferta.pago.estado === "pendiente" ? "neutro" : "bien"}>
@@ -149,9 +157,26 @@ export default function MisOfertas() {
                   <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
                 </p>
               )}
+              {conChat && oferta.estado === "elegida" && oferta.pedido?.estado !== "cancelado" && (
+                <div className="mt-3 flex flex-wrap gap-x-6">
+                  {!oferta.terminado && (
+                    <button type="button" onClick={() => setGestion({ oferta, tipo: "dia" })} className="flex min-h-12 items-center text-[15px] font-semibold text-brand">
+                      Cambiar el día
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setGestion({ oferta, tipo: "reclamo" })} className="flex min-h-12 items-center text-[15px] font-semibold text-ink-500">
+                    Tengo un problema
+                  </button>
+                </div>
+              )}
+              {oferta.pedido?.estado === "cancelado" && (
+                <p className="mt-2">
+                  <Estado>El vecino canceló el pedido</Estado>
+                </p>
+              )}
               {conChat && (!soloLectura || oferta.mensajes > 0) && (
                 <div className="mt-4">
-                  {oferta.estado === "elegida" && !oferta.terminado ? (
+                  {oferta.estado === "elegida" && !oferta.terminado && oferta.pedido?.estado !== "cancelado" ? (
                     <div className="space-y-3">
                       <BotonPrimario onClick={() => setCerrando(oferta)}>Trabajo terminado</BotonPrimario>
                       <BotonSecundario onClick={() => setChat(oferta)}>
@@ -186,6 +211,28 @@ export default function MisOfertas() {
           alCerrar={() => {
             setChat(null);
             cargar();
+          }}
+        />
+      )}
+      {gestion?.tipo === "reclamo" && (
+        <PantallaReclamo
+          ofertaId={gestion.oferta.id}
+          quien={{ prestadorId: prestador.id }}
+          nombre={gestion.oferta.cliente?.nombre || "el vecino"}
+          alCerrar={(enviado) => {
+            setGestion(null);
+            if (enviado) cargar();
+          }}
+        />
+      )}
+      {gestion?.tipo === "dia" && (
+        <PantallaCambiarDia
+          ofertaId={gestion.oferta.id}
+          quien={{ prestadorId: prestador.id }}
+          actual={gestion.oferta.cuando}
+          alCerrar={(nuevo) => {
+            setGestion(null);
+            if (nuevo) cargar();
           }}
         />
       )}

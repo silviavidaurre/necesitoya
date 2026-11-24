@@ -3,6 +3,7 @@ import { resumenDeChat } from "@/lib/chat";
 import { dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { avisar } from "@/lib/avisos";
 import { pagoDe, pagoPublico } from "@/lib/pagos";
+import { bloqueados } from "@/lib/moderacion";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto } from "@/lib/texto";
 import type { Oferta } from "@/lib/tipos";
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
           ? { titulo: pedido.titulo, zona: pedido.zona, rubro: pedido.rubro, ejemplo: pedido.ejemplo, estado: pedido.estado, confirmado: pedido.confirmado ?? null, calificacion: pedido.calificacion ?? null }
           : null,
         pago: pagoPublico(pagoDe(db, oferta.id)),
+        reclamos: (db.reclamos ?? []).filter((r) => r.ofertaId === oferta.id).map((r) => ({ de: r.de, motivo: r.motivo, estado: r.estado, resolucion: r.resolucion ?? "" })),
         cliente: pedido ? { nombre: pedido.clienteNombre.split(" ")[0] } : null,
         // Mensajes del chat con el vecino: cuántos hay y cuántos le faltan leer al prestador.
         ...resumenDeChat(db, oferta, "prestador"),
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       if (!pedido || pedido.estado !== "abierto") throw new ErrorDeOferta("Ese pedido ya no está disponible.", 404);
       const prestador = db.prestadores.find((p) => p.id === prestadorId);
       if (!prestador) throw new ErrorDeOferta("No encontramos tu perfil.", 404);
+      if (bloqueados(db, pedido, prestador)) throw new ErrorDeOferta("Ese pedido ya no está disponible.", 404);
 
       const delPedido = db.ofertas.filter((o) => o.pedidoId === pedidoId);
       if (delPedido.some((o) => o.prestadorId === prestadorId)) {
