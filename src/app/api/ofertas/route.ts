@@ -6,6 +6,8 @@ import { pagoDe, pagoPublico } from "@/lib/pagos";
 import { bloqueados } from "@/lib/moderacion";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto } from "@/lib/texto";
+import { trabajoActivo, trabajoDe } from "@/lib/trabajo";
+import { limpiarTurnos, resumenDeTurnos, turnosDesdeCuando } from "@/lib/turnos";
 import type { Oferta } from "@/lib/tipos";
 
 
@@ -33,6 +35,9 @@ export async function GET(request: Request) {
       const { leidoVecino: _vecino, leidoPrestador: _prestador, ...visible } = oferta;
       return {
         ...visible,
+        // La dirección solo la ve el prestador elegido y solo mientras el trabajo está activo.
+        direccion: pedido && trabajoActivo(oferta, pedido) ? (pedido.direccion ?? null) : null,
+        trabajo: trabajoDe(oferta),
         pedido: pedido
           ? { titulo: pedido.titulo, zona: pedido.zona, rubro: pedido.rubro, ejemplo: pedido.ejemplo, estado: pedido.estado, confirmado: pedido.confirmado ?? null, calificacion: pedido.calificacion ?? null }
           : null,
@@ -52,7 +57,11 @@ export async function POST(request: Request) {
   const pedidoId = typeof cuerpo?.pedidoId === "string" ? cuerpo.pedidoId : "";
   const prestadorId = typeof cuerpo?.prestadorId === "string" ? cuerpo.prestadorId : "";
   const precio = Number(cuerpo?.precio);
-  const cuando = limpiarTexto(cuerpo?.cuando, 80);
+  // Días y franjas que ofrece. Las versiones viejas de la app mandan solo "Hoy", "Mañana"...: se traducen.
+  const turnosPedidos = limpiarTurnos(cuerpo?.turnos);
+  const cuandoEscrito = limpiarTexto(cuerpo?.cuando, 80);
+  const turnos = turnosPedidos.length > 0 ? turnosPedidos : turnosDesdeCuando(cuandoEscrito);
+  const cuando = turnosPedidos.length > 0 ? resumenDeTurnos(turnosPedidos) : cuandoEscrito;
   const mensaje = limpiarTexto(cuerpo?.mensaje, 500);
 
   if (!pedidoId || !prestadorId) return Response.json({ error: "Faltan datos de la oferta." }, { status: 400 });
@@ -101,6 +110,7 @@ export async function POST(request: Request) {
         prestadorId,
         precio: Math.round(precio),
         cuando,
+        turnos,
         mensaje,
         estado: "enviada",
         creado: new Date().toISOString(),

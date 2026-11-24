@@ -1,6 +1,7 @@
 import { dentroDelCupo, dentroDelCupoDe, guardarFoto, leer, modificar, nuevoId } from "@/lib/db";
 import { fotoValida } from "@/lib/fotos";
 import { avisar } from "@/lib/avisos";
+import { pasarA } from "@/lib/trabajo";
 
 class ErrorDeCierre extends Error {
   constructor(
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
       if (!o || o.prestadorId !== prestadorId) throw new ErrorDeCierre("Este trabajo no es tuyo.", 403);
       if (o.terminado) throw new ErrorDeCierre("Ya marcaste este trabajo como terminado.", 409);
       o.terminado = { creado: new Date().toISOString(), fotoId };
+      // Desde acá el prestador deja de ver la dirección.
+      pasarA(o, "terminado");
       return { terminado: o.terminado, cuenta: actual.pedidos.find((p) => p.id === o.pedidoId)?.cuenta };
     });
     avisar(resultado.cuenta, { tipo: "terminado", titulo: "Trabajo terminado", texto: "Mirá la foto y confirmá si quedó bien.", url: `/pedido/${oferta.pedidoId}` });

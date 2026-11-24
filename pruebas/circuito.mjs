@@ -1,5 +1,5 @@
 // Prueba de punta a punta del circuito vecino <-> prestador contra un servidor (local o publicado).
-import { cuentaDePrueba } from "./comun.mjs";
+import { DIRECCION, cuentaDePrueba, turnoPara } from "./comun.mjs";
 import zlib from "node:zlib";
 const U = process.argv[2] ?? "http://localhost:3000";
 const j = async (ruta, cuerpo) => {
@@ -73,10 +73,10 @@ ok("el presupuesto trae el contador de mensajes", seg.datos.ofertas[0].sinLeer =
 const antes = await j(`/api/ofertas?prestadorId=${pid}`);
 ok("antes de elegir, el prestador solo ve el nombre de pila", antes.datos.ofertas[0].cliente?.nombre === "Vecina" && sinTelefonos(antes));
 
-const el = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id });
+const el = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 ok("elegir presupuesto", el.estado === 200 && el.datos.pedido.estado === "cerrado" && el.datos.ofertas[0].estado === "elegida");
 ok("al elegir no se revela el teléfono del prestador", !("whatsapp" in el.datos.ofertas[0].prestador) && sinTelefonos(el));
-const dos = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id });
+const dos = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 ok("no deja elegir dos veces", dos.estado === 409);
 
 const despues = await j(`/api/ofertas?prestadorId=${pid}`);
@@ -86,7 +86,7 @@ ok("el elegido no recibe el teléfono del vecino, solo su nombre de pila", despu
 const conTel = await j("/api/pedidos", { ...p, zona: "Alto Comedero", relato: "pedido con telefono de una version vieja", clienteNombre: "Vecina Vieja", clienteWhatsapp: "388 400-0000", cuenta: cuentaVecina });
 ok("un pedido que trae teléfono igual se publica", conTel.estado === 201);
 const of2 = await j("/api/ofertas", { pedidoId: conTel.datos.id, prestadorId: pid, precio: 70000, cuando: "Hoy", mensaje: "" });
-const el2 = await j("/api/pedido/elegir", { id: conTel.datos.id, clave: conTel.datos.clave, ofertaId: of2.datos.oferta.id });
+const el2 = await j("/api/pedido/elegir", { id: conTel.datos.id, clave: conTel.datos.clave, ofertaId: of2.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 const seg2 = await j(`/api/pedido?id=${conTel.datos.id}&clave=${conTel.datos.clave}`);
 const mias2 = await j(`/api/ofertas?prestadorId=${pid}`);
 const charla = await j(`/api/chat?ofertaId=${of2.datos.oferta.id}&prestadorId=${pid}`);

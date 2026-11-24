@@ -4,6 +4,8 @@ import { modificar } from "@/lib/db";
 import { anotarEstado, pagoDe } from "@/lib/pagos";
 import { seguimientoDe } from "@/lib/seguimiento";
 import { limpiarTexto } from "@/lib/texto";
+import { trabajoDe } from "@/lib/trabajo";
+import { sePuedeCancelar } from "@/lib/turnos";
 
 class ErrorDeCancelacion extends Error {
   constructor(
@@ -32,11 +34,17 @@ export async function POST(request: Request) {
       if (pedido.confirmado) throw new ErrorDeCancelacion("El trabajo ya está terminado: no se puede cancelar.", 409);
       const elegida = db.ofertas.find((o) => o.pedidoId === id && o.estado === "elegida");
       const pago = elegida ? pagoDe(db, elegida.id) : undefined;
+      const trabajo = elegida ? trabajoDe(elegida) : null;
+      if (trabajo && !sePuedeCancelar(trabajo.estado)) {
+        throw new ErrorDeCancelacion("El prestador ya llegó: no se puede cancelar. Si algo salió mal, abrí un reclamo.", 409);
+      }
       if (pago && pago.estado !== "pendiente") {
         throw new ErrorDeCancelacion("Ya pagaste por la app. Si algo salió mal, abrí un reclamo y la plata se resuelve por ahí.", 409);
       }
       pedido.estado = "cancelado";
       pedido.cancelacion = { creado: new Date().toISOString(), motivo };
+      // Cancelado: la dirección se borra.
+      pedido.direccion = null;
       // Los presupuestos que esperaban respuesta quedan descartados.
       for (const oferta of db.ofertas.filter((o) => o.pedidoId === id && o.estado === "enviada")) oferta.estado = "descartada";
       if (pago) anotarEstado(pago, "cancelado", "cancelado por el vecino");

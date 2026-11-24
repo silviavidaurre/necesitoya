@@ -2,7 +2,7 @@
 // denuncias, bloqueos, panel de moderación, límites por persona y métricas sin datos de prueba.
 // Uso: node pruebas/moderacion.mjs [url]
 // El panel se prueba con ADMIN_SECRET del entorno o de .env.local (nunca se imprime).
-import { cuentaDePrueba, png, secretoLocal } from "./comun.mjs";
+import { DIRECCION, cuentaDePrueba, png, secretoLocal, turnoPara } from "./comun.mjs";
 
 const U = process.argv[2] ?? "http://localhost:3000";
 const ADMIN = secretoLocal("ADMIN_SECRET");
@@ -37,7 +37,7 @@ const nuevoPedido = async (titulo) =>
 const pr = (await j("/api/prestadores", { nombre: "Plomero Moderación", rubros: ["plomeria"], zonas: ["Centro"], aniosExperiencia: 4, descripcion: "Prueba", cuenta: await cuentaDePrueba(U, "prestador") })).datos.prestador;
 const pedido = await nuevoPedido("Prueba de moderación: cambiar el flexible");
 const oferta = (await j("/api/ofertas", { pedidoId: pedido.id, prestadorId: pr.id, precio: 30000, cuando: "Mañana", mensaje: "" })).datos.oferta;
-await j("/api/pedido/elegir", { id: pedido.id, clave: pedido.clave, ofertaId: oferta.id });
+await j("/api/pedido/elegir", { id: pedido.id, clave: pedido.clave, ofertaId: oferta.id, direccion: DIRECCION, turno: turnoPara("Mañana") });
 const vecino = { pedidoId: pedido.id, clave: pedido.clave };
 
 // --- Verificación ---------------------------------------------------------------------------------

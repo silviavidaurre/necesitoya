@@ -1,7 +1,7 @@
 // Prueba del lado del prestador: lugar reservado para el barrio, perfil público, edición, fotos y reputación.
 // Uso: node pruebas/prestador.mjs [url]   (por defecto http://localhost:3000)
 // Crea datos de prueba: después hay que borrarlos de la base.
-import { cuentaDePrueba } from "./comun.mjs";
+import { DIRECCION, cuentaDePrueba, turnoPara } from "./comun.mjs";
 import zlib from "node:zlib";
 
 const U = process.argv[2] ?? "http://localhost:3000";
@@ -126,7 +126,7 @@ ok("las fotos salen en el perfil público", (await j(`/api/perfil?id=${publicos[
 
 // Reputación
 ok("no se puede calificar antes de elegir", (await j("/api/pedido/calificar", { id, clave, estrellas: 5 })).estado === 409);
-const eleccion = await j("/api/pedido/elegir", { id, clave, ofertaId: ofertaD.datos.oferta.id });
+const eleccion = await j("/api/pedido/elegir", { id, clave, ofertaId: ofertaD.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 const elegidaVista = eleccion.datos.ofertas.find((o) => o.estado === "elegida");
 ok("al elegir, el vecino no recibe el celular del prestador", eleccion.estado === 200 && elegidaVista && !("whatsapp" in elegidaVista.prestador));
 const misOfertas = (await j(`/api/ofertas?prestadorId=${d}`)).datos.ofertas;

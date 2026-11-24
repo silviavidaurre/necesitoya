@@ -154,7 +154,7 @@ export function nuevoId() {
 // Quita del pedido lo privado: el teléfono (si quedó de antes) y la clave de seguimiento.
 // Del nombre del vecino solo queda el de pila: la lista de pedidos la puede leer cualquiera.
 export function pedidoPublico(pedido: Pedido): PedidoPublico {
-  const { clienteWhatsapp: _whatsapp, claveCliente: _clave, idCliente: _intento, cuenta: _cuenta, ...publico } = pedido;
+  const { clienteWhatsapp: _whatsapp, claveCliente: _clave, idCliente: _intento, cuenta: _cuenta, direccion: _direccion, ...publico } = pedido;
   return { ...publico, clienteNombre: pedido.clienteNombre.split(" ")[0] };
 }
 

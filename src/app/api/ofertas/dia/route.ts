@@ -1,6 +1,8 @@
 import { avisar } from "@/lib/avisos";
 import { modificar, nuevoId } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
+import { trabajoDe } from "@/lib/trabajo";
+import { limpiarTurnos, sePuedeReprogramar, textoDeTurno } from "@/lib/turnos";
 import type { Mensaje } from "@/lib/tipos";
 
 class ErrorDeDia extends Error {
@@ -17,7 +19,9 @@ class ErrorDeDia extends Error {
 export async function POST(request: Request) {
   const cuerpo = await request.json().catch(() => null);
   const ofertaId = typeof cuerpo?.ofertaId === "string" ? cuerpo.ofertaId : "";
-  const cuando = limpiarTexto(cuerpo?.cuando, 80);
+  // El nuevo turno (día y franja). Las versiones viejas mandan un texto libre en `cuando`.
+  const turno = limpiarTurnos(cuerpo?.turno ? [cuerpo.turno] : [])[0] ?? null;
+  const cuando = turno ? textoDeTurno(turno) : limpiarTexto(cuerpo?.cuando, 80);
   if (!ofertaId || !cuando) return Response.json({ error: "Decinos el nuevo día." }, { status: 400 });
 
   try {
@@ -33,7 +37,10 @@ export async function POST(request: Request) {
       if (oferta.estado !== "elegida" || !pedido || pedido.estado === "cancelado" || pedido.confirmado || oferta.terminado) {
         throw new ErrorDeDia("Solo se cambia el día de un trabajo elegido que todavía no terminó.", 409);
       }
+      const trabajo = trabajoDe(oferta);
+      if (trabajo && !sePuedeReprogramar(trabajo.estado)) throw new ErrorDeDia("Ya salió para allá: no se puede cambiar el día. Escribile por el chat.", 409);
       oferta.cuando = cuando;
+      if (turno && trabajo) oferta.trabajo = { ...trabajo, turno };
       const creado = new Date().toISOString();
       db.mensajes = [...(db.mensajes ?? []), { id: nuevoId(), ofertaId, de: lado, texto: `Cambié el día del trabajo: ${cuando}.`, creado }];
       if (lado === "vecino") oferta.leidoVecino = creado;
