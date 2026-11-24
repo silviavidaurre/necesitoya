@@ -306,7 +306,7 @@ export function EntrarACuenta({
           type="button"
           onClick={() => void conGoogleNativo()}
           disabled={entrando}
-          className="mt-4 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-[#747775] bg-white px-4 text-[15px] font-medium text-[#1f1f1f] disabled:opacity-60"
+          className="boton-google mt-4 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border px-4 text-[15px] font-medium disabled:opacity-60"
         >
           <LogoDeGoogle />
           Continuar con Google
