@@ -12,6 +12,7 @@ import * as ultimoAviso from "@/app/api/avisos/ultimo/route";
 import * as chat from "@/app/api/chat/route";
 import * as cuenta from "@/app/api/cuenta/route";
 import * as eliminarCuenta from "@/app/api/cuenta/eliminar/route";
+import * as recuperarContrasena from "@/app/api/cuenta/recuperar/route";
 import * as pedidoDeBaja from "@/app/api/eliminar-cuenta/route";
 import * as fotos from "@/app/api/fotos/route";
 import * as pedidoIa from "@/app/api/ia/pedido/route";
@@ -55,6 +56,7 @@ const RUTAS: Record<string, Ruta> = {
   "/api/chat": chat,
   "/api/cuenta": cuenta,
   "/api/cuenta/eliminar": eliminarCuenta,
+  "/api/cuenta/recuperar": recuperarContrasena,
   "/api/eliminar-cuenta": pedidoDeBaja,
   "/api/fotos": fotos,
   "/api/ia/pedido": pedidoIa,

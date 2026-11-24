@@ -47,13 +47,14 @@ const COLECCIONES = {
   reclamos: "id",
   denuncias: "id",
   bajas: "id",
+  correos: "id",
 } as const satisfies Record<keyof BaseDeDatos, string>;
 
 type Coleccion = keyof typeof COLECCIONES;
 const NOMBRES = Object.keys(COLECCIONES) as Coleccion[];
 const MIGRACION = "tablas-v1";
 // Cuando se suma una colección nueva (una tabla nueva), se sube esta marca: crea las tablas que falten sin migrar nada.
-const ESQUEMA = "esquema-2";
+const ESQUEMA = "esquema-3";
 const INTENTOS = 6;
 // D1 admite hasta 100 valores por sentencia y sentencias de hasta 100 KB: se agrupa por debajo de eso.
 const FILAS_POR_SENTENCIA = 45;

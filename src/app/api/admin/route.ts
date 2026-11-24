@@ -1,4 +1,5 @@
 import { comprobarAdmin } from "@/lib/admin";
+import { esMailDePrueba } from "@/lib/correo";
 import { mensajesDe } from "@/lib/chat";
 import { PLAZOS, eliminarCuenta } from "@/lib/bajas";
 import { borrarFotos, esCuentaDePrueba, leer, modificar } from "@/lib/db";
@@ -108,6 +109,11 @@ export async function GET(request: Request) {
       .filter((b) => b.estado === "pendiente")
       .map((b) => ({ id: b.id, email: b.email, creado: b.creado, tieneCuenta: Boolean(db.cuentas?.some((c) => c.sub === `mail:${b.email}`)) }));
     return Response.json({ bajas: pendientes });
+  }
+
+  // Bandeja de mails de prueba: solo los de direcciones .test, que nunca se mandan (ver lib/correo.ts).
+  if (seccion === "correos") {
+    return Response.json({ correos: (db.correos ?? []).filter((c) => esMailDePrueba(c.para)) });
   }
 
   if (seccion === "pruebas") {
@@ -236,6 +242,9 @@ export async function POST(request: Request) {
       db.suscripciones = (db.suscripciones ?? []).filter((s) => !prueba.cuentas.has(s.cuenta));
       db.avisos = (db.avisos ?? []).filter((a) => !prueba.cuentas.has(a.cuenta));
       db.cuentas = (db.cuentas ?? []).filter((c) => !prueba.cuentas.has(c.sub));
+      // La bandeja de mails de prueba y los pedidos de baja de mails .test.
+      db.correos = [];
+      db.bajas = (db.bajas ?? []).filter((b) => !esMailDePrueba(b.email));
       return {
         borrados: {
           pedidos: antes.pedidos - db.pedidos.length,
