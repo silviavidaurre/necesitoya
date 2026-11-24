@@ -27,7 +27,7 @@ export function FichaPrestador({ perfil, acciones, fotosExtra }: { perfil: Perfi
   return (
     <>
       <div className="mt-6 flex flex-col items-center text-center">
-        <span className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-50 text-[34px] font-bold text-brand-600">{iniciales(perfil.nombre)}</span>
+        <span className="flex h-24 w-24 items-center justify-center rounded-full bg-subtle text-[34px] font-bold text-ink">{iniciales(perfil.nombre)}</span>
         <h1 className="mt-4 text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">{perfil.nombre}</h1>
         <p className="mt-1 text-[17px] text-ink-500">{perfil.rubros.map((id) => rubroPorId(id).nombre).join(" · ")}</p>
         <p className="mt-2">
