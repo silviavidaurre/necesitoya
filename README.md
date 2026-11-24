@@ -23,7 +23,7 @@ Publicada en https://necesitoya.gabriel13iturre.workers.dev
 - Vite, React 19, React Router 7, Tailwind 4 y TypeScript. Diseño: negro, blanco y un acento naranja; Space Grotesk e Inter; el lado del prestador va oscuro (tokens en `src/app/globals.css`).
 - API en `src/app/api/**/route.ts`, registrada en `src/servidor/rutas.ts`.
 - En producción corre en un Worker de Cloudflare con una base D1 (`src/servidor/worker.ts`, `wrangler.jsonc`), con una tabla por colección (`src/servidor/almacen-d1.ts`). La primera vez migra sola desde la fila única `estado`, que queda intacta como respaldo. En desarrollo guarda en un archivo local.
-- IA: Claude, con el SDK de Anthropic (`src/lib/ia.ts`). Sin clave, la app sigue andando en un modo básico por reglas.
+- IA: un modelo de lenguaje de Anthropic, con su SDK (`src/lib/ia.ts`). Sin clave, la app sigue andando en un modo básico por reglas.
 - Voz: ElevenLabs (`src/lib/voz.ts`). Pagos: Cosmos Pay (`src/lib/cosmos.ts`) y Mercado Pago (`src/lib/mercadopago.ts`). Avisos: web push con VAPID (`src/lib/push.ts`, `public/sw.js`).
 
 ## Correrla en tu máquina

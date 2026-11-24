@@ -75,7 +75,7 @@ export default function Privacidad() {
       <Seccion>Quiénes procesan datos por nosotros</Seccion>
       <ul className="mt-2 list-disc space-y-1.5 pl-5 text-base leading-relaxed text-ink">
         <li>Cloudflare: aloja la app y la base de datos.</li>
-        <li>Anthropic (Claude): ordena tu pedido, arma el diagnóstico y tu perfil a partir del texto y la foto.</li>
+        <li>Anthropic: ordena tu pedido, arma el diagnóstico y tu perfil a partir del texto y la foto.</li>
         <li>ElevenLabs: pasa el audio a texto y lee en voz alta.</li>
         <li>Google: si entrás con Google; también sirve las tipografías de la app (ve tu dirección de internet).</li>
         <li>Cosmos Pay: procesa los pagos en USDC sobre la red Stellar.</li>
