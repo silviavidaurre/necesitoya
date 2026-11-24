@@ -81,7 +81,9 @@ export function delCelular(cuerpo: Record<string, unknown>): DelCelular {
 export function entrar(db: BaseDeDatos, cuenta: Cuenta, celular: DelCelular, nueva: boolean) {
   // Perfil: una cuenta, un perfil. Si la cuenta todavía no tiene y este celular sí (y no es de otra cuenta), se une.
   let prestador = db.prestadores.find((p) => p.cuenta === cuenta.sub);
-  if (!prestador && celular.prestadorId) {
+  // Una cuenta de demostración nunca se queda con lo que hay suelto en el celular: eso es real y, unido a la demo,
+  // se borraría al recargar el barrio.
+  if (!prestador && celular.prestadorId && !cuenta.demo) {
     const suelto = db.prestadores.find((p) => p.id === celular.prestadorId && !p.ejemplo && !p.cuenta);
     if (suelto) {
       suelto.cuenta = cuenta.sub;
@@ -90,7 +92,7 @@ export function entrar(db: BaseDeDatos, cuenta: Cuenta, celular: DelCelular, nue
   }
 
   // Pedidos: los de este celular (probando que son suyos con la clave) y sin dueño quedan unidos a la cuenta.
-  for (const { id, clave } of celular.pedidos) {
+  for (const { id, clave } of cuenta.demo ? [] : celular.pedidos) {
     const pedido = db.pedidos.find((p) => p.id === id);
     if (pedido && pedido.claveCliente && pedido.claveCliente === clave && !pedido.cuenta) pedido.cuenta = cuenta.sub;
   }
@@ -98,6 +100,8 @@ export function entrar(db: BaseDeDatos, cuenta: Cuenta, celular: DelCelular, nue
   return {
     nombre: cuenta.nombre,
     clave: cuenta.clave,
+    // Cuenta de demostración: la app muestra un cartel de que todo es inventado.
+    ...(cuenta.demo ? { demo: true } : {}),
     nueva,
     // El id secreto del perfil solo viaja a su dueño, recién confirmado.
     prestadorId: prestador?.id ?? null,

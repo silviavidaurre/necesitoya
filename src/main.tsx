@@ -17,6 +17,7 @@ import PanelInterno from "./app/admin/page";
 import Terminos from "./app/terminos/page";
 import EliminarCuentaPublica from "./app/eliminar-cuenta/page";
 import Recuperar from "./app/recuperar/page";
+import { AvisoDemo } from "./components/AvisoDemo";
 
 // El lado del prestador va oscuro y el del vecino claro: se cambia la clase de <html> según la pantalla.
 function TemaSegunPantalla() {
@@ -41,6 +42,7 @@ createRoot(document.getElementById("raiz")!).render(
     <BrowserRouter>
       <TemaSegunPantalla />
       <PreparacionNativa />
+      <AvisoDemo />
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white">
         <Routes>
           <Route path="/" element={<Pedir />} />

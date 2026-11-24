@@ -3,6 +3,8 @@ import { leerFoto } from "@/lib/db";
 // Devuelve la foto de un pedido. El id es un UUID que solo aparece dentro del pedido.
 export async function GET(request: Request) {
   const id = new URL(request.url).searchParams.get("id") ?? "";
+  // Barrio de demostración: las fotos de trabajos son ilustraciones fijas en public/demo.
+  if (/^demo-[a-z]+-[0-9]$/.test(id)) return new Response(null, { status: 302, headers: { location: `/demo/${id}.svg`, "cache-control": "public, max-age=86400" } });
   if (!/^[a-f0-9-]{36}$/.test(id)) return Response.json({ error: "Foto inválida." }, { status: 400 });
 
   const foto = await leerFoto(id);

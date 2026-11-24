@@ -41,6 +41,7 @@ export interface Entrada {
   nombre: string;
   clave: string;
   nueva: boolean;
+  demo?: boolean;
   prestadorId: string | null;
   pedidos: PedidoGuardado[];
 }
@@ -89,7 +90,7 @@ function loDeEsteCelular() {
 // Al entrar, este celular pasa a mostrar lo de esa cuenta: su perfil (o ninguno) y sus pedidos.
 // Con `alEntrar` la pantalla sigue donde estaba (por ejemplo, a mitad de un pedido); si no, se recarga.
 export function abrirCuenta(entrada: Entrada, alEntrar?: (cuenta: CuentaGuardada) => void) {
-  const cuenta = { nombre: entrada.nombre, clave: entrada.clave };
+  const cuenta = { nombre: entrada.nombre, clave: entrada.clave, ...(entrada.demo ? { demo: true } : {}) };
   guardarCuenta(cuenta);
   if (entrada.prestadorId) guardarPrestadorId(entrada.prestadorId);
   else borrarPrestadorId();

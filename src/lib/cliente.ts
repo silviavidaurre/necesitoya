@@ -107,6 +107,8 @@ export function guardarMiPedido(pedido: PedidoGuardado) {
 export interface CuentaGuardada {
   nombre: string;
   clave: string;
+  // true = cuenta de demostración (barrio inventado).
+  demo?: boolean;
 }
 
 export function leerCuenta(): CuentaGuardada | null {

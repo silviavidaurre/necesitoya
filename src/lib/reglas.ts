@@ -73,5 +73,6 @@ export function perfilPublico(db: BaseDeDatos, prestador: Prestador): PerfilPubl
     reputacion: reputacionDe(db, prestador.id),
     resenas: resenasDe(db, prestador.id),
     ejemplo: Boolean(prestador.ejemplo),
+    demo: Boolean(prestador.demo),
   };
 }
