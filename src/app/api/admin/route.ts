@@ -1,5 +1,6 @@
 import { comprobarAdmin } from "@/lib/admin";
 import { esMailDePrueba } from "@/lib/correo";
+import { CUENTAS_DEMO, armarBarrioDemo, quitarDemo, resumenDemo } from "@/lib/demo";
 import { mensajesDe } from "@/lib/chat";
 import { PLAZOS, eliminarCuenta } from "@/lib/bajas";
 import { borrarFotos, esCuentaDePrueba, leer, modificar } from "@/lib/db";
@@ -111,6 +112,9 @@ export async function GET(request: Request) {
     return Response.json({ bajas: pendientes });
   }
 
+  // Barrio de demostración: cuánto hay cargado.
+  if (seccion === "demo") return Response.json({ demo: resumenDemo(db) });
+
   // Bandeja de mails de prueba: solo los de direcciones .test, que nunca se mandan (ver lib/correo.ts).
   if (seccion === "correos") {
     return Response.json({ correos: (db.correos ?? []).filter((c) => esMailDePrueba(c.para)) });
@@ -138,6 +142,32 @@ export async function POST(request: Request) {
   const accion = String(cuerpo?.accion ?? "");
   const id = typeof cuerpo?.id === "string" ? cuerpo.id : "";
   const ahora = new Date().toISOString();
+
+  // Barrio de demostración: cargarlo (o recargarlo con fechas de hoy) y borrarlo. Nunca toca nada real.
+  if (accion === "cargar-demo" || accion === "borrar-demo") {
+    if (cuerpo?.confirmar !== true) return Response.json({ error: "Falta confirmar." }, { status: 400 });
+    // Se arma afuera del cambio de datos (calcula las huellas de las contraseñas, que tarda).
+    const previas = (await leer()).cuentas ?? [];
+    const clave = (email: string) => previas.find((c) => c.demo && c.email === email)?.clave;
+    const barrio = accion === "cargar-demo" ? await armarBarrioDemo({ vecina: clave(CUENTAS_DEMO.vecina.email), prestador: clave(CUENTAS_DEMO.prestador.email) }) : null;
+    const resultado = await modificar((db) => {
+      const quitado = quitarDemo(db);
+      if (barrio) {
+        // Si alguien ya había creado una cuenta real con esos mails, no se pisa.
+        const ocupados = new Set((db.cuentas ?? []).map((c) => c.sub));
+        if (barrio.cuentas.some((c) => ocupados.has(c.sub))) throw new Error("Ya existe una cuenta real con un mail de demostración.");
+        db.cuentas = [...(db.cuentas ?? []), ...barrio.cuentas];
+        db.prestadores.push(...barrio.prestadores);
+        db.pedidos.push(...barrio.pedidos);
+        db.ofertas.push(...barrio.ofertas);
+        db.mensajes = [...(db.mensajes ?? []), ...barrio.mensajes];
+        db.reclamos = [...(db.reclamos ?? []), ...barrio.reclamos];
+      }
+      return { fotos: quitado.fotos, demo: resumenDemo(db) };
+    });
+    await borrarFotos(resultado.fotos);
+    return Response.json({ demo: resultado.demo });
+  }
 
   if (accion === "verificacion") {
     const aprobar = cuerpo?.aprobar === true;

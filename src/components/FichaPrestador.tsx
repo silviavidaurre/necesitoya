@@ -38,6 +38,7 @@ export function FichaPrestador({ perfil, acciones, fotosExtra }: { perfil: Perfi
             <Verificacion nivel={perfil.nivel} />
           </p>
         )}
+        {perfil.demo && <p className="mt-2 text-[13px] font-semibold text-ink-500">Perfil de demostración: persona inventada</p>}
       </div>
 
       {perfil.descripcion && <p className="mt-6 text-center text-base text-ink">{perfil.descripcion}</p>}

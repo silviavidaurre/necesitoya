@@ -2,6 +2,7 @@ import { MAX_OFERTAS, RUBRO_IDS, type RubroId } from "@/lib/catalogo";
 import { cuentaDe, dentroDelCupo, dentroDelCupoDe, guardarFoto, leer, modificar, nuevoId, pedidoPublico } from "@/lib/db";
 import { sinContacto } from "@/lib/chat";
 import { completarDiagnostico } from "@/lib/diagnostico";
+import { esCuentaDemo } from "@/lib/demo";
 import { fotoValida } from "@/lib/fotos";
 import { bloqueados } from "@/lib/moderacion";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
@@ -25,6 +26,9 @@ export async function GET(request: Request) {
   const pedidos: PedidoParaPrestador[] = db.pedidos
     // Con un bloqueo de por medio, el prestador no ve los pedidos de ese vecino.
     .filter((pedido) => pedido.estado === "abierto" && !bloqueados(db, pedido, prestador))
+    // El barrio de demostración no se cruza con lo real: un prestador real no ve pedidos demo y uno demo no ve
+    // pedidos reales. Sin perfil (alguien mirando) se ven los dos; los demo llevan la marca.
+    .filter((pedido) => !prestador || Boolean(pedido.demo) === Boolean(prestador.demo))
     .map((pedido) => {
       // Los presupuestos de muestra no ocupan lugar ni se cuentan: son solo para que el vecino pruebe.
       const ofertas = db.ofertas.filter((o) => o.pedidoId === pedido.id && !o.ejemplo);
@@ -47,6 +51,7 @@ export async function GET(request: Request) {
     .sort(
       (a, b) =>
         Number(a.ejemplo) - Number(b.ejemplo) ||
+        Number(Boolean(a.demo)) - Number(Boolean(b.demo)) ||
         Number(b.enMiZona) - Number(a.enMiZona) ||
         Number(b.coincide) - Number(a.coincide) ||
         b.creado.localeCompare(a.creado),
@@ -77,7 +82,8 @@ export async function POST(request: Request) {
   if (clienteNombre.length < 2) return Response.json({ error: "Falta tu nombre." }, { status: 400 });
 
   // Para pedir hace falta una cuenta (mail o Google): así el pedido no se pierde y se puede seguir desde otro celular.
-  const cuenta = cuentaDe(await leer(), cuerpo.cuenta);
+  const db0 = await leer();
+  const cuenta = cuentaDe(db0, cuerpo.cuenta);
   if (!cuenta) return Response.json({ error: "Entrá con tu cuenta para pedir presupuestos." }, { status: 401 });
   if (!(await dentroDelCupoDe("pedidos", cuenta))) {
     return Response.json({ error: "Publicaste muchos pedidos hoy. Probá de nuevo mañana." }, { status: 429 });
@@ -111,6 +117,8 @@ export async function POST(request: Request) {
     precioMax: hayRango ? maximo : null,
     clienteNombre,
     ejemplo: false,
+    // Lo que pide una cuenta de demostración queda en el barrio demo.
+    ...(esCuentaDemo(db0, cuenta) ? { demo: true } : {}),
     estado: "abierto",
     creado: new Date().toISOString(),
     relato: sinContacto(texto(cuerpo.relato, 1000)),

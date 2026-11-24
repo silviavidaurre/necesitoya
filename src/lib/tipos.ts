@@ -45,6 +45,8 @@ export interface Prestador extends PerfilBorrador {
   fotos?: string[];
   // true = prestador de muestra, inventado para probar la app. No tiene WhatsApp ni cuenta en las métricas.
   ejemplo?: boolean;
+  // true = del barrio de demostración (lib/demo.ts): inventado, no cuenta en métricas y no se cruza con lo real.
+  demo?: boolean;
   // Identificador del intento de alta, generado en el celular: evita perfiles duplicados al reintentar.
   idCliente?: string;
   // Cuenta a la que quedó unido. Sirve para recuperarlo en otro celular. Privado.
@@ -84,6 +86,8 @@ export interface Pedido extends PedidoBorrador {
   clienteNombre: string;
   // true = pedido de muestra cargado por nosotros, no cuenta como uso real.
   ejemplo: boolean;
+  // true = del barrio de demostración (lib/demo.ts): inventado, no cuenta en métricas y no se cruza con lo real.
+  demo?: boolean;
   // abierto: recibe presupuestos · cerrado: ya eligió uno · cancelado: el vecino lo dio de baja.
   estado: "abierto" | "cerrado" | "cancelado";
   creado: string;
@@ -140,6 +144,8 @@ export interface Cuenta {
   bloqueos?: string[];
   // true = cuenta para la revisión de Google Play: lo suyo no cuenta en las métricas.
   revision?: boolean;
+  // true = cuenta de demostración (contraseña pública): lo que crea queda en el barrio demo.
+  demo?: boolean;
 }
 
 // Pedido de eliminar una cuenta hecho desde la página pública, sin entrar a la app. Lo resuelve el equipo en /admin.
@@ -164,6 +170,8 @@ export interface Oferta {
   creado: string;
   // true = presupuesto de muestra, generado para probar la app.
   ejemplo?: boolean;
+  // true = del barrio de demostración.
+  demo?: boolean;
   // Hasta cuándo leyó el chat cada lado (fecha ISO). Sirve para contar los mensajes sin leer.
   leidoVecino?: string;
   leidoPrestador?: string;
@@ -265,6 +273,8 @@ export interface PerfilPublico extends PerfilBorrador {
   resenas: Resena[];
   // true = perfil de muestra, inventado para probar la app.
   ejemplo: boolean;
+  // true = del barrio de demostración.
+  demo?: boolean;
 }
 
 // Una oferta tal como la ve el vecino que hizo el pedido. No lleva el id secreto del prestador ni su teléfono.
@@ -284,6 +294,8 @@ export interface OfertaParaCliente extends Omit<Oferta, "prestadorId" | "leidoVe
     reputacion: Reputacion;
     // true = prestador de muestra.
     ejemplo: boolean;
+    // true = del barrio de demostración.
+    demo?: boolean;
     // true = se le puede pagar por la app (cargó su billetera o conectó Mercado Pago).
     cobraPorLaApp: boolean;
     // true = ese pago queda retenido hasta que el vecino confirme (Cosmos, pago protegido).

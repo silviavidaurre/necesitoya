@@ -73,6 +73,8 @@ export default function Pedir() {
   const [recordado] = useState(leerMisDatos);
   const [borrador] = useState(leerBorrador);
   const [misPedidos, setMisPedidos] = useState<PedidoGuardado[]>([]);
+  // Se muestran los 3 más nuevos; "Ver todos" despliega el resto (los terminados y los viejos).
+  const [todosMisPedidos, setTodosMisPedidos] = useState(false);
   const [esPrestador, setEsPrestador] = useState(false);
   // Para publicar hace falta una cuenta. Se pide recién al final, cuando el pedido ya está armado.
   const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
@@ -506,10 +508,15 @@ export default function Pedir() {
         <>
           <Seccion>Tus pedidos</Seccion>
           <div className="mt-1 divide-y divide-line">
-            {misPedidos.slice(0, 3).map((pedido) => (
+            {misPedidos.slice(0, todosMisPedidos ? misPedidos.length : 3).map((pedido) => (
               <Fila key={pedido.id} href={`/pedido/${pedido.id}`} icono={<IconoCirculo nombre="lista" />} titulo={pedido.titulo} detalle="Ver cómo va" />
             ))}
           </div>
+          {misPedidos.length > 3 && !todosMisPedidos && (
+            <button type="button" onClick={() => setTodosMisPedidos(true)} className="flex min-h-12 items-center text-[15px] font-semibold text-brand">
+              Ver todos ({misPedidos.length})
+            </button>
+          )}
         </>
       )}
 

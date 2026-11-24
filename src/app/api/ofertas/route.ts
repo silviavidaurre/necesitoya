@@ -85,6 +85,8 @@ export async function POST(request: Request) {
       const prestador = db.prestadores.find((p) => p.id === prestadorId);
       if (!prestador) throw new ErrorDeOferta("No encontramos tu perfil.", 404);
       if (bloqueados(db, pedido, prestador)) throw new ErrorDeOferta("Ese pedido ya no está disponible.", 404);
+      // El barrio de demostración no se cruza con lo real.
+      if (Boolean(pedido.demo) !== Boolean(prestador.demo)) throw new ErrorDeOferta("Ese pedido ya no está disponible.", 404);
 
       const delPedido = db.ofertas.filter((o) => o.pedidoId === pedidoId);
       if (delPedido.some((o) => o.prestadorId === prestadorId)) {

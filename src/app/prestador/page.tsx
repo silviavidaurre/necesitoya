@@ -27,7 +27,7 @@ type Filtro = "mios" | "todos";
 interface OfertaMia {
   id: string;
   estado: "enviada" | "elegida" | "descartada";
-  pedido: { titulo: string } | null;
+  pedido: { titulo: string; confirmado: string | null; estado: "abierto" | "cerrado" | "cancelado" } | null;
   sinLeer: number;
 }
 
@@ -58,7 +58,8 @@ export default function PedidosPrestador() {
     if (!prestadorId) return;
     try {
       const datos = await pedir<{ ofertas: OfertaMia[] }>(`/api/ofertas?prestadorId=${encodeURIComponent(prestadorId)}`);
-      setMeEligieron(datos.ofertas.filter((o) => o.estado === "elegida"));
+      // Solo los trabajos que siguen en curso: los que el vecino ya confirmó o canceló quedan en Mis presupuestos.
+      setMeEligieron(datos.ofertas.filter((o) => o.estado === "elegida" && !o.pedido?.confirmado && o.pedido?.estado !== "cancelado"));
       setHayMensajes(datos.ofertas.some((o) => o.sinLeer > 0));
     } catch {
       // Es un aviso extra: si falla, la lista de pedidos sigue funcionando.
@@ -175,6 +176,7 @@ export default function PedidosPrestador() {
                   detalle={
                     <>
                       {pedido.zona} · {URGENCIA[pedido.urgencia]} · {pedido.ejemplo ? "Ejemplo" : haceCuanto(pedido.creado)}
+                      {pedido.demo ? " · Demostración" : ""}
                       {pedido.precioMin !== null && pedido.precioMax !== null && (
                         <span className="mt-1 block text-base font-bold text-ink">
                           {pesos(pedido.precioMin)} a {pesos(pedido.precioMax)}
