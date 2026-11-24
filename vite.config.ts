@@ -50,8 +50,9 @@ function apiNecesitoYa(): Plugin {
 export default defineConfig(({ mode }) => {
   // Las claves del archivo .env.local quedan disponibles para el código del servidor.
   const entorno = loadEnv(mode, process.cwd(), "");
-  for (const clave of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ELEVENLABS_API_KEY", "GOOGLE_CLIENT_ID"]) {
-    if (entorno[clave] && !process.env[clave]) process.env[clave] = entorno[clave];
+  // Solo las que van en mayúsculas (claves y ajustes del servidor); nunca llegan al navegador.
+  for (const [clave, valor] of Object.entries(entorno)) {
+    if (/^[A-Z][A-Z0-9_]+$/.test(clave) && !clave.startsWith("VITE_") && valor && !process.env[clave]) process.env[clave] = valor;
   }
 
   return {

@@ -1,6 +1,24 @@
 import type { RubroId } from "./catalogo";
+import type { EstadoDeTrabajo, Turno } from "./turnos";
 
 export type Urgencia = "hoy" | "semana" | "flexible";
+
+export type Riesgo = "bajo" | "medio" | "alto";
+
+// Orientación de la IA sobre el problema, antes de que vaya el prestador. Es orientativa: no reemplaza la visita.
+export interface Diagnostico {
+  // La causa más probable, dicha como probabilidad ("lo más probable es que...").
+  causa: string;
+  riesgo: Riesgo;
+  queHacerYa: string[];
+  materiales: string[];
+  // Preguntas que conviene hacerle al prestador antes de elegirlo.
+  preguntas: string[];
+  // Gas o electricidad: siempre hace falta un matriculado. "" si no aplica.
+  matriculado: "" | "gasista" | "electricista";
+  // Pasos de seguridad para hacer ya (gas o electricidad). Van antes que el resto.
+  seguridad: string[];
+}
 
 export interface PerfilBorrador {
   nombre: string;
@@ -29,8 +47,17 @@ export interface Prestador extends PerfilBorrador {
   ejemplo?: boolean;
   // Identificador del intento de alta, generado en el celular: evita perfiles duplicados al reintentar.
   idCliente?: string;
-  // Cuenta de Google a la que quedó unido (su identificador en Google). Sirve para recuperarlo en otro celular.
+  // Cuenta a la que quedó unido. Sirve para recuperarlo en otro celular. Privado.
   cuenta?: string;
+  // Billetera Stellar (G...) donde cobra los pagos protegidos. Privada: solo la usa el servidor para armar el pago.
+  billetera?: string;
+  // true = moderación lo sacó de la vista (por denuncias). No aparece en presupuestos nuevos.
+  suspendido?: boolean;
+  // Cuenta de Mercado Pago conectada (marketplace). Privada: el token nunca sale del servidor.
+  mercadopago?: { usuario: string; token: string; refresco: string; vence: string };
+  // Solo en la respuesta del perfil propio (no se guardan): si está unido a una cuenta y si conectó Mercado Pago.
+  conCuenta?: boolean;
+  conMercadoPago?: boolean;
 }
 
 // Lo que el vecino opinó del trabajo una vez hecho.
@@ -48,6 +75,7 @@ export interface PedidoBorrador {
   urgencia: Urgencia;
   precioMin: number | null;
   precioMax: number | null;
+  diagnostico?: Diagnostico | null;
 }
 
 export interface Pedido extends PedidoBorrador {
@@ -56,7 +84,8 @@ export interface Pedido extends PedidoBorrador {
   clienteNombre: string;
   // true = pedido de muestra cargado por nosotros, no cuenta como uso real.
   ejemplo: boolean;
-  estado: "abierto" | "cerrado";
+  // abierto: recibe presupuestos · cerrado: ya eligió uno · cancelado: el vecino lo dio de baja.
+  estado: "abierto" | "cerrado" | "cancelado";
   creado: string;
   // Lo que el vecino dijo o escribió, sin tocar. El técnico lo ve junto al resumen de la IA.
   relato?: string;
@@ -69,11 +98,26 @@ export interface Pedido extends PedidoBorrador {
   claveCliente?: string;
   // Identificador del intento, generado en el celular: si llega dos veces el mismo, no se duplica el pedido.
   idCliente?: string;
-  // Cuenta de Google del vecino, si entró con Google. Privado.
+  // Cuenta del vecino. Privado.
   cuenta?: string;
+  // Cuándo el vecino confirmó que el trabajo quedó bien. Recién ahí puede calificar y se libera el pago.
+  confirmado?: string;
+  cancelacion?: { creado: string; motivo: string } | null;
+  // Dirección del trabajo. PRIVADA: solo la ven el vecino y el prestador elegido, y este solo mientras el trabajo
+  // está activo. Se borra cuando el trabajo termina o se cancela. Nunca sale en listas ni en respuestas para otros.
+  direccion?: { calle: string; referencia: string } | null;
+  // true = quedó anonimizado de una cuenta de las pruebas automáticas: no cuenta en métricas y se limpia con ellas.
+  dePrueba?: boolean;
 }
 
-export type PedidoPublico = Omit<Pedido, "clienteWhatsapp" | "claveCliente" | "idCliente" | "cuenta">;
+// Cómo va el trabajo elegido: el estado actual, el turno acordado y cuándo pasó cada cosa.
+export interface Trabajo {
+  estado: EstadoDeTrabajo;
+  turno: Turno | null;
+  historial: { estado: EstadoDeTrabajo; creado: string }[];
+}
+
+export type PedidoPublico = Omit<Pedido, "clienteWhatsapp" | "claveCliente" | "idCliente" | "cuenta" | "direccion">;
 
 // Una cuenta. Con Google se guarda lo mínimo: el identificador que da Google y el nombre de pila (ni mail ni foto).
 // Con mail y contraseña se guarda el mail y una huella de la contraseña que no se puede dar vuelta.
@@ -90,6 +134,19 @@ export interface Cuenta {
   // Llave que guarda el celular para que lo que cree después quede unido a la cuenta.
   clave: string;
   creado: string;
+  // A quiénes bloqueó: "p:<id del prestador>" o "c:<cuenta del vecino>". Con un bloqueo no se cruzan más.
+  bloqueos?: string[];
+  // true = cuenta para la revisión de Google Play: lo suyo no cuenta en las métricas.
+  revision?: boolean;
+}
+
+// Pedido de eliminar una cuenta hecho desde la página pública, sin entrar a la app. Lo resuelve el equipo en /admin.
+export interface SolicitudDeBaja {
+  id: string;
+  email: string;
+  estado: "pendiente" | "hecha" | "sin-cuenta";
+  creado: string;
+  resuelta?: string;
 }
 
 export interface Oferta {
@@ -106,6 +163,54 @@ export interface Oferta {
   // Hasta cuándo leyó el chat cada lado (fecha ISO). Sirve para contar los mensajes sin leer.
   leidoVecino?: string;
   leidoPrestador?: string;
+  // El prestador marcó "Trabajo terminado", con la foto del después.
+  terminado?: { creado: string; fotoId: string | null } | null;
+  // Días y franjas en que el prestador puede ir (los ofrece al presupuestar).
+  turnos?: Turno[];
+  // Solo en la oferta elegida.
+  trabajo?: Trabajo | null;
+}
+
+export type EstadoDePago = "pendiente" | "retenido" | "liberado" | "en_disputa" | "resuelto" | "vencido" | "cancelado" | "pagado";
+
+// Un pago hecho dentro de la app por un trabajo elegido.
+export interface Pago {
+  id: string;
+  ofertaId: string;
+  pedidoId: string;
+  proveedor: "cosmos" | "mercadopago";
+  // protegido: la plata queda retenida en un contrato hasta que el vecino confirma · directo: va al prestador en el momento.
+  modo: "protegido" | "directo";
+  estado: EstadoDePago;
+  montoArs: number;
+  // En la moneda del proveedor (USDC en Cosmos, pesos en Mercado Pago), como texto decimal.
+  monto: string;
+  moneda: "USDC" | "ARS";
+  comision: string;
+  comisionPagada: boolean;
+  // Identificadores del lado del proveedor y páginas donde se paga.
+  externoId: string;
+  urlDePago: string;
+  comisionId?: string;
+  urlDeComision?: string;
+  cotizacion?: number;
+  eventos: { tipo: string; creado: string }[];
+  creado: string;
+  actualizado: string;
+}
+
+// Lo que ven el vecino y el prestador de un pago: sin identificadores internos de más.
+export interface PagoPublico {
+  proveedor: Pago["proveedor"];
+  modo: Pago["modo"];
+  estado: EstadoDePago;
+  monto: string;
+  moneda: Pago["moneda"];
+  montoArs: number;
+  comision: string;
+  comisionPagada: boolean;
+  urlDePago: string;
+  urlDeComision?: string;
 }
 
 // Un mensaje del chat de un presupuesto, entre el vecino dueño del pedido y el prestador que lo mandó.
@@ -128,7 +233,12 @@ export interface PedidoParaPrestador extends PedidoPublico {
 }
 
 export interface Reputacion {
+  // Presupuestos elegidos.
   trabajos: number;
+  // Trabajos que el vecino confirmó como terminados.
+  terminados: number;
+  // Trabajos cobrados por la app (pago protegido liberado o pago directo).
+  cobrados: number;
   calificaciones: number;
   promedio: number | null;
 }
@@ -170,7 +280,12 @@ export interface OfertaParaCliente extends Omit<Oferta, "prestadorId" | "leidoVe
     reputacion: Reputacion;
     // true = prestador de muestra.
     ejemplo: boolean;
+    // true = se le puede pagar por la app (cargó su billetera o conectó Mercado Pago).
+    cobraPorLaApp: boolean;
+    // true = ese pago queda retenido hasta que el vecino confirme (Cosmos, pago protegido).
+    pagoProtegido: boolean;
   };
+  pago: PagoPublico | null;
 }
 
 export interface BaseDeDatos {
@@ -180,4 +295,76 @@ export interface BaseDeDatos {
   cuentas?: Cuenta[];
   // Puede faltar en bases creadas antes del chat: se trata como lista vacía.
   mensajes?: Mensaje[];
+  pagos?: Pago[];
+  suscripciones?: Suscripcion[];
+  avisos?: AvisoGuardado[];
+  verificaciones?: Verificacion[];
+  reclamos?: Reclamo[];
+  denuncias?: Denuncia[];
+  bajas?: SolicitudDeBaja[];
+}
+
+// Un celular que aceptó recibir avisos, unido a una cuenta. El endpoint lo da el navegador.
+export interface Suscripcion {
+  endpoint: string;
+  cuenta: string;
+  creado: string;
+}
+
+// Un aviso para una cuenta. El celular lo trae cuando lo despierta el push.
+export interface AvisoGuardado {
+  id: string;
+  cuenta: string;
+  tipo: string;
+  titulo: string;
+  texto: string;
+  url: string;
+  creado: string;
+  entregado?: boolean;
+}
+
+// Un trámite de verificación del prestador, que alguien del equipo revisa a mano.
+// dni: foto del frente del DNI y una selfie sosteniéndolo · matricula: foto de la matrícula o certificado del oficio.
+export interface Verificacion {
+  id: string;
+  prestadorId: string;
+  tipo: "dni" | "matricula";
+  // Ids en el almacén de fotos privadas (empiezan con "doc-"): nunca se sirven por /api/fotos.
+  documentos: string[];
+  numero?: string;
+  estado: "pendiente" | "aprobada" | "rechazada";
+  motivo?: string;
+  creado: string;
+  revisado?: string;
+}
+
+// Un reclamo sobre un trabajo elegido. La prueba es lo que adjunta y el chat del presupuesto.
+export interface Reclamo {
+  id: string;
+  pedidoId: string;
+  ofertaId: string;
+  de: "vecino" | "prestador";
+  motivo: string;
+  detalle: string;
+  fotos: string[];
+  estado: "abierto" | "resuelto";
+  resolucion?: string;
+  creado: string;
+  resuelto?: string;
+}
+
+// Una denuncia sobre un perfil o un mensaje del chat.
+export interface Denuncia {
+  id: string;
+  tipo: "perfil" | "mensaje";
+  // Perfil: el id público del prestador · mensaje: el id del mensaje.
+  objetivo: string;
+  // Para un mensaje: el presupuesto donde está la conversación.
+  ofertaId?: string;
+  motivo: string;
+  detalle: string;
+  cuenta: string;
+  estado: "abierta" | "resuelta" | "descartada";
+  creado: string;
+  resuelta?: string;
 }

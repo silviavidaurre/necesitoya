@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ActivarAvisos } from "@/components/ActivarAvisos";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { Logo } from "@/components/Logo";
 import { NavPrestador } from "@/components/NavPrestador";
@@ -101,6 +102,8 @@ export default function PedidosPrestador() {
           <Titulo pregunta={prestador ? `Hola, ${prestador.nombre.split(" ")[0]}. ¿Cuál querés presupuestar?` : "Vecinos que necesitan un trabajo. Tocá uno para ver el detalle."}>Pedidos</Titulo>
         </div>
 
+        {prestador && <ActivarAvisos para="¿Te avisamos cuando te elijan o te escriban?" />}
+
         {meEligieron.length > 0 && (
           <div className="mt-4 divide-y divide-line">
             {meEligieron.slice(0, 2).map((oferta) => (
@@ -109,7 +112,7 @@ export default function PedidosPrestador() {
                 href="/prestador/ofertas"
                 icono={<IconoCirculo nombre="check" />}
                 titulo={`Te eligieron: ${oferta.pedido?.titulo ?? "un pedido"}`}
-                detalle={<Estado tono="bien">{oferta.sinLeer > 0 ? "Mensaje nuevo. Abrí el chat" : "Abrí el chat para coordinar"}</Estado>}
+                detalle={<Estado tono="bien">{oferta.sinLeer > 0 ? "Mensaje nuevo" : "Trabajo en curso"}</Estado>}
               />
             ))}
           </div>
@@ -207,6 +210,7 @@ export default function PedidosPrestador() {
         <PantallaOferta
           pedido={elegido}
           prestadorId={prestadorId}
+          conCuenta={prestador?.conCuenta !== false}
           alAnotarse={() => router.push(`/prestador/alta?pedido=${encodeURIComponent(elegido.id)}`)}
           alCerrar={() => setElegido(null)}
           alEnviar={() => {

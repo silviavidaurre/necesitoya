@@ -1,5 +1,5 @@
 import { fotoValida } from "@/lib/fotos";
-import { dentroDelCupo } from "@/lib/db";
+import { conexionDe, dentroDelCupo, dentroDelCupoDe } from "@/lib/db";
 import { armarPedido, pedidoBasico } from "@/lib/ia";
 
 export async function POST(request: Request) {
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "El relato es muy largo. Resumilo en lo más importante." }, { status: 400 });
   }
 
-  if (!(await dentroDelCupo("ia"))) {
+  if (!(await dentroDelCupo("ia")) || !(await dentroDelCupoDe("iaPorConexion", conexionDe(request)))) {
     return Response.json({ pedido: pedidoBasico(texto), fuente: "basico", aviso: "Hoy hubo demasiados pedidos y la IA está en pausa." });
   }
 

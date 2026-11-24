@@ -1,3 +1,4 @@
+import { bloqueados } from "./moderacion";
 import type { BaseDeDatos, Mensaje, Oferta } from "./tipos";
 
 // Reglas del chat de un presupuesto. Todo el contacto pasa por la app: nadie ve el teléfono de nadie,
@@ -56,10 +57,12 @@ export function resumenDeChat(db: BaseDeDatos, oferta: Oferta, lado: Lado): { me
 
 // Por qué no se puede escribir en el chat de esa oferta, o "" si se puede.
 // Con los de muestra no hay nadie del otro lado; con un presupuesto descartado queda solo para leer.
-export function motivoDeCierre(db: BaseDeDatos, oferta: Oferta): "" | "muestra" | "descartada" {
+export function motivoDeCierre(db: BaseDeDatos, oferta: Oferta): "" | "muestra" | "descartada" | "bloqueado" | "cancelado" {
   const pedido = db.pedidos.find((p) => p.id === oferta.pedidoId);
   const prestador = db.prestadores.find((p) => p.id === oferta.prestadorId);
   if (oferta.ejemplo || !pedido || pedido.ejemplo || !prestador || prestador.ejemplo) return "muestra";
+  if (bloqueados(db, pedido, prestador)) return "bloqueado";
+  if (pedido.estado === "cancelado") return "cancelado";
   if (oferta.estado === "descartada") return "descartada";
   return "";
 }

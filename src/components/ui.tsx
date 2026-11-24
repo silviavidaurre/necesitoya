@@ -1,9 +1,10 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "@/lib/navegacion";
 
-// Piezas base de la interfaz. Reglas que respetan:
-// una acción principal por pantalla (azul, fija abajo), íconos de trazo negro sobre círculo gris claro,
-// títulos cortos a la izquierda con una pregunta gris debajo, y nada de tarjetas salvo objetos reales.
+// Piezas base de la interfaz (variante tipo Uber). Reglas que respetan:
+// una acción principal grande por pantalla (negra en el lado claro, naranja en el oscuro), fija abajo;
+// títulos de pocas palabras en Space Grotesk; números grandes; estados con punto y palabra;
+// zonas táctiles de 48 px o más; paneles inferiores sobre un mapa dibujado cuando la pantalla lo pide.
 
 const TRAZOS: Record<string, ReactNode> = {
   atras: <path d="M19 12H5M11 6l-6 6 6 6" />,
@@ -52,6 +53,21 @@ const TRAZOS: Record<string, ReactNode> = {
   compartir: <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M7 8l5-5 5 5" />,
   editar: <path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" />,
   mas: <path d="M12 5v14M5 12h14" />,
+  buscar: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </>
+  ),
+  escudo: <path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" />,
+  candado: (
+    <>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  casa: <path d="M3 11 12 4l9 7M5 10v10h14V10" />,
+  flecha: <path d="M5 12h14M13 6l6 6-6 6" />,
   // Oficios
   plomeria: <path d="M12 2.700s6 6.1 6 10.800a6 6 0 0 1-12 0C6 8.8 12 2.7 12 2.700Z" />,
   gas: <path d="M12 3c1 3.5 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2-4.2.300 1.4 1 2.2 2 2.700C11.2 9 12 6.5 12 3Z" />,
@@ -113,16 +129,53 @@ export function IconoCirculo({ nombre, size = 48 }: { nombre: string; size?: num
 }
 
 // Pantalla: contenido con margen de 24 px y, si hay, la acción principal fija abajo.
-export function Pantalla({ children, pie, conNav = false }: { children: ReactNode; pie?: ReactNode; conNav?: boolean }) {
+// Con `mapa`, el mapa va arriba a todo el ancho y el contenido sube encima como un panel con esquinas redondeadas.
+export function Pantalla({ children, pie, conNav = false, mapa }: { children: ReactNode; pie?: ReactNode; conNav?: boolean; mapa?: ReactNode }) {
+  const abajo = pie ? "pb-40" : conNav ? "pb-28" : "pb-10";
+  if (mapa) {
+    return (
+      <>
+        <main className={`flex flex-1 flex-col ${abajo}`}>
+          <div className="relative -mb-7">{mapa}</div>
+          <div className="relative flex flex-1 flex-col rounded-t-[28px] bg-white px-6 pt-2.5" style={{ boxShadow: "var(--sombra-panel)" }}>
+            <span className="mb-3 h-[5px] w-10 self-center rounded-full bg-line" aria-hidden="true" />
+            {children}
+          </div>
+        </main>
+        {pie && (
+          <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+            {pie}
+          </div>
+        )}
+      </>
+    );
+  }
   return (
     <>
-      <main className={`flex flex-1 flex-col px-6 ${pie ? "pb-40" : conNav ? "pb-28" : "pb-10"}`}>{children}</main>
+      <main className={`flex flex-1 flex-col px-6 ${abajo}`}>{children}</main>
       {pie && (
-        <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
           {pie}
         </div>
       )}
     </>
+  );
+}
+
+// Botón redondo que flota sobre el mapa (volver, cuenta).
+export function BotonFlotante({ icono, etiqueta, href, onClick }: { icono: string; etiqueta: string; href?: string; onClick?: () => void }) {
+  const clase = "flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-[0_4px_14px_rgba(0,0,0,0.16)] active:bg-subtle";
+  if (href) {
+    return (
+      <Link href={href} aria-label={etiqueta} className={clase}>
+        <Icono nombre={icono} size={22} />
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} aria-label={etiqueta} className={clase}>
+      <Icono nombre={icono} size={22} />
+    </button>
   );
 }
 
@@ -139,7 +192,7 @@ export function Cabecera({
   derecha?: ReactNode;
 }) {
   const icono = <Icono nombre={cerrar ? "cerrar" : "atras"} size={24} />;
-  const clase = "-ml-3 inline-flex h-12 w-12 items-center justify-center rounded-full text-ink active:bg-subtle";
+  const clase = "-ml-1 inline-flex h-12 w-12 items-center justify-center rounded-full bg-subtle text-ink active:bg-line";
   return (
     <header className="flex h-[60px] shrink-0 items-center justify-between">
       {alVolver ? (
@@ -168,10 +221,10 @@ export function Titulo({ children, pregunta }: { children: ReactNode; pregunta?:
   }, [texto]);
   return (
     <div>
-      <h1 ref={titulo} tabIndex={-1} className="text-[34px] font-bold leading-[1.1] tracking-[-0.03em] text-ink outline-none">
+      <h1 ref={titulo} tabIndex={-1} className="text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-ink outline-none">
         {children}
       </h1>
-      {pregunta && <p className="mt-2 text-[17px] leading-snug text-ink-500">{pregunta}</p>}
+      {pregunta && <p className="mt-2 text-base leading-snug text-ink-500">{pregunta}</p>}
     </div>
   );
 }
@@ -179,14 +232,14 @@ export function Titulo({ children, pregunta }: { children: ReactNode; pregunta?:
 export function Seccion({ children, derecha }: { children: ReactNode; derecha?: ReactNode }) {
   return (
     <div className="mt-8 flex items-baseline justify-between">
-      <h2 className="text-xl font-bold text-ink">{children}</h2>
+      <h2 className="text-xl font-bold tracking-[-0.01em] text-ink">{children}</h2>
       {derecha && <span className="text-sm text-ink-500">{derecha}</span>}
     </div>
   );
 }
 
 function Girando() {
-  return <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />;
+  return <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80" aria-hidden="true" />;
 }
 
 // Acción principal: una sola por pantalla.
@@ -204,7 +257,7 @@ export function BotonPrimario({
   href?: string;
 }) {
   // Mientras carga sigue azul y con su texto: gris con rueda blanca no se veía y el botón quedaba sin nombre.
-  const clase = `flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 text-base font-bold text-white active:bg-brand-600 ${cargando ? "opacity-85" : "disabled:bg-subtle disabled:text-ink-400"}`;
+  const clase = `flex min-h-[60px] w-full items-center justify-center gap-2.5 rounded-2xl bg-brand px-6 text-[18px] font-bold text-white active:bg-brand-600 ${cargando ? "opacity-85" : "disabled:bg-subtle disabled:text-ink-400"}`;
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" className={clase}>
@@ -227,7 +280,7 @@ export function BotonSecundario({ children, onClick, disabled = false }: { child
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-full border border-[#c5cad3] bg-subtle px-6 text-base font-bold text-ink active:bg-line disabled:text-ink-400"
+      className="flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl bg-subtle px-6 text-base font-bold text-ink active:bg-line disabled:text-ink-400"
     >
       {children}
     </button>
@@ -260,7 +313,7 @@ export function Campo({ etiqueta, ayuda, error, children }: { etiqueta: string; 
 }
 
 export const claseCampo =
-  "w-full rounded-2xl border-[1.5px] border-[#8f96a1] bg-white px-4 py-3.5 text-base text-ink outline-none placeholder:text-ink-400 focus:border-brand focus:ring-2 focus:ring-brand/15";
+  "w-full rounded-2xl border-[1.5px] border-ink-400 bg-white px-4 py-3.5 text-base text-ink outline-none placeholder:text-ink-400 focus:border-ink focus:ring-2 focus:ring-acento/40";
 
 export function Chip({ children, activo, onClick }: { children: ReactNode; activo: boolean; onClick: () => void }) {
   return (
@@ -268,9 +321,9 @@ export function Chip({ children, activo, onClick }: { children: ReactNode; activ
       type="button"
       aria-pressed={activo}
       onClick={onClick}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border bg-white px-4 text-[15px] font-medium ${activo ? "border-[1.5px] border-brand text-ink" : "border-line text-ink-500"}`}
+      className={`inline-flex min-h-12 items-center gap-1.5 rounded-[14px] px-4 text-[15px] font-semibold ${activo ? "border-2 border-ink bg-white text-ink" : "border border-line bg-subtle text-ink"}`}
     >
-      {activo && <Icono nombre="check" size={16} className="text-brand" />}
+      {activo && <Icono nombre="check" size={16} className="text-ink" />}
       {children}
     </button>
   );
@@ -278,14 +331,14 @@ export function Chip({ children, activo, onClick }: { children: ReactNode; activ
 
 export function Segmentado<T extends string>({ opciones, valor, alCambiar }: { opciones: { id: T; texto: string }[]; valor: T; alCambiar: (id: T) => void }) {
   return (
-    <div className="flex rounded-full bg-subtle p-1">
+    <div className="flex rounded-2xl bg-subtle p-1">
       {opciones.map((opcion) => (
         <button
           key={opcion.id}
           type="button"
           aria-pressed={valor === opcion.id}
           onClick={() => alCambiar(opcion.id)}
-          className={`min-h-11 flex-1 rounded-full px-3 text-[15px] font-semibold ${valor === opcion.id ? "bg-white text-ink shadow-sm" : "text-ink-500"}`}
+          className={`min-h-12 flex-1 rounded-xl px-3 text-[15px] font-semibold ${valor === opcion.id ? "bg-white text-ink shadow-sm" : "text-ink-500"}`}
         >
           {opcion.texto}
         </button>
@@ -317,7 +370,7 @@ export function ErrorDePantalla({ children }: { children: ReactNode }) {
 export function Cargando() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-4" role="status">
-      <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-line border-t-ink" aria-hidden="true" />
+      <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-line border-t-acento" aria-hidden="true" />
       <span className="text-[15px] text-ink-500">Cargando</span>
     </main>
   );

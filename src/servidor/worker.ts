@@ -1,5 +1,6 @@
-import { configurarGoogle, configurarIa, configurarVoz } from "@/lib/config";
+import { configurarEntorno } from "@/lib/config";
 import { usarAlmacen } from "@/lib/db";
+import { configurarSegundoPlano } from "@/lib/segundo-plano";
 import { almacenD1, type BaseD1 } from "./almacen-d1";
 import { atender } from "./rutas";
 
@@ -8,20 +9,21 @@ import { atender } from "./rutas";
 interface Entorno {
   DB: BaseD1;
   ASSETS: { fetch(peticion: Request): Promise<Response> };
-  ANTHROPIC_API_KEY?: string;
-  ELEVENLABS_API_KEY?: string;
-  GOOGLE_CLIENT_ID?: string;
+  [clave: string]: unknown;
+}
+
+interface Contexto {
+  waitUntil(tarea: Promise<unknown>): void;
 }
 
 export default {
-  async fetch(peticion: Request, entorno: Entorno): Promise<Response> {
+  async fetch(peticion: Request, entorno: Entorno, contexto: Contexto): Promise<Response> {
     const camino = new URL(peticion.url).pathname;
     if (!camino.startsWith("/api/")) return entorno.ASSETS.fetch(peticion);
 
     usarAlmacen(almacenD1(entorno.DB));
-    configurarIa(entorno.ANTHROPIC_API_KEY);
-    configurarVoz(entorno.ELEVENLABS_API_KEY);
-    configurarGoogle(entorno.GOOGLE_CLIENT_ID);
+    configurarEntorno(entorno);
+    configurarSegundoPlano((tarea) => contexto.waitUntil(tarea));
     try {
       return await atender(peticion);
     } catch (error) {

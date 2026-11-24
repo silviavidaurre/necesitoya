@@ -1,6 +1,7 @@
 // Prueba del lado del prestador: lugar reservado para el barrio, perfil público, edición, fotos y reputación.
 // Uso: node pruebas/prestador.mjs [url]   (por defecto http://localhost:3000)
 // Crea datos de prueba: después hay que borrarlos de la base.
+import { DIRECCION, cuentaDePrueba, turnoPara } from "./comun.mjs";
 import zlib from "node:zlib";
 
 const U = process.argv[2] ?? "http://localhost:3000";
@@ -61,7 +62,7 @@ function png(gris) {
 
 const publicos = {};
 const prestador = async (nombre, zonas) => {
-  const p = (await j("/api/prestadores", { nombre, rubros: ["plomeria"], zonas, aniosExperiencia: 5, descripcion: "Prueba", whatsapp: TEL_PRESTADOR })).datos.prestador;
+  const p = (await j("/api/prestadores", { nombre, rubros: ["plomeria"], zonas, aniosExperiencia: 5, descripcion: "Prueba", whatsapp: TEL_PRESTADOR, cuenta: await cuentaDePrueba(U, "prestador") })).datos.prestador;
   publicos[p.id] = p.idPublico;
   return p.id;
 };
@@ -78,6 +79,7 @@ const alta = await j("/api/pedidos", {
   clienteNombre: "Vecina De Prueba",
   // Ya no se pide. Se manda igual, como haría una versión vieja de la app, para comprobar que no se le muestra a nadie.
   clienteWhatsapp: TEL_VECINO,
+  cuenta: await cuentaDePrueba(U, "vecina"),
 });
 const { id, clave } = alta.datos;
 const a = await prestador("Afuera Uno", ["Centro"]);
@@ -124,18 +126,33 @@ ok("las fotos salen en el perfil público", (await j(`/api/perfil?id=${publicos[
 
 // Reputación
 ok("no se puede calificar antes de elegir", (await j("/api/pedido/calificar", { id, clave, estrellas: 5 })).estado === 409);
-const eleccion = await j("/api/pedido/elegir", { id, clave, ofertaId: ofertaD.datos.oferta.id });
+const eleccion = await j("/api/pedido/elegir", { id, clave, ofertaId: ofertaD.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 const elegidaVista = eleccion.datos.ofertas.find((o) => o.estado === "elegida");
 ok("al elegir, el vecino no recibe el celular del prestador", eleccion.estado === 200 && elegidaVista && !("whatsapp" in elegidaVista.prestador));
 const misOfertas = (await j(`/api/ofertas?prestadorId=${d}`)).datos.ofertas;
 ok("el elegido ve solo el nombre de pila del vecino", misOfertas[0].estado === "elegida" && misOfertas[0].cliente?.nombre === "Vecina" && !("whatsapp" in misOfertas[0].cliente));
 ok("otro no puede calificar", (await j("/api/pedido/calificar", { id, clave: "otra", estrellas: 5 })).estado === 403);
 ok("estrellas fuera de rango se rechazan", (await j("/api/pedido/calificar", { id, clave, estrellas: 9 })).estado === 400);
+// Cerrar el trabajo: el prestador lo marca terminado con la foto del después, el vecino confirma y recién ahí califica.
+ok("no se califica antes de confirmar", (await j("/api/pedido/calificar", { id, clave, estrellas: 5 })).estado === 409);
+ok("no se confirma antes de que lo marque terminado", (await j("/api/pedido/confirmar", { id, clave })).estado === 409);
+ok("otro prestador no puede marcarlo terminado", (await j("/api/ofertas/terminar", { prestadorId: a, ofertaId: ofertaD.datos.oferta.id, foto: { tipo: "image/png", base64: png(90) } })).estado === 403);
+ok("sin foto del después no se marca terminado", (await j("/api/ofertas/terminar", { prestadorId: d, ofertaId: ofertaD.datos.oferta.id })).estado === 400);
+const terminado = await j("/api/ofertas/terminar", { prestadorId: d, ofertaId: ofertaD.datos.oferta.id, foto: { tipo: "image/png", base64: png(90) } });
+ok("el prestador marca el trabajo terminado con la foto", terminado.estado === 200 && Boolean(terminado.datos.terminado?.fotoId), terminado.datos?.error ?? "");
+ok("no se marca terminado dos veces", (await j("/api/ofertas/terminar", { prestadorId: d, ofertaId: ofertaD.datos.oferta.id, foto: { tipo: "image/png", base64: png(91) } })).estado === 409);
+const conFoto = (await j(`/api/pedido?id=${id}&clave=${clave}`)).datos.ofertas.find((o) => o.estado === "elegida");
+ok("el vecino ve la foto del después", Boolean(conFoto?.terminado?.fotoId));
+ok("otro no puede confirmar", (await j("/api/pedido/confirmar", { id, clave: "otra" })).estado === 403);
+const confirmacion = await j("/api/pedido/confirmar", { id, clave });
+ok("el vecino confirma que quedó bien", confirmacion.estado === 200 && Boolean(confirmacion.datos.pedido.confirmado));
 const nota = await j("/api/pedido/calificar", { id, clave, estrellas: 5, comentario: "Llegó a horario y quedó perfecto." });
 ok("el vecino califica", nota.estado === 200 && nota.datos.pedido.calificacion.estrellas === 5);
 ok("no se califica dos veces", (await j("/api/pedido/calificar", { id, clave, estrellas: 1 })).estado === 409);
 const final = (await j(`/api/perfil?id=${publicos[d]}`)).datos.perfil;
 ok("la reputación aparece en el perfil", final.reputacion.trabajos === 1 && final.reputacion.promedio === 5 && final.resenas.length === 1);
+ok("el historial cuenta el trabajo terminado y ninguno cobrado por la app", final.reputacion.terminados === 1 && final.reputacion.cobrados === 0);
+ok("el perfil dice si está verificado", final.nivel === 1);
 ok("la opinión muestra solo el nombre de pila", final.resenas[0].cliente === "Vecina");
 const seg = (await j(`/api/pedido?id=${id}&clave=${clave}`)).datos;
 ok("el vecino ve la reputación en cada presupuesto", seg.ofertas.every((o) => o.prestador.reputacion && Array.isArray(o.prestador.fotos)));

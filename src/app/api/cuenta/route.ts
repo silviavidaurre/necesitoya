@@ -1,5 +1,6 @@
 import { idDeGoogle } from "@/lib/config";
-import { dentroDelCupo, leer, modificar, nuevoId } from "@/lib/db";
+import { conexionDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
+import { huella, iguales } from "@/lib/contrasenas";
 import { limpiarTexto } from "@/lib/texto";
 import type { BaseDeDatos, Cuenta } from "@/lib/tipos";
 
@@ -52,21 +53,6 @@ async function verificarGoogle(credencial: string, idDeLaApp: string): Promise<{
 const MAIL_VALIDO = /^[^@ ]+@[^@ ]+[.][^@ ]+$/;
 const INTENTOS = 5;
 const ESPERA_MIN = 5;
-
-// La contraseña nunca se guarda: se guarda una huella que no se puede dar vuelta (PBKDF2 con sal propia de la cuenta).
-async function huella(contrasena: string, sal: string) {
-  const texto = new TextEncoder();
-  const material = await crypto.subtle.importKey("raw", texto.encode(contrasena), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: texto.encode(sal), iterations: 100_000 }, material, 256);
-  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function iguales(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let distinto = 0;
-  for (let i = 0; i < a.length; i += 1) distinto |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return distinto === 0;
-}
 
 // --- Lo que comparten las dos formas de entrar ---------------------------------------------------
 
@@ -153,7 +139,7 @@ export async function POST(request: Request) {
   const contrasena = typeof cuerpo.contrasena === "string" ? cuerpo.contrasena : "";
   if (!MAIL_VALIDO.test(email)) return Response.json({ error: "Escribí un mail válido, por ejemplo nombre@gmail.com." }, { status: 400 });
   if (contrasena.length < 6 || contrasena.length > 100) return Response.json({ error: "La contraseña tiene que tener al menos 6 caracteres." }, { status: 400 });
-  if (!(await dentroDelCupo("cuentas"))) return Response.json({ error: "Hoy hubo demasiados ingresos. Probá de nuevo mañana." }, { status: 429 });
+  if (!(await dentroDelCupo("cuentas")) || !(await dentroDelCupoDe("cuentasPorConexion", conexionDe(request)))) return Response.json({ error: "Hoy hubo demasiados ingresos. Probá de nuevo mañana." }, { status: 429 });
 
   const sub = `mail:${email}`;
   const existente = (await leer()).cuentas?.find((c) => c.sub === sub);

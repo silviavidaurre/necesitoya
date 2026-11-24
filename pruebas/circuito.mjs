@@ -1,4 +1,5 @@
 // Prueba de punta a punta del circuito vecino <-> prestador contra un servidor (local o publicado).
+import { DIRECCION, cuentaDePrueba, turnoPara } from "./comun.mjs";
 import zlib from "node:zlib";
 const U = process.argv[2] ?? "http://localhost:3000";
 const j = async (ruta, cuerpo) => {
@@ -32,19 +33,24 @@ const ia = await j("/api/ia/pedido", { texto: "buenas se me rompio el termotanqu
 ok("IA arma el pedido", ia.estado === 200, `(${Date.now() - t0} ms) ${JSON.stringify(ia.datos)}`);
 
 const foto = { tipo: "image/png", base64: png() };
+const cuentaVecina = await cuentaDePrueba(U, "vecina");
+const sinCuenta = await j("/api/pedidos", { ...ia.datos.pedido, zona: "Alto Comedero", clienteNombre: "Sin Cuenta" });
+ok("sin cuenta no se puede pedir", sinCuenta.estado === 401, sinCuenta.datos?.error ?? "");
+const prestadorSinCuenta = await j("/api/prestadores", { nombre: "Sin Cuenta", rubros: ["plomeria"], zonas: ["Centro"] });
+ok("sin cuenta no se puede anotar", prestadorSinCuenta.estado === 401, prestadorSinCuenta.datos?.error ?? "");
 const p = ia.datos.pedido;
-const alta = await j("/api/pedidos", { ...p, zona: "Alto Comedero", relato: "se me rompio el termotanque pierde agua por abajo", clienteNombre: "Vecina Prueba", foto });
+const alta = await j("/api/pedidos", { ...p, zona: "Alto Comedero", relato: "se me rompio el termotanque pierde agua por abajo", clienteNombre: "Vecina Prueba", foto, cuenta: cuentaVecina });
 ok("publicar pedido solo con el nombre, sin teléfono", alta.estado === 201 && alta.datos.id && alta.datos.clave, alta.datos?.error ?? "");
 const { id, clave } = alta.datos;
 
-const sinDatos = await j("/api/pedidos", { titulo: "x" });
+const sinDatos = await j("/api/pedidos", { titulo: "x", cuenta: cuentaVecina });
 ok("rechaza pedido incompleto", sinDatos.estado === 400, sinDatos.datos.error);
 
-const sinCel = await j("/api/prestadores", { nombre: "Prestador Sin Celular", rubros: [p.rubro], zonas: ["Centro"], aniosExperiencia: 2, descripcion: "Prueba" });
+const sinCel = await j("/api/prestadores", { nombre: "Prestador Sin Celular", rubros: [p.rubro], zonas: ["Centro"], aniosExperiencia: 2, descripcion: "Prueba", cuenta: await cuentaDePrueba(U, "prestador") });
 ok("el prestador se anota sin celular", sinCel.estado === 201 && sinCel.datos.prestador.whatsapp === "", sinCel.datos?.error ?? "");
-const celCorto = await j("/api/prestadores", { nombre: "Prestador Cel Corto", rubros: [p.rubro], zonas: ["Centro"], whatsapp: "388" });
+const celCorto = await j("/api/prestadores", { nombre: "Prestador Cel Corto", rubros: [p.rubro], zonas: ["Centro"], whatsapp: "388", cuenta: await cuentaDePrueba(U, "prestador") });
 ok("un celular a medias se rechaza", celCorto.estado === 400, celCorto.datos?.error ?? "");
-const pr = await j("/api/prestadores", { nombre: "Prestador Prueba", rubros: [p.rubro], zonas: ["Alto Comedero"], aniosExperiencia: 9, descripcion: "Prueba", whatsapp: TEL_PRESTADOR });
+const pr = await j("/api/prestadores", { nombre: "Prestador Prueba", rubros: [p.rubro], zonas: ["Alto Comedero"], aniosExperiencia: 9, descripcion: "Prueba", whatsapp: TEL_PRESTADOR, cuenta: await cuentaDePrueba(U, "prestador") });
 const pid = pr.datos.prestador.id;
 const lista = await j(`/api/pedidos?prestadorId=${pid}`);
 const visto = lista.datos.pedidos.find((x) => x.id === id);
@@ -67,20 +73,20 @@ ok("el presupuesto trae el contador de mensajes", seg.datos.ofertas[0].sinLeer =
 const antes = await j(`/api/ofertas?prestadorId=${pid}`);
 ok("antes de elegir, el prestador solo ve el nombre de pila", antes.datos.ofertas[0].cliente?.nombre === "Vecina" && sinTelefonos(antes));
 
-const el = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id });
+const el = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 ok("elegir presupuesto", el.estado === 200 && el.datos.pedido.estado === "cerrado" && el.datos.ofertas[0].estado === "elegida");
 ok("al elegir no se revela el teléfono del prestador", !("whatsapp" in el.datos.ofertas[0].prestador) && sinTelefonos(el));
-const dos = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id });
+const dos = await j("/api/pedido/elegir", { id, clave, ofertaId: of.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 ok("no deja elegir dos veces", dos.estado === 409);
 
 const despues = await j(`/api/ofertas?prestadorId=${pid}`);
 ok("el elegido no recibe el teléfono del vecino, solo su nombre de pila", despues.datos.ofertas[0].estado === "elegida" && despues.datos.ofertas[0].cliente?.nombre === "Vecina" && !("whatsapp" in despues.datos.ofertas[0].cliente) && sinTelefonos(despues));
 
 // Una app vieja todavía puede mandar el teléfono: se acepta, pero no sale por ningún lado, ni para quien resulta elegido.
-const conTel = await j("/api/pedidos", { ...p, zona: "Alto Comedero", relato: "pedido con telefono de una version vieja", clienteNombre: "Vecina Vieja", clienteWhatsapp: "388 400-0000" });
+const conTel = await j("/api/pedidos", { ...p, zona: "Alto Comedero", relato: "pedido con telefono de una version vieja", clienteNombre: "Vecina Vieja", clienteWhatsapp: "388 400-0000", cuenta: cuentaVecina });
 ok("un pedido que trae teléfono igual se publica", conTel.estado === 201);
 const of2 = await j("/api/ofertas", { pedidoId: conTel.datos.id, prestadorId: pid, precio: 70000, cuando: "Hoy", mensaje: "" });
-const el2 = await j("/api/pedido/elegir", { id: conTel.datos.id, clave: conTel.datos.clave, ofertaId: of2.datos.oferta.id });
+const el2 = await j("/api/pedido/elegir", { id: conTel.datos.id, clave: conTel.datos.clave, ofertaId: of2.datos.oferta.id, direccion: DIRECCION, turno: turnoPara("Hoy") });
 const seg2 = await j(`/api/pedido?id=${conTel.datos.id}&clave=${conTel.datos.clave}`);
 const mias2 = await j(`/api/ofertas?prestadorId=${pid}`);
 const charla = await j(`/api/chat?ofertaId=${of2.datos.oferta.id}&prestadorId=${pid}`);

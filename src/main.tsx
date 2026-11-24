@@ -1,6 +1,6 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./app/globals.css";
 import PerfilPublicoDePrestador from "./app/p/page";
 import SeguimientoPedido from "./app/pedido/page";
@@ -11,10 +11,26 @@ import EditarPerfil from "./app/prestador/editar/page";
 import MisOfertas from "./app/prestador/ofertas/page";
 import PedidosPrestador from "./app/prestador/page";
 import PerfilPrestador from "./app/prestador/perfil/page";
+import VerificarPrestador from "./app/prestador/verificar/page";
+import PanelInterno from "./app/admin/page";
+import Terminos from "./app/terminos/page";
+import EliminarCuentaPublica from "./app/eliminar-cuenta/page";
+
+// El lado del prestador va oscuro y el del vecino claro: se cambia la clase de <html> según la pantalla.
+function TemaSegunPantalla() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const oscuro = pathname.startsWith("/prestador");
+    document.documentElement.classList.toggle("tema-oscuro", oscuro);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", oscuro ? "#0d0d0d" : "#ffffff");
+  }, [pathname]);
+  return null;
+}
 
 createRoot(document.getElementById("raiz")!).render(
   <StrictMode>
     <BrowserRouter>
+      <TemaSegunPantalla />
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white">
         <Routes>
           <Route path="/" element={<Pedir />} />
@@ -25,6 +41,10 @@ createRoot(document.getElementById("raiz")!).render(
           <Route path="/prestador/ofertas" element={<MisOfertas />} />
           <Route path="/prestador/perfil" element={<PerfilPrestador />} />
           <Route path="/prestador/editar" element={<EditarPerfil />} />
+          <Route path="/prestador/verificar" element={<VerificarPrestador />} />
+          <Route path="/admin" element={<PanelInterno />} />
+          <Route path="/terminos" element={<Terminos />} />
+          <Route path="/eliminar-cuenta" element={<EliminarCuentaPublica />} />
           <Route path="/p/:id" element={<PerfilPublicoDePrestador />} />
           <Route path="/privacidad" element={<Privacidad />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -33,3 +53,12 @@ createRoot(document.getElementById("raiz")!).render(
     </BrowserRouter>
   </StrictMode>,
 );
+
+// App instalable y avisos: el service worker se registra cuando la página ya cargó, para no demorar el arranque.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Sin service worker la app anda igual: solo no se instala ni recibe avisos.
+    });
+  });
+}
