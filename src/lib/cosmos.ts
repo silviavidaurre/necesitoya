@@ -49,8 +49,28 @@ export function redDeCosmos(): "testnet" | "public" {
   return clave()?.startsWith("prod_") ? "public" : "testnet";
 }
 
+// Pago protegido o directo. COSMOS_MODO puede forzarlo; si no, se usa el protegido solo cuando la API de Cosmos
+// lo tiene publicado (en noviembre de 2026 está documentado pero responde 404) y si no, el directo con merchantFee.
+let protegidosEnCosmos: { valor: boolean; hasta: number } | null = null;
+
 export function modoDeCosmos(): "protegido" | "directo" {
-  return variable("COSMOS_MODO") === "directo" ? "directo" : "protegido";
+  const forzado = variable("COSMOS_MODO");
+  if (forzado === "directo" || forzado === "protegido") return forzado;
+  return protegidosEnCosmos?.valor ? "protegido" : "directo";
+}
+
+// Pregunta a Cosmos si los pagos protegidos ya están disponibles. Se recuerda media hora.
+export async function sondearProtegidos() {
+  if (!clave() || variable("COSMOS_MODO")) return;
+  if (protegidosEnCosmos && protegidosEnCosmos.hasta > Date.now()) return;
+  try {
+    await llamar("GET", "/v1/protected-payments?take=1");
+    protegidosEnCosmos = { valor: true, hasta: Date.now() + 30 * 60_000 };
+  } catch (error) {
+    // Solo un 404 dice "no existe"; con otro error (sin señal) se vuelve a probar en un minuto.
+    const noExiste = error instanceof ErrorDeCosmos && error.estado === 404;
+    protegidosEnCosmos = { valor: false, hasta: Date.now() + (noExiste ? 30 * 60_000 : 60_000) };
+  }
 }
 
 async function llamar<T>(metodo: "GET" | "POST", ruta: string, cuerpo?: unknown, idempotencia?: string): Promise<T> {
