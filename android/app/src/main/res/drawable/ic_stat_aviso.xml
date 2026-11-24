@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono chico de los avisos: el globo del logo en blanco (Android lo pinta del color del sistema). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,4h24a10,10 0,0 1,10 10v16a10,10 0,0 1,-10 10H22l-9,7v-7.3A10,10 0,0 1,2 30V14A10,10 0,0 1,12 4ZM15,28V16.8l10.5,12.6a2.1,2.1 0,0 0,3.6 -1.4V14a2.1,2.1 0,0 0,-4.2 0v8.4L14.4,9.8A2.1,2.1 0,0 0,10.8 11.2V28a2.1,2.1 0,0 0,4.2 0Z" />
+</vector>

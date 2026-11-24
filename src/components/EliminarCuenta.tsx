@@ -2,6 +2,7 @@ import { useState } from "react";
 import { recordarPrestador } from "@/components/usePrestador";
 import { BotonPrimario, BotonTexto, Cabecera, ErrorDePantalla, Icono } from "@/components/ui";
 import { borrarPrestadorId, guardarCuenta, leerCuenta, pedir, reemplazarMisPedidos } from "@/lib/cliente";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { Link } from "@/lib/navegacion";
 
 // Qué se borra y qué se guarda al eliminar la cuenta. Lo mismo dice la página pública /eliminar-cuenta.
@@ -38,6 +39,7 @@ export function PantallaEliminarCuenta({ alCerrar }: { alCerrar: () => void }) {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [lista, setLista] = useState(false);
+  useCerrarConAtras(() => (lista ? window.location.assign("/") : alCerrar()));
   const marco = "fixed inset-0 z-40 mx-auto flex w-full max-w-md flex-col bg-white";
 
   async function eliminar() {

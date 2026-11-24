@@ -34,6 +34,15 @@ ok("la API sigue respondiendo JSON", (await j("/api/stats")).estado === 200);
 // --- Avisos --------------------------------------------------------------------------------------
 const config = await j("/api/avisos");
 ok("el servidor dice si hay avisos", config.estado === 200 && "disponible" in config.datos, config.datos?.disponible ? "(disponibles)" : "(sin claves VAPID)");
+// Avisos nativos de la app de Android (Firebase): el servidor dice si los puede mandar.
+ok("el servidor dice si hay avisos para la app de Android", typeof config.datos?.fcm === "boolean", config.datos?.fcm ? "(con Firebase)" : "(sin Firebase)");
+const cuentaNativa = await cuentaDePrueba(U, "nativa");
+const tokenMalo = await j("/api/avisos", { cuenta: cuentaNativa, fcm: "no vale" });
+ok("un identificador de Firebase mal formado no se anota", tokenMalo.estado === 400 || (!config.datos?.fcm && tokenMalo.estado === 503), `(${tokenMalo.estado})`);
+if (!config.datos?.fcm) {
+  ok("sin Firebase configurado, la app no puede anotarse", (await j("/api/avisos", { cuenta: cuentaNativa, fcm: `prueba-${crypto.randomUUID()}` })).estado === 503);
+}
+
 if (config.datos?.disponible) {
   ok("da la clave pública", typeof config.datos.publica === "string" && config.datos.publica.length > 80);
   const cuenta = await cuentaDePrueba(U, "vecina");

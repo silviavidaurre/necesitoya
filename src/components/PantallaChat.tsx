@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { Denunciar } from "@/components/Denunciar";
 import { Cabecera, Estado, claseCampo } from "@/components/ui";
 import { ErrorDePedido, pedir } from "@/lib/cliente";
@@ -61,6 +62,7 @@ export function PantallaChat({
   const [marco, setMarco] = useState<{ top: number; height: number } | null>(null);
   const lista = useRef<HTMLDivElement>(null);
   const [denunciando, setDenunciando] = useState(false);
+  useCerrarConAtras(alCerrar);
   const ultimo = useRef("");
 
   const credenciales = JSON.stringify(quien);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Estado } from "@/components/ui";
 import { leerCuenta, pedir } from "@/lib/cliente";
+import { appConAvisosNativos, avisosNativosActivos, esAppNativa, registrarAvisosNativos } from "@/lib/nativo";
 
 type EstadoDeAvisos = "cargando" | "no-soportado" | "sin-servidor" | "bloqueado" | "activo" | "apagado";
 
@@ -23,7 +24,20 @@ export function ActivarAvisos({ para }: { para: string }) {
   useEffect(() => {
     let vigente = true;
     (async () => {
-      if (!soportados() || !leerCuenta()) return setEstado("no-soportado");
+      if (!leerCuenta()) return setEstado("no-soportado");
+      // App de Android: avisos nativos (Firebase), si la app se armó con Firebase y el servidor puede mandarlos.
+      if (esAppNativa()) {
+        if (!appConAvisosNativos()) return setEstado("no-soportado");
+        const servidor = await pedir<{ fcm?: boolean }>("/api/avisos").catch(() => null);
+        if (!servidor?.fcm) return vigente && setEstado("sin-servidor");
+        if (!(await avisosNativosActivos())) return vigente && setEstado("apagado");
+        // Con el permiso ya dado se vuelve a anotar el celular en silencio (por si cambió la cuenta o el identificador).
+        const token = await registrarAvisosNativos();
+        await pedir("/api/avisos", { method: "POST", body: JSON.stringify({ cuenta: leerCuenta()?.clave, fcm: token }) });
+        if (vigente) setEstado("activo");
+        return;
+      }
+      if (!soportados()) return setEstado("no-soportado");
       if (Notification.permission === "denied") return setEstado("bloqueado");
       const servidor = await pedir<{ disponible: boolean }>("/api/avisos").catch(() => null);
       if (!servidor?.disponible) return vigente && setEstado("sin-servidor");
@@ -38,6 +52,17 @@ export function ActivarAvisos({ para }: { para: string }) {
 
   async function activar() {
     setError("");
+    if (esAppNativa()) {
+      try {
+        const token = await registrarAvisosNativos();
+        await pedir("/api/avisos", { method: "POST", body: JSON.stringify({ cuenta: leerCuenta()?.clave, fcm: token }) });
+        setEstado("activo");
+      } catch (e) {
+        if (e instanceof Error && e.message === "bloqueado") setEstado("bloqueado");
+        else setError(e instanceof Error ? e.message : "No pudimos activar los avisos en este celular.");
+      }
+      return;
+    }
     try {
       const permiso = await Notification.requestPermission();
       if (permiso !== "granted") {
@@ -63,7 +88,7 @@ export function ActivarAvisos({ para }: { para: string }) {
       {estado === "activo" ? (
         <Estado tono="bien">Te avisamos en este celular</Estado>
       ) : estado === "bloqueado" ? (
-        <span className="text-[15px] text-ink-500">Los avisos están bloqueados. Activalos en los ajustes del navegador.</span>
+        <span className="text-[15px] text-ink-500">Los avisos están bloqueados. Activalos en los ajustes {esAppNativa() ? "del celular" : "del navegador"}.</span>
       ) : (
         <>
           <span className="text-[15px] text-ink-500">{para}</span>

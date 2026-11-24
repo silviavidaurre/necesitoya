@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BotonPrimario, Cabecera, Chip, ErrorDePantalla, Icono, claseCampo } from "@/components/ui";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { leerCuenta, pedir } from "@/lib/cliente";
 import { MOTIVOS_DE_DENUNCIA } from "@/lib/motivos";
 
@@ -25,6 +26,7 @@ export function Denunciar({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [listo, setListo] = useState(false);
+  useCerrarConAtras(() => alCerrar(listo ? { bloqueado: conBloqueo && Boolean(bloquear) } : undefined));
   const soloBloqueo = !objetivo;
   const cuenta = leerCuenta();
 
