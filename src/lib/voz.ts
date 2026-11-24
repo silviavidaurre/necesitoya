@@ -6,15 +6,15 @@ import { claveDeVoz } from "./config";
 
 const API = "https://api.elevenlabs.io";
 
-// Voz "Janet Tucumán - Natural Narrator" de la biblioteca de ElevenLabs, agregada a la cuenta.
-// Según sus datos: mujer de mediana edad, español de Argentina (es-AR, acento "argentine"), tono casual y
-// conversacional, y su dueña la describe con acento típico de Tucumán. Se eligió porque es la única voz argentina
-// de la biblioteca que declara un acento del norte del país (no hay ninguna de Jujuy) y está verificada para el modelo rápido.
-export const VOZ_ID = "r3lotmx3BZETVvcKm6R6";
+// Voz "Gabriel Founder KILO": clon de la voz de Gabriel, de Jujuy, con su voseo del norte. Está en la misma cuenta de
+// ElevenLabs que la clave de la app (la cuenta del hackathon). Antes se usaba "Janet Tucumán" (r3lotmx3BZETVvcKm6R6).
+export const VOZ_ID = "qxrTmwapaXTTqUfspgrW";
 
-// Modelo rápido y multilingüe (32 idiomas, español incluido): responde en alrededor de un segundo
-// y cuesta la mitad que los modelos de mayor calidad.
-const MODELO_PARA_DECIR = "eleven_flash_v2_5";
+// Modelo estable y multilingüe, el que Gabriel eligió para su voz. Con frases cortas responde en alrededor de un
+// segundo, igual que el modelo rápido (medido el 24/11/2026), y suena más natural.
+const MODELO_PARA_DECIR = "eleven_multilingual_v2";
+// Ajustes elegidos para su voz: con más estilo o menos estabilidad a veces cambiaba el voseo por el «tú».
+const AJUSTES_DE_VOZ = { stability: 0.5, similarity_boost: 0.9, style: 0.2, use_speaker_boost: true };
 // MP3 liviano: una frase de 20 segundos pesa unos 160 KB, pensado para datos móviles.
 const FORMATO_DE_AUDIO = "mp3_44100_64";
 // Reconocimiento de voz para audio grabado (Scribe).
@@ -149,7 +149,7 @@ export async function decir(texto: string): Promise<ArrayBuffer> {
       method: "POST",
       headers: { "xi-api-key": clave, "content-type": "application/json" },
       // language_code fija el español: así los números y las abreviaturas no se leen en otro idioma.
-      body: JSON.stringify({ text: texto, model_id: MODELO_PARA_DECIR, language_code: "es" }),
+      body: JSON.stringify({ text: texto, model_id: MODELO_PARA_DECIR, language_code: "es", voice_settings: AJUSTES_DE_VOZ }),
     },
     "No pudimos leerlo en voz alta. Probá de nuevo o leelo en pantalla.",
     SI_NO_HABLA,
