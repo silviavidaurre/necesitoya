@@ -1,7 +1,7 @@
 // Service worker de NecesitoYa: deja instalar la app, la abre sin señal con lo último que vio y recibe los avisos.
 // Regla de oro: nunca toca /api/. Los datos siempre van directo al servidor, para que nadie vea algo viejo.
 
-const VERSION = "necesitoya-v1";
+const VERSION = "necesitoya-v2";
 const CASCARA = ["/", "/manifest.webmanifest", "/icono.svg", "/icono-192.png"];
 
 self.addEventListener("install", (evento) => {
