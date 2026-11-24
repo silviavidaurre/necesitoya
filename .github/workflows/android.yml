@@ -32,7 +32,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # Las máquinas ubuntu de GitHub ya traen el kit de Android (ANDROID_HOME) con las licencias aceptadas.
 
       - name: Instalar dependencias
         run: npm ci
