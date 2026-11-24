@@ -1,15 +1,28 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavPrestador } from "@/components/NavPrestador";
 import { PantallaChat } from "@/components/PantallaChat";
 import { usePrestador } from "@/components/usePrestador";
-import { BotonPrimario, BotonSecundario, Cargando, ErrorDePantalla, Estado, Icono, IconoCirculo, Pantalla, SinConexion, Titulo } from "@/components/ui";
+import { BotonPrimario, BotonSecundario, Cabecera, Cargando, ErrorDePantalla, Estado, Icono, IconoCirculo, Pantalla, SinConexion, Titulo } from "@/components/ui";
+import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { pesos, type RubroId } from "@/lib/catalogo";
 import { pedir } from "@/lib/cliente";
 import { useRouter } from "@/lib/navegacion";
-import type { Oferta } from "@/lib/tipos";
+import type { EstadoDePago, Oferta, PagoPublico } from "@/lib/tipos";
+
+const PAGO_PARA_EL_PRESTADOR: Record<EstadoDePago, string> = {
+  pendiente: "Todavía no pagó por la app",
+  retenido: "Pago retenido: se libera cuando el vecino confirme",
+  liberado: "Pago liberado a tu billetera",
+  en_disputa: "Pago en reclamo",
+  resuelto: "Reclamo del pago resuelto",
+  vencido: "El pago venció sin pagarse",
+  cancelado: "Pago cancelado",
+  pagado: "Pagado a tu billetera",
+};
 
 interface OfertaConPedido extends Oferta {
-  pedido: { titulo: string; zona: string; rubro: RubroId; ejemplo: boolean } | null;
+  pedido: { titulo: string; zona: string; rubro: RubroId; ejemplo: boolean; confirmado: string | null } | null;
+  pago: PagoPublico | null;
   // Solo el nombre de pila del vecino: se le escribe por el chat de la app, su teléfono no se muestra.
   cliente: { nombre: string } | null;
   // Mensajes del chat con el vecino: cuántos hay y cuántos faltan leer.
@@ -24,6 +37,8 @@ export default function MisOfertas() {
   const [error, setError] = useState("");
   // El presupuesto cuyo chat está abierto, si hay alguno.
   const [chat, setChat] = useState<OfertaConPedido | null>(null);
+  // El trabajo que está marcando como terminado (pantalla con la foto del después).
+  const [cerrando, setCerrando] = useState<OfertaConPedido | null>(null);
 
   const prestadorId = prestador?.id;
   const cargar = useCallback(async () => {
@@ -48,6 +63,20 @@ export default function MisOfertas() {
   if (cargando || !prestador) return <Cargando />;
 
   const vacio = ofertas !== null && ofertas.length === 0;
+
+  if (cerrando) {
+    return (
+      <PantallaTerminado
+        oferta={cerrando}
+        prestadorId={prestador.id}
+        alCerrar={() => setCerrando(null)}
+        alTerminar={() => {
+          setCerrando(null);
+          cargar();
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -96,8 +125,24 @@ export default function MisOfertas() {
                   <Estado>Esperando respuesta</Estado>
                 )}
               </p>
-              {conChat && oferta.estado === "elegida" && (
+              {conChat && oferta.estado === "elegida" && !oferta.terminado && (
                 <p className="mt-3 text-base font-semibold text-ink">Te eligieron. Escribile a {pila} para coordinar.</p>
+              )}
+              {oferta.estado === "elegida" && (oferta.terminado || oferta.pago) && (
+                <div className="mt-2 space-y-1">
+                  {oferta.terminado && (
+                    <p>
+                      {oferta.pedido?.confirmado ? <Estado tono="bien">{pila} confirmó que quedó bien</Estado> : <Estado>Esperando que {pila} confirme</Estado>}
+                    </p>
+                  )}
+                  {oferta.pago && (
+                    <p>
+                      <Estado tono={oferta.pago.estado === "en_disputa" ? "mal" : oferta.pago.estado === "pendiente" ? "neutro" : "bien"}>
+                        {PAGO_PARA_EL_PRESTADOR[oferta.pago.estado]}
+                      </Estado>
+                    </p>
+                  )}
+                </div>
               )}
               {conChat && oferta.sinLeer > 0 && (
                 <p className="mt-2">
@@ -106,8 +151,19 @@ export default function MisOfertas() {
               )}
               {conChat && (!soloLectura || oferta.mensajes > 0) && (
                 <div className="mt-4">
-                  {oferta.estado === "elegida" ? (
-                    <BotonPrimario onClick={() => setChat(oferta)}>Abrir chat</BotonPrimario>
+                  {oferta.estado === "elegida" && !oferta.terminado ? (
+                    <div className="space-y-3">
+                      <BotonPrimario onClick={() => setCerrando(oferta)}>Trabajo terminado</BotonPrimario>
+                      <BotonSecundario onClick={() => setChat(oferta)}>
+                        <Icono nombre="mensaje" size={20} />
+                        Abrir chat
+                      </BotonSecundario>
+                    </div>
+                  ) : oferta.estado === "elegida" ? (
+                    <BotonSecundario onClick={() => setChat(oferta)}>
+                      <Icono nombre="mensaje" size={20} />
+                      Abrir chat
+                    </BotonSecundario>
                   ) : (
                     <BotonSecundario onClick={() => setChat(oferta)}>
                       <Icono nombre="mensaje" size={20} />
@@ -135,5 +191,90 @@ export default function MisOfertas() {
       )}
       <NavPrestador aviso={Boolean(ofertas?.some((o) => o.sinLeer > 0))} />
     </>
+  );
+}
+
+// "Trabajo terminado": una foto de cómo quedó y un botón. El vecino la ve y confirma.
+function PantallaTerminado({
+  oferta,
+  prestadorId,
+  alCerrar,
+  alTerminar,
+}: {
+  oferta: OfertaConPedido;
+  prestadorId: string;
+  alCerrar: () => void;
+  alTerminar: () => void;
+}) {
+  const [foto, setFoto] = useState<FotoLista | null>(null);
+  const [preparando, setPreparando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState("");
+  const entrada = useRef<HTMLInputElement>(null);
+  const pila = oferta.cliente?.nombre || "El vecino";
+
+  async function elegir(archivo: File | undefined) {
+    if (!archivo) return;
+    setError("");
+    setPreparando(true);
+    try {
+      setFoto(await achicarFoto(archivo));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos usar esa foto. Probá con otra.");
+    } finally {
+      setPreparando(false);
+      if (entrada.current) entrada.current.value = "";
+    }
+  }
+
+  async function enviar() {
+    if (!foto) return;
+    setEnviando(true);
+    setError("");
+    try {
+      await pedir("/api/ofertas/terminar", {
+        method: "POST",
+        body: JSON.stringify({ prestadorId, ofertaId: oferta.id, foto: { tipo: foto.tipo, base64: foto.base64 } }),
+        espera: 45_000,
+      });
+      alTerminar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos guardarlo. Probá de nuevo.");
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Pantalla
+      pie={
+        <>
+          {!foto && <p className="mb-2 text-center text-[15px] font-medium text-ink-500">Falta la foto de cómo quedó</p>}
+          <BotonPrimario onClick={enviar} disabled={!foto} cargando={enviando}>
+            Avisar que terminé
+          </BotonPrimario>
+        </>
+      }
+    >
+      <Cabecera alVolver={alCerrar} cerrar />
+      <Titulo pregunta={`${pila} la ve y confirma. Si pagó por la app, ahí se libera tu pago.`}>¿Cómo quedó?</Titulo>
+      <p className="mt-4 text-base font-semibold text-ink">{oferta.pedido?.titulo}</p>
+      <input ref={entrada} type="file" accept="image/*" className="hidden" onChange={(e) => elegir(e.target.files?.[0])} />
+      <div className="mt-6">
+        {foto ? (
+          <>
+            <img src={foto.vistaPrevia} alt="Foto del trabajo terminado" className="max-h-80 w-full rounded-[22px] object-cover" />
+            <button type="button" onClick={() => entrada.current?.click()} className="mt-2 flex min-h-12 items-center text-base font-semibold text-brand">
+              Cambiar la foto
+            </button>
+          </>
+        ) : (
+          <BotonSecundario onClick={() => entrada.current?.click()} disabled={preparando}>
+            <Icono nombre="camara" size={20} />
+            {preparando ? "Preparando la foto" : "Sacar la foto del después"}
+          </BotonSecundario>
+        )}
+      </div>
+      {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+    </Pantalla>
   );
 }

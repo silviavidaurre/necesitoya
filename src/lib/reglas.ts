@@ -1,4 +1,5 @@
 import { MAX_OFERTAS } from "./catalogo";
+import { cobradoPorLaApp, pagoDe } from "./pagos";
 import type { BaseDeDatos, Pedido, PerfilPublico, Prestador, Reputacion, Resena } from "./tipos";
 
 // Reglas de negocio compartidas por las rutas de la API.
@@ -27,6 +28,9 @@ export function reputacionDe(db: BaseDeDatos, prestadorId: string): Reputacion {
   const suma = notas.reduce((total, n) => total + n, 0);
   return {
     trabajos: elegidas.length,
+    // Terminado de verdad = el vecino confirmó que quedó bien (no alcanza con que el prestador lo marque).
+    terminados: elegidas.filter((o) => Boolean(db.pedidos.find((p) => p.id === o.pedidoId)?.confirmado)).length,
+    cobrados: elegidas.filter((o) => cobradoPorLaApp(pagoDe(db, o.id))).length,
     calificaciones: notas.length,
     promedio: notas.length > 0 ? Math.round((suma / notas.length) * 10) / 10 : null,
   };
