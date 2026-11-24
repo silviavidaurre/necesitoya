@@ -1,0 +1,19 @@
+{
+  // NecesitoYa en Cloudflare Workers: la API corre en el Worker y el sitio son archivos estáticos.
+  "name": "necesitoya",
+  "main": "src/servidor/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "necesitoya", "database_id": "edc474a3-5e5a-4d72-8ea5-3f47e811f4d0" }
+  ],
+  // Identificador público de la app en Google ("Continuar con Google"). No es un secreto: viaja al navegador.
+  "vars": { "GOOGLE_CLIENT_ID": "537001149894-g93qpovht1i7efem2gqr93cjpjdg9066.apps.googleusercontent.com" },
+  "observability": { "enabled": true }
+}
