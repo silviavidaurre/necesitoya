@@ -1,0 +1,113 @@
+<!doctype html>
+<!-- Gráfico destacado de Google Play (1024x500). Lo captura scripts/capturas-play.mjs. Diseño: variante tipo Uber. -->
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1024px;
+        height: 500px;
+        overflow: hidden;
+        background: #0d0d0d;
+        font-family: Inter, sans-serif;
+      }
+      .lienzo {
+        position: relative;
+        width: 1024px;
+        height: 500px;
+      }
+      .mapa {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 470px;
+        height: 500px;
+      }
+      .texto {
+        position: absolute;
+        left: 64px;
+        top: 70px;
+        width: 520px;
+        color: #fff;
+      }
+      .marca {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: 30px;
+        letter-spacing: -0.5px;
+      }
+      .marca b {
+        color: #ff5a1f;
+      }
+      h1 {
+        margin: 34px 0 0;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 50px;
+        line-height: 1.04;
+        letter-spacing: -1.6px;
+        font-weight: 700;
+      }
+      h1 span {
+        color: #ff5a1f;
+      }
+      p {
+        margin: 26px 0 0;
+        font-size: 21px;
+        font-weight: 600;
+        color: #a3a3a3;
+      }
+      .precio {
+        position: absolute;
+        height: 40px;
+        padding: 0 16px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: 19px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="lienzo">
+      <svg class="mapa" viewBox="0 0 470 500" aria-hidden="true">
+        <rect width="470" height="500" fill="#161616" />
+        <path d="M-20 390 C 90 350, 170 420, 280 370 S 450 310, 500 330" stroke="#1f2e36" stroke-width="28" fill="none" />
+        <g stroke="#2b2b2b" stroke-width="11" stroke-linecap="round" fill="none" transform="rotate(-14 235 250)">
+          <path d="M-100 40 H570 M-100 140 H570 M-100 240 H570 M-100 340 H570 M-100 440 H570" />
+          <path d="M20 -100 V600 M130 -100 V600 M240 -100 V600 M350 -100 V600 M460 -100 V600" />
+        </g>
+        <rect x="290" y="70" width="110" height="74" rx="12" fill="#1d2a1d" />
+        <path d="M-20 300 L 500 80" stroke="#2b2b2b" stroke-width="22" stroke-linecap="round" />
+        <circle cx="230" cy="250" r="52" fill="#ff5a1f" fill-opacity="0.2" />
+        <ellipse cx="230" cy="274" rx="20" ry="7" fill="#000" fill-opacity="0.5" />
+        <path d="M230 271s-25-20-25-39a25 25 0 0 1 50 0c0 19-25 39-25 39z" fill="#ff5a1f" stroke="#0d0d0d" stroke-width="3" />
+        <path d="M220 233l10-9 10 9v12h-20z" fill="none" stroke="#0d0d0d" stroke-width="3" stroke-linejoin="round" />
+      </svg>
+      <div class="precio" style="left: 640px; top: 120px; background: #ff5a1f; color: #0d0d0d">$78.000</div>
+      <div class="precio" style="left: 860px; top: 190px; background: #fff; color: #0d0d0d">$72.000</div>
+      <div class="precio" style="left: 700px; top: 340px; background: #fff; color: #0d0d0d">$89.000</div>
+      <div class="texto">
+        <div class="marca">
+          <svg width="46" height="46" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M12 4h24a10 10 0 0 1 10 10v16a10 10 0 0 1-10 10H22l-9 7v-7.3A10 10 0 0 1 2 30V14A10 10 0 0 1 12 4Z" fill="#ffffff" />
+            <path d="M15 30V14l14 16V14" fill="none" stroke="#0d0d0d" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="36.5" cy="29" r="3" fill="#ff5a1f" />
+          </svg>
+          <span>Necesito<b>Ya</b></span>
+        </div>
+        <h1>Te decimos qué tenés, cuánto cuesta y <span>quién lo arregla.</span></h1>
+        <p>Oficios de tu barrio en Jujuy y Palpalá</p>
+      </div>
+    </div>
+  </body>
+</html>
