@@ -14,6 +14,7 @@ export default function Terminos() {
       <Titulo pregunta="Las reglas para usar NecesitoYa.">Términos y condiciones</Titulo>
 
       <Seccion>Qué es NecesitoYa</Seccion>
+      <Punto>NecesitoYa es de Iturre Labs, de San Salvador de Jujuy, Argentina. Contacto: gabriel13iturre@gmail.com.</Punto>
       <Punto>
         Una app que conecta a vecinos de San Salvador de Jujuy y Palpalá con personas que ofrecen oficios. El vecino cuenta qué necesita, recibe hasta
         tres presupuestos y elige. El trabajo lo hace el prestador, no NecesitoYa.
@@ -27,7 +28,14 @@ export default function Terminos() {
       </Punto>
 
       <Seccion>Cuentas</Seccion>
-      <Punto>Para pedir o presupuestar hace falta una cuenta. Sos responsable de lo que se haga con ella. Una persona, una cuenta; un perfil de prestador por cuenta.</Punto>
+      <Punto>Para pedir o presupuestar hace falta una cuenta y tener 18 años o más. Sos responsable de lo que se haga con ella. Una persona, una cuenta; un perfil de prestador por cuenta.</Punto>
+      <Punto>
+        Podés eliminar tu cuenta cuando quieras, desde la app o sin entrar:{" "}
+        <Link href="/eliminar-cuenta" className="font-semibold text-brand">
+          eliminar tu cuenta
+        </Link>
+        .
+      </Punto>
 
       <Seccion>Presupuestos y trabajo</Seccion>
       <Punto>
@@ -69,7 +77,15 @@ export default function Terminos() {
         </Link>
         .
       </Punto>
-      <p className="mt-8 text-[13px] text-ink-500">San Salvador de Jujuy, noviembre de 2026.</p>
+      <Seccion>Soporte</Seccion>
+      <Punto>
+        ¿Dudas o problemas? Escribinos a{" "}
+        <a href="mailto:gabriel13iturre@gmail.com" className="font-semibold text-brand">
+          gabriel13iturre@gmail.com
+        </a>
+        .
+      </Punto>
+      <p className="mt-8 text-[13px] text-ink-500">Iturre Labs · San Salvador de Jujuy, Argentina · Última actualización: 24 de noviembre de 2026.</p>
     </Pantalla>
   );
 }
