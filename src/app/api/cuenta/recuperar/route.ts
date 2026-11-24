@@ -1,6 +1,6 @@
 import { delCelular, entrar } from "@/app/api/cuenta/route";
 import { huella } from "@/lib/contrasenas";
-import { correoDisponible, enlaceValido, enviarCorreo, huellaDeEnlace, nuevoEnlace } from "@/lib/correo";
+import { correoDisponible, enlaceValido, enviarCorreo, huellaDeEnlace, nuevoEnlace } from "@/integraciones/resend-correo/correo";
 import { conexionDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
 

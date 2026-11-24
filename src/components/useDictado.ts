@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorDePedido, pedir } from "@/lib/cliente";
 import { grabar, puedeGrabar, type Grabacion } from "@/lib/grabadora";
 import { callar } from "@/lib/lectura";
-import { vozEnServidor } from "@/lib/voz-cliente";
-import { esAppNativa } from "@/lib/nativo";
+import { vozEnServidor } from "@/integraciones/elevenlabs-voz/voz-cliente";
+import { esAppNativa } from "@/integraciones/capacitor-android/nativo";
 
 // Dictado por voz. Tiene dos caminos y quien lo usa no nota la diferencia:
 // 1. El reconocimiento del navegador (Chrome y derivados): gratis y muestra el texto mientras la persona habla.

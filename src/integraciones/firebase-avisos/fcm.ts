@@ -1,4 +1,4 @@
-import { variable } from "./config";
+import { variable } from "@/lib/config";
 
 // Avisos a la app de Android por Firebase Cloud Messaging (API HTTP v1).
 // Hace falta FCM_SERVICE_ACCOUNT: el JSON de una cuenta de servicio del proyecto de Firebase (secreto del Worker).

@@ -1,6 +1,6 @@
 import { fotoValida } from "@/lib/fotos";
 import { conexionDe, dentroDelCupo, dentroDelCupoDe } from "@/lib/db";
-import { armarPedido, pedidoBasico } from "@/lib/ia";
+import { armarPedido, pedidoBasico } from "@/integraciones/anthropic-ia/ia";
 
 export async function POST(request: Request) {
   const cuerpo = await request.json().catch(() => null);

@@ -1,5 +1,5 @@
 import { modificar } from "@/lib/db";
-import { endpointValido } from "@/lib/push";
+import { endpointValido } from "@/integraciones/webpush-avisos/push";
 
 // El service worker del celular lo llama cuando lo despierta un push: devuelve el aviso más reciente sin entregar.
 // Se entra con el endpoint de la suscripción, que solo conocen ese celular y el servidor.

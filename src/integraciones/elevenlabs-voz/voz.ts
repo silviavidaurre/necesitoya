@@ -1,5 +1,5 @@
-import { ZONAS } from "./catalogo";
-import { claveDeVoz } from "./config";
+import { ZONAS } from "@/lib/catalogo";
+import { claveDeVoz } from "@/lib/config";
 
 // Voz de NecesitoYa con ElevenLabs: pasar a texto lo que la persona grabó y leer en voz alta lo que la app responde.
 // Se llama a la API REST con fetch, sin el SDK, para que el mismo código corra en Cloudflare Workers.

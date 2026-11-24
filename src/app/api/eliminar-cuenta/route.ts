@@ -1,5 +1,5 @@
 import { PLAZOS, eliminarCuenta } from "@/lib/bajas";
-import { correoDisponible, enlaceValido, enviarCorreo, huellaDeEnlace, nuevoEnlace } from "@/lib/correo";
+import { correoDisponible, enlaceValido, enviarCorreo, huellaDeEnlace, nuevoEnlace } from "@/integraciones/resend-correo/correo";
 import { borrarFotos, conexionDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
 

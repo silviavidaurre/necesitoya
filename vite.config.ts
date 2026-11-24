@@ -21,7 +21,7 @@ function apiNecesitoYa(): Plugin {
       servidor.middlewares.use(async (req: IncomingMessage, res: ServerResponse, siguiente: () => void) => {
         if (!req.url?.startsWith("/api/")) return siguiente();
         try {
-          const modulo = (await servidor.ssrLoadModule("/src/servidor/desarrollo.ts")) as { atender: Atender };
+          const modulo = (await servidor.ssrLoadModule("/src/servidor/local/desarrollo.ts")) as { atender: Atender };
           const metodo = req.method ?? "GET";
           const conCuerpo = metodo !== "GET" && metodo !== "HEAD";
           const peticion = new Request(`http://${req.headers.host ?? "localhost"}${req.url}`, {

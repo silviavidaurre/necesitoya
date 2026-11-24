@@ -4,7 +4,7 @@ import { BotonPrimario, Cabecera, Campo, Cargando, Chip, ErrorDePantalla, Pantal
 import { RUBROS, ZONAS, type RubroId } from "@/lib/catalogo";
 import { pedir } from "@/lib/cliente";
 import { useRouter } from "@/lib/navegacion";
-import { billeteraValida } from "@/lib/stellar";
+import { billeteraValida } from "@/integraciones/cosmos-pagos/stellar";
 
 // Editar el perfil: los mismos datos del alta, ya cargados, y un solo botón para guardar.
 export default function EditarPerfil() {

@@ -1,5 +1,5 @@
 import { conexionDe, dentroDelCupo, dentroDelCupoDe } from "@/lib/db";
-import { ErrorDeVoz, audioValido, transcribir } from "@/lib/voz";
+import { ErrorDeVoz, audioValido, transcribir } from "@/integraciones/elevenlabs-voz/voz";
 
 // Pasa a texto un audio corto grabado en el navegador. Es el dictado de los celulares que no traen uno propio.
 export async function POST(request: Request) {

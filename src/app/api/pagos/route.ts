@@ -11,9 +11,9 @@ import {
   sondearProtegidos,
   paginaDeCobro,
   usdc,
-} from "@/lib/cosmos";
+} from "@/integraciones/cosmos-pagos/cosmos";
 import { dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
-import { ErrorDeMercadoPago, crearPreferencia, mercadoPagoDisponible } from "@/lib/mercadopago";
+import { ErrorDeMercadoPago, crearPreferencia, mercadoPagoDisponible } from "@/integraciones/mercadopago-pagos/mercadopago";
 import { anotarEstado, comisionArs, comisionUsdc, cotizacionArsPorUsdc, estadoDeCobro, estadoProtegido, pagoDe, pagoPublico, pagosDisponibles } from "@/lib/pagos";
 import type { BaseDeDatos, Pago } from "@/lib/tipos";
 

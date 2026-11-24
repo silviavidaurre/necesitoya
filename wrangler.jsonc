@@ -1,7 +1,7 @@
 {
   // NecesitoYa en Cloudflare Workers: la API corre en el Worker y el sitio son archivos estáticos.
   "name": "necesitoya",
-  "main": "src/servidor/worker.ts",
+  "main": "src/servidor/cloudflare/worker.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {

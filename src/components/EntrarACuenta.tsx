@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { recordarPrestador } from "@/components/usePrestador";
 import { PantallaEliminarCuenta } from "@/components/EliminarCuenta";
 import { Link } from "@/lib/navegacion";
-import { entrarConGoogleNativo, esAppNativa, googleNativoDisponible } from "@/lib/nativo";
+import { entrarConGoogleNativo, esAppNativa, googleNativoDisponible } from "@/integraciones/capacitor-android/nativo";
 import { BotonSecundario, Campo, claseCampo } from "@/components/ui";
 import {
   borrarPrestadorId,

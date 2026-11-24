@@ -1,6 +1,6 @@
 import { avisar } from "@/lib/avisos";
 import { leer, modificar } from "@/lib/db";
-import { estadoDeMercadoPago, leerPagoDeMercadoPago, notificacionValida } from "@/lib/mercadopago";
+import { estadoDeMercadoPago, leerPagoDeMercadoPago, notificacionValida } from "@/integraciones/mercadopago-pagos/mercadopago";
 import { anotarEstado } from "@/lib/pagos";
 
 // Notificaciones de Mercado Pago. Se acepta solo con la firma correcta; después se lee el pago real con el token

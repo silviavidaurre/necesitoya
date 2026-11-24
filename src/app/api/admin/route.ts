@@ -1,5 +1,5 @@
 import { comprobarAdmin } from "@/lib/admin";
-import { esMailDePrueba } from "@/lib/correo";
+import { esMailDePrueba } from "@/integraciones/resend-correo/correo";
 import { CUENTAS_DEMO, armarBarrioDemo, quitarDemo, resumenDemo } from "@/lib/demo";
 import { mensajesDe } from "@/lib/chat";
 import { PLAZOS, eliminarCuenta } from "@/lib/bajas";
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
   // Barrio de demostración: cuánto hay cargado.
   if (seccion === "demo") return Response.json({ demo: resumenDemo(db) });
 
-  // Bandeja de mails de prueba: solo los de direcciones .test, que nunca se mandan (ver lib/correo.ts).
+  // Bandeja de mails de prueba: solo los de direcciones .test, que nunca se mandan (ver integraciones/resend-correo).
   if (seccion === "correos") {
     return Response.json({ correos: (db.correos ?? []).filter((c) => esMailDePrueba(c.para)) });
   }

@@ -1,8 +1,8 @@
 import { configurarEntorno } from "@/lib/config";
 import { usarAlmacen } from "@/lib/db";
 import { configurarSegundoPlano } from "@/lib/segundo-plano";
-import { almacenD1, type BaseD1 } from "./almacen-d1";
-import { atender } from "./rutas";
+import { almacenD1, type BaseD1 } from "@/servidor/cloudflare/almacen-d1";
+import { atender } from "@/servidor/rutas";
 
 // Entrada de NecesitoYa en Cloudflare Workers: la API usa la base D1 y el resto son archivos estáticos.
 

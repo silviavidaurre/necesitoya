@@ -1,9 +1,9 @@
-import { cosmosDisponible } from "@/lib/cosmos";
-import { mercadoPagoDisponible } from "@/lib/mercadopago";
+import { cosmosDisponible } from "@/integraciones/cosmos-pagos/cosmos";
+import { mercadoPagoDisponible } from "@/integraciones/mercadopago-pagos/mercadopago";
 import { esCuentaDePrueba, leer } from "@/lib/db";
 import { cuentasDeRevision } from "@/lib/revision";
-import { iaDisponible } from "@/lib/ia";
-import { vozDisponible } from "@/lib/voz";
+import { iaDisponible } from "@/integraciones/anthropic-ia/ia";
+import { vozDisponible } from "@/integraciones/elevenlabs-voz/voz";
 
 // Números de uso real para el tablero de tracción.
 // No cuentan: los pedidos de ejemplo, los prestadores de muestra, los presupuestos de muestra
