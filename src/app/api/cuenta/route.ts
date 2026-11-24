@@ -1,3 +1,4 @@
+import { correoDisponible } from "@/lib/correo";
 import { idDeGoogle } from "@/lib/config";
 import { conexionDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { huella, iguales } from "@/lib/contrasenas";
@@ -11,7 +12,8 @@ import type { BaseDeDatos, Cuenta } from "@/lib/tipos";
 
 // Le dice a la app si hay Google configurado, y con qué identificador público.
 export async function GET() {
-  return Response.json({ google: idDeGoogle() ?? null });
+  // `recuperar`: si se puede pedir otra contraseña por mail (hace falta el correo configurado).
+  return Response.json({ google: idDeGoogle() ?? null, recuperar: correoDisponible() });
 }
 
 class ErrorDeCuenta extends Error {
@@ -61,7 +63,7 @@ interface DelCelular {
   pedidos: { id: string; clave: string }[];
 }
 
-function delCelular(cuerpo: Record<string, unknown>): DelCelular {
+export function delCelular(cuerpo: Record<string, unknown>): DelCelular {
   return {
     prestadorId: typeof cuerpo.prestadorId === "string" ? cuerpo.prestadorId : "",
     pedidos: Array.isArray(cuerpo.pedidos)
@@ -76,7 +78,7 @@ function delCelular(cuerpo: Record<string, unknown>): DelCelular {
 }
 
 // Une a la cuenta lo que el celular tiene sin dueño y devuelve todo lo que es de la cuenta.
-function entrar(db: BaseDeDatos, cuenta: Cuenta, celular: DelCelular, nueva: boolean) {
+export function entrar(db: BaseDeDatos, cuenta: Cuenta, celular: DelCelular, nueva: boolean) {
   // Perfil: una cuenta, un perfil. Si la cuenta todavía no tiene y este celular sí (y no es de otra cuenta), se une.
   let prestador = db.prestadores.find((p) => p.cuenta === cuenta.sub);
   if (!prestador && celular.prestadorId) {

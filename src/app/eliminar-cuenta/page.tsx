@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Lista, SE_BORRA, SE_GUARDA } from "@/components/EliminarCuenta";
 import { BotonPrimario, Cabecera, Campo, ErrorDePantalla, Icono, Pantalla, Seccion, Titulo, claseCampo } from "@/components/ui";
 import { pedir } from "@/lib/cliente";
@@ -13,12 +14,59 @@ export default function EliminarCuentaPublica() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [listo, setListo] = useState(false);
+  // Con correo configurado, el pedido manda un enlace para confirmar; al abrirlo se llega acá con ?confirmar=.
+  const [porMail, setPorMail] = useState(false);
+  const [parametros] = useSearchParams();
+  const confirmar = parametros.get("confirmar") ?? "";
+  const [eliminada, setEliminada] = useState(false);
+
+  async function confirmarBaja() {
+    setEnviando(true);
+    setError("");
+    try {
+      await pedir("/api/eliminar-cuenta", { method: "POST", body: JSON.stringify({ confirmar }) });
+      setEliminada(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos eliminar la cuenta. Probá de nuevo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (confirmar) {
+    return (
+      <Pantalla
+        pie={
+          eliminada ? undefined : (
+            <BotonPrimario onClick={confirmarBaja} cargando={enviando}>
+              Sí, eliminar mi cuenta
+            </BotonPrimario>
+          )
+        }
+      >
+        <Cabecera volver="/" />
+        {eliminada ? (
+          <Titulo pregunta="Borramos tus datos. Gracias por haber usado NecesitoYa.">Cuenta eliminada</Titulo>
+        ) : (
+          <>
+            <Titulo pregunta="No se puede deshacer.">¿Eliminar tu cuenta?</Titulo>
+            {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+            <Seccion>Qué se borra</Seccion>
+            <Lista items={SE_BORRA} />
+            <Seccion>Qué se guarda y por cuánto tiempo</Seccion>
+            <Lista items={SE_GUARDA} />
+          </>
+        )}
+      </Pantalla>
+    );
+  }
 
   async function pedirBaja() {
     setEnviando(true);
     setError("");
     try {
-      await pedir("/api/eliminar-cuenta", { method: "POST", body: JSON.stringify({ email: email.trim() }) });
+      const respuesta = await pedir<{ porMail?: boolean }>("/api/eliminar-cuenta", { method: "POST", body: JSON.stringify({ email: email.trim() }) });
+      setPorMail(Boolean(respuesta.porMail));
       setListo(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos registrar el pedido. Probá de nuevo.");
@@ -54,8 +102,9 @@ export default function EliminarCuentaPublica() {
             <Icono nombre="check" size={24} />
           </span>
           <p className="text-[15px] text-ink">
-            Recibimos el pedido. Si hay una cuenta con ese mail, la eliminamos en hasta 7 días hábiles. Por seguridad no te decimos si el mail está
-            registrado.
+            {porMail
+              ? "Recibimos el pedido. Si hay una cuenta con ese mail, te mandamos un enlace para confirmar (vence en 24 horas; mirá también en spam). Por seguridad no te decimos si el mail está registrado."
+              : "Recibimos el pedido. Si hay una cuenta con ese mail, la eliminamos en hasta 7 días hábiles. Por seguridad no te decimos si el mail está registrado."}
           </p>
         </div>
       ) : (

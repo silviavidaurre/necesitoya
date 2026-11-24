@@ -16,6 +16,7 @@ import VerificarPrestador from "./app/prestador/verificar/page";
 import PanelInterno from "./app/admin/page";
 import Terminos from "./app/terminos/page";
 import EliminarCuentaPublica from "./app/eliminar-cuenta/page";
+import Recuperar from "./app/recuperar/page";
 
 // El lado del prestador va oscuro y el del vecino claro: se cambia la clase de <html> según la pantalla.
 function TemaSegunPantalla() {
@@ -54,6 +55,7 @@ createRoot(document.getElementById("raiz")!).render(
           <Route path="/admin" element={<PanelInterno />} />
           <Route path="/terminos" element={<Terminos />} />
           <Route path="/eliminar-cuenta" element={<EliminarCuentaPublica />} />
+          <Route path="/recuperar" element={<Recuperar />} />
           <Route path="/p/:id" element={<PerfilPublicoDePrestador />} />
           <Route path="/privacidad" element={<Privacidad />} />
           <Route path="*" element={<Navigate to="/" replace />} />
