@@ -67,6 +67,9 @@ export const almacenArchivo: Almacen = {
     await fs.mkdir(CARPETA_FOTOS, { recursive: true });
     await fs.writeFile(archivoDeFoto(id), JSON.stringify(foto), "utf8");
   },
+  async borrarFotos(ids) {
+    await Promise.all(ids.map((id) => fs.rm(archivoDeFoto(id), { force: true })));
+  },
   async leerFoto(id) {
     try {
       return JSON.parse(await fs.readFile(archivoDeFoto(id), "utf8"));

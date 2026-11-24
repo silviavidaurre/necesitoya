@@ -1,4 +1,12 @@
+import * as admin from "@/app/api/admin/route";
+import * as documento from "@/app/api/admin/documento/route";
 import * as avisos from "@/app/api/avisos/route";
+import * as bloqueos from "@/app/api/bloqueos/route";
+import * as denuncias from "@/app/api/denuncias/route";
+import * as dia from "@/app/api/ofertas/dia/route";
+import * as cancelar from "@/app/api/pedido/cancelar/route";
+import * as reclamos from "@/app/api/reclamos/route";
+import * as verificacion from "@/app/api/verificacion/route";
 import * as ultimoAviso from "@/app/api/avisos/ultimo/route";
 import * as chat from "@/app/api/chat/route";
 import * as cuenta from "@/app/api/cuenta/route";
@@ -27,7 +35,15 @@ type Manejador = (peticion: Request) => Promise<Response>;
 type Ruta = { GET?: Manejador; POST?: Manejador };
 
 const RUTAS: Record<string, Ruta> = {
+  "/api/admin": admin,
+  "/api/admin/documento": documento,
   "/api/avisos": avisos,
+  "/api/bloqueos": bloqueos,
+  "/api/denuncias": denuncias,
+  "/api/ofertas/dia": dia,
+  "/api/pedido/cancelar": cancelar,
+  "/api/reclamos": reclamos,
+  "/api/verificacion": verificacion,
   "/api/avisos/ultimo": ultimoAviso,
   "/api/chat": chat,
   "/api/cuenta": cuenta,

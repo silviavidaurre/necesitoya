@@ -11,6 +11,9 @@ import EditarPerfil from "./app/prestador/editar/page";
 import MisOfertas from "./app/prestador/ofertas/page";
 import PedidosPrestador from "./app/prestador/page";
 import PerfilPrestador from "./app/prestador/perfil/page";
+import VerificarPrestador from "./app/prestador/verificar/page";
+import PanelInterno from "./app/admin/page";
+import Terminos from "./app/terminos/page";
 
 createRoot(document.getElementById("raiz")!).render(
   <StrictMode>
@@ -25,6 +28,9 @@ createRoot(document.getElementById("raiz")!).render(
           <Route path="/prestador/ofertas" element={<MisOfertas />} />
           <Route path="/prestador/perfil" element={<PerfilPrestador />} />
           <Route path="/prestador/editar" element={<EditarPerfil />} />
+          <Route path="/prestador/verificar" element={<VerificarPrestador />} />
+          <Route path="/admin" element={<PanelInterno />} />
+          <Route path="/terminos" element={<Terminos />} />
           <Route path="/p/:id" element={<PerfilPublicoDePrestador />} />
           <Route path="/privacidad" element={<Privacidad />} />
           <Route path="*" element={<Navigate to="/" replace />} />
