@@ -127,7 +127,7 @@ export default function EditarPerfil() {
       <Campo
         etiqueta="Billetera para cobrar por la app (opcional)"
         error={faltas.billetera}
-        ayuda="Tu dirección Stellar (empieza con G). Ahí te llegan los pagos protegidos en USDC. Tiene que aceptar USDC."
+        ayuda="Tu dirección Stellar (empieza con G). Ahí te llegan los pagos de la app en USDC. Tiene que aceptar USDC."
       >
         <input
           className={`${claseCampo} font-mono text-[15px]`}

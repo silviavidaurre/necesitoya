@@ -1,5 +1,5 @@
 import { MAX_OFERTAS } from "@/lib/catalogo";
-import { resumenDeChat } from "@/lib/chat";
+import { resumenDeChat, sinContacto } from "@/lib/chat";
 import { dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { avisar } from "@/lib/avisos";
 import { pagoDe, pagoPublico } from "@/lib/pagos";
@@ -62,7 +62,8 @@ export async function POST(request: Request) {
   const cuandoEscrito = limpiarTexto(cuerpo?.cuando, 80);
   const turnos = turnosPedidos.length > 0 ? turnosPedidos : turnosDesdeCuando(cuandoEscrito);
   const cuando = turnosPedidos.length > 0 ? resumenDeTurnos(turnosPedidos) : cuandoEscrito;
-  const mensaje = limpiarTexto(cuerpo?.mensaje, 500);
+  // Los teléfonos se tapan como en el chat: el contacto va por la app.
+  const mensaje = sinContacto(limpiarTexto(cuerpo?.mensaje, 500));
 
   if (!pedidoId || !prestadorId) return Response.json({ error: "Faltan datos de la oferta." }, { status: 400 });
   if (!Number.isFinite(precio) || precio < 1000 || precio > 50_000_000) {
