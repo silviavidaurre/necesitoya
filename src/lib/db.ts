@@ -15,6 +15,7 @@ export interface Almacen {
   // Las fotos van aparte del resto de los datos para no engordar cada lectura.
   guardarFoto(id: string, foto: Foto): Promise<void>;
   leerFoto(id: string): Promise<Foto | null>;
+  borrarFotos(ids: string[]): Promise<void>;
   // Suma uno al contador de hoy para ese nombre y devuelve cuánto lleva.
   consumirCupo(nombre: string): Promise<number>;
 }
@@ -67,6 +68,10 @@ export function leerFoto(id: string): Promise<Foto | null> {
   return actual().leerFoto(id);
 }
 
+export function borrarFotos(ids: string[]): Promise<void> {
+  return ids.length > 0 ? actual().borrarFotos(ids) : Promise.resolve();
+}
+
 // Topes diarios para todo lo que cuesta plata o llena la base. Son globales (no por persona) porque en un
 // evento todos comparten la misma conexión; su trabajo es que un abuso no vacíe las cuentas ni rompa la app.
 export const CUPOS = {
@@ -78,6 +83,8 @@ export const CUPOS = {
   fotos: 500,
   cuentas: 3000,
   mensajes: 6000,
+  avisos: 20000,
+  adminFallos: 40,
 } as const;
 
 // true si todavía hay cupo para hoy. Cuenta el intento aunque después falle, a propósito.

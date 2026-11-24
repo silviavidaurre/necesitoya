@@ -71,6 +71,13 @@ export function almacenD1(d1: BaseD1): Almacen {
         .bind(id, foto.tipo, foto.base64, new Date().toISOString())
         .run();
     },
+    async borrarFotos(ids) {
+      if (!sembrada) await sembrar(d1);
+      for (let i = 0; i < ids.length; i += 50) {
+        const tanda = ids.slice(i, i + 50);
+        await d1.prepare(`DELETE FROM fotos WHERE id IN (${tanda.map(() => "?").join(",")})`).bind(...tanda).run();
+      }
+    },
     async leerFoto(id) {
       if (!sembrada) await sembrar(d1);
       const fila = await d1.prepare("SELECT tipo, datos FROM fotos WHERE id = ?").bind(id).first<{ tipo: string; datos: string }>();
