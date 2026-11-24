@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       if (!db.ofertas.some((o) => o.pedidoId === id && o.estado === "elegida")) {
         throw new ErrorDeCalificacion("Primero elegí un presupuesto.", 409);
       }
+      if (!pedido.confirmado) throw new ErrorDeCalificacion("Primero confirmá que el trabajo quedó bien.", 409);
       if (pedido.calificacion) throw new ErrorDeCalificacion("Ya calificaste este trabajo.", 409);
 
       pedido.calificacion = { estrellas, comentario, creado: new Date().toISOString() };
