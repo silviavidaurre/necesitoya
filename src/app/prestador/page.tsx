@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ActivarAvisos } from "@/components/ActivarAvisos";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { Logo } from "@/components/Logo";
 import { NavPrestador } from "@/components/NavPrestador";
@@ -100,6 +101,8 @@ export default function PedidosPrestador() {
         <div className="mt-3">
           <Titulo pregunta={prestador ? `Hola, ${prestador.nombre.split(" ")[0]}. ¿Cuál querés presupuestar?` : "Vecinos que necesitan un trabajo. Tocá uno para ver el detalle."}>Pedidos</Titulo>
         </div>
+
+        {prestador && <ActivarAvisos para="¿Te avisamos cuando te elijan o te escriban?" />}
 
         {meEligieron.length > 0 && (
           <div className="mt-4 divide-y divide-line">

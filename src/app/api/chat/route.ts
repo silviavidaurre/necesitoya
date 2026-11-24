@@ -1,5 +1,6 @@
 import { MAX_LARGO_MENSAJE, MAX_MENSAJES_POR_CHAT, mensajesDe, motivoDeCierre, ocultarContacto, type Lado } from "@/lib/chat";
-import { dentroDelCupo, leer, modificar, nuevoId } from "@/lib/db";
+import { avisar } from "@/lib/avisos";
+import { dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
 import type { BaseDeDatos, Mensaje, Oferta } from "@/lib/tipos";
 
@@ -113,9 +114,13 @@ export async function POST(request: Request) {
 
   try {
     // Primero se revisa quién es, sin gastar cupo: un extraño no le saca lugar a los demás.
-    entrar(await leer(), quien);
+    const antes = await leer();
+    const yo = entrar(antes, quien);
     if (!contenido) return Response.json({ error: "Escribí el mensaje." }, { status: 400 });
-    if (!(await dentroDelCupo("mensajes"))) {
+    const pedidoDelChat = antes.pedidos.find((p) => p.id === yo.oferta.pedidoId);
+    const prestadorDelChat = antes.prestadores.find((p) => p.id === yo.oferta.prestadorId);
+    const miCuenta = yo.lado === "vecino" ? pedidoDelChat?.cuenta : prestadorDelChat?.cuenta;
+    if (!(await dentroDelCupo("mensajes")) || !(await dentroDelCupoDe("mensajes", miCuenta))) {
       return Response.json({ error: "Hoy se mandaron demasiados mensajes. Probá de nuevo mañana." }, { status: 429 });
     }
 
@@ -142,6 +147,12 @@ export async function POST(request: Request) {
       return nuevo;
     });
 
+    // Aviso al otro lado: al prestador lo lleva a sus presupuestos; al vecino, a su pedido.
+    if (yo.lado === "vecino") {
+      avisar(prestadorDelChat?.cuenta, { tipo: "mensaje", titulo: `Mensaje de ${pedidoDelChat?.clienteNombre.split(" ")[0] ?? "un vecino"}`, texto: contenido.slice(0, 120), url: "/prestador/ofertas" });
+    } else {
+      avisar(pedidoDelChat?.cuenta, { tipo: "mensaje", titulo: `Mensaje de ${prestadorDelChat?.nombre.split(" ")[0] ?? "un prestador"}`, texto: contenido.slice(0, 120), url: `/pedido/${yo.oferta.pedidoId}` });
+    }
     return Response.json({ mensaje, oculto: limpio.oculto }, { status: 201 });
   } catch (error) {
     return responderError(error);

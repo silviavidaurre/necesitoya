@@ -1,3 +1,4 @@
+import { avisar } from "@/lib/avisos";
 import { modificar } from "@/lib/db";
 import { seguimientoDe } from "@/lib/seguimiento";
 
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   if (!id || !clave || !ofertaId) return Response.json({ error: "Faltan datos." }, { status: 400 });
 
   try {
-    const seguimiento = await modificar((db) => {
+    const resultado = await modificar((db) => {
       const pedido = db.pedidos.find((p) => p.id === id);
       if (!pedido) throw new ErrorDeEleccion("No encontramos ese pedido.", 404);
       if (!pedido.claveCliente || pedido.claveCliente !== clave) throw new ErrorDeEleccion("Este pedido no es tuyo.", 403);
@@ -30,9 +31,11 @@ export async function POST(request: Request) {
 
       for (const oferta of delPedido) oferta.estado = oferta.id === ofertaId ? "elegida" : "descartada";
       pedido.estado = "cerrado";
-      return seguimientoDe(db, pedido);
+      const elegido = db.prestadores.find((p) => p.id === delPedido.find((o) => o.id === ofertaId)?.prestadorId);
+      return { seguimiento: seguimientoDe(db, pedido), cuenta: elegido?.cuenta, titulo: pedido.titulo };
     });
-    return Response.json(seguimiento);
+    avisar(resultado.cuenta, { tipo: "elegido", titulo: "Te eligieron", texto: `Para "${resultado.titulo}". Escribile al vecino para coordinar.`, url: "/prestador/ofertas" });
+    return Response.json(resultado.seguimiento);
   } catch (error) {
     if (error instanceof ErrorDeEleccion) return Response.json({ error: error.message }, { status: error.estado });
     throw error;

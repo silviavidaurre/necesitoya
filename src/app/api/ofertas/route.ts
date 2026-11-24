@@ -1,6 +1,7 @@
 import { MAX_OFERTAS } from "@/lib/catalogo";
 import { resumenDeChat } from "@/lib/chat";
 import { dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
+import { avisar } from "@/lib/avisos";
 import { pagoDe, pagoPublico } from "@/lib/pagos";
 import { cubreZona, minutosDeReserva } from "@/lib/reglas";
 import { limpiarTexto } from "@/lib/texto";
@@ -102,10 +103,12 @@ export async function POST(request: Request) {
         creado: new Date().toISOString(),
       };
       db.ofertas.push(oferta);
-      return { oferta, posicion: reales.length + 1 };
+      return { oferta, posicion: reales.length + 1, aviso: { cuenta: pedido.cuenta, pedidoId: pedido.id, quien: prestador.nombre.split(" ")[0] } };
     });
 
-    return Response.json({ ...resultado, maximo: MAX_OFERTAS }, { status: 201 });
+    const { aviso, ...respuesta } = resultado;
+    avisar(aviso.cuenta, { tipo: "presupuesto", titulo: "Llegó un presupuesto", texto: `${aviso.quien} te pasó su precio. Entrá a compararlo.`, url: `/pedido/${aviso.pedidoId}` });
+    return Response.json({ ...respuesta, maximo: MAX_OFERTAS }, { status: 201 });
   } catch (error) {
     if (error instanceof ErrorDeOferta) {
       return Response.json({ error: error.message }, { status: error.estado });

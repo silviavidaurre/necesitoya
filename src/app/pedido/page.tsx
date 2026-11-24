@@ -4,6 +4,7 @@ import { BotonPrimario, BotonSecundario, BotonTexto, Cabecera, Cargando, ErrorDe
 import { pesos, rubroPorId } from "@/lib/catalogo";
 import { ErrorDePedido, guardarMiPedido, leerMisPedidos, pedir } from "@/lib/cliente";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
+import { ActivarAvisos } from "@/components/ActivarAvisos";
 import { Diagnostico } from "@/components/Diagnostico";
 import { PantallaChat } from "@/components/PantallaChat";
 import { Estrellas, ResumenDeReputacion, Verificacion } from "@/components/Reputacion";
@@ -492,6 +493,9 @@ export default function SeguimientoPedido() {
           </span>
           <p className="mt-4 text-lg font-bold text-ink">Buscando prestadores</p>
           <p className="mt-1 text-[15px] text-ink-500">Aparecen acá apenas respondan. No hace falta actualizar.</p>
+          <div className="w-full text-left">
+            <ActivarAvisos para="¿Te avisamos cuando llegue un presupuesto?" />
+          </div>
           <div className="mt-6 w-full">
             <BotonSecundario onClick={verMuestra} disabled={pidiendoMuestra}>
               {pidiendoMuestra ? "Cargando" : "Ver presupuestos de muestra"}
