@@ -1,7 +1,7 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { prepararAppNativa } from "./lib/nativo";
+import { prepararAppNativa } from "@/integraciones/capacitor-android/nativo";
 import "./app/globals.css";
 import PerfilPublicoDePrestador from "./app/p/page";
 import SeguimientoPedido from "./app/pedido/page";

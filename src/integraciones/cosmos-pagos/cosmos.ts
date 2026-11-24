@@ -1,5 +1,5 @@
-import { variable } from "./config";
-import { billeteraValida } from "./stellar";
+import { variable } from "@/lib/config";
+import { billeteraValida } from "@/integraciones/cosmos-pagos/stellar";
 
 // Cliente mínimo de la API de Cosmos Pay (pagos en USDC sobre Stellar). Habla con la API REST con fetch,
 // así corre igual en el Worker y en desarrollo. La clave nunca sale del servidor ni se escribe en los registros.

@@ -1,6 +1,6 @@
 import { variable } from "./config";
-import { cosmosDisponible, modoDeCosmos, usdc } from "./cosmos";
-import { mercadoPagoDisponible } from "./mercadopago";
+import { cosmosDisponible, modoDeCosmos, usdc } from "@/integraciones/cosmos-pagos/cosmos";
+import { mercadoPagoDisponible } from "@/integraciones/mercadopago-pagos/mercadopago";
 import type { BaseDeDatos, EstadoDePago, Pago, PagoPublico, Prestador } from "./tipos";
 
 // Hay algún medio de pago configurado en el servidor.

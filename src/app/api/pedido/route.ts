@@ -1,4 +1,4 @@
-import { sondearProtegidos } from "@/lib/cosmos";
+import { sondearProtegidos } from "@/integraciones/cosmos-pagos/cosmos";
 import { leer } from "@/lib/db";
 import { seguimientoDe } from "@/lib/seguimiento";
 

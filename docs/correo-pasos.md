@@ -9,7 +9,7 @@
 
 ## Lo que se prende con el correo
 
-El código ya está hecho, detrás de configuración (`src/lib/correo.ts`). Con el correo prendido:
+El código ya está hecho, detrás de configuración (`src/integraciones/resend-correo/correo.ts`). Con el correo prendido:
 
 - **"¿Olvidaste tu contraseña?"** en la pantalla de entrar. Llega un enlace que sirve una sola vez y vence en 30 minutos.
 - **Baja por mail**: al pedirla en `/eliminar-cuenta` llega un enlace para confirmar. Al abrirlo, la cuenta se borra en el momento, sin esperar al equipo.

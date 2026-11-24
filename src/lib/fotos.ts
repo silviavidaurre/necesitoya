@@ -1,4 +1,4 @@
-import type { FotoParaIa } from "./ia";
+import type { FotoParaIa } from "@/integraciones/anthropic-ia/ia";
 
 const TIPOS = ["image/jpeg", "image/png", "image/webp"] as const;
 // La app achica la foto antes de mandarla; este tope es la red de seguridad del servidor (≈450 KB de imagen).

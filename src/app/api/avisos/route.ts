@@ -1,6 +1,6 @@
 import { cuentaDe, leer, modificar } from "@/lib/db";
-import { fcmDisponible, tokenValido } from "@/lib/fcm";
-import { clavePublicaVapid, endpointValido, pushDisponible } from "@/lib/push";
+import { fcmDisponible, tokenValido } from "@/integraciones/firebase-avisos/fcm";
+import { clavePublicaVapid, endpointValido, pushDisponible } from "@/integraciones/webpush-avisos/push";
 
 const CELULARES_POR_CUENTA = 5;
 

@@ -21,6 +21,5 @@ export function variable(nombre: string): string | undefined {
 export const claveDeIa = () => variable("ANTHROPIC_API_KEY");
 export const claveDeVoz = () => variable("ELEVENLABS_API_KEY");
 // Identificador público de la app en Google, para "Continuar con Google". No es secreto: viaja al navegador.
-export const idDeGoogle = () => variable("GOOGLE_CLIENT_ID");
 // Secreto del panel interno de moderación y métricas.
 export const secretoDeAdministracion = () => variable("ADMIN_SECRET");

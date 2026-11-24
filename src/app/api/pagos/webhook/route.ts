@@ -1,6 +1,6 @@
 import { avisar } from "@/lib/avisos";
 import { variable } from "@/lib/config";
-import { firmaValida } from "@/lib/cosmos";
+import { firmaValida } from "@/integraciones/cosmos-pagos/cosmos";
 import { modificar } from "@/lib/db";
 import { anotarEstado, estadoDeCobro, estadoProtegido } from "@/lib/pagos";
 

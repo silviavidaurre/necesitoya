@@ -1,5 +1,5 @@
-import { correoDisponible } from "@/lib/correo";
-import { idDeGoogle } from "@/lib/config";
+import { correoDisponible } from "@/integraciones/resend-correo/correo";
+import { idDeGoogle, verificarGoogle } from "@/integraciones/google-cuenta/google";
 import { conexionDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { huella, iguales } from "@/lib/contrasenas";
 import { limpiarTexto } from "@/lib/texto";
@@ -27,28 +27,6 @@ class ErrorDeCuenta extends Error {
 
 // --- Google ------------------------------------------------------------------------------------
 
-// Google confirma que el comprobante es suyo, está vigente y fue emitido para esta app.
-async function verificarGoogle(credencial: string, idDeLaApp: string): Promise<{ sub: string; nombre: string } | null> {
-  const control = new AbortController();
-  const reloj = setTimeout(() => control.abort(), 10_000);
-  try {
-    const respuesta = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credencial)}`, { signal: control.signal });
-    if (!respuesta.ok) return null;
-    const datos = (await respuesta.json()) as Record<string, unknown>;
-    const emisor = String(datos.iss ?? "");
-    if (datos.aud !== idDeLaApp) return null;
-    if (emisor !== "accounts.google.com" && emisor !== "https://accounts.google.com") return null;
-    if (Number(datos.exp) * 1000 < Date.now()) return null;
-    const sub = typeof datos.sub === "string" ? datos.sub : "";
-    if (!sub) return null;
-    const nombre = limpiarTexto(datos.given_name ?? datos.name ?? "", 40) || "Vecino";
-    return { sub, nombre };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(reloj);
-  }
-}
 
 // --- Mail y contraseña -------------------------------------------------------------------------
 

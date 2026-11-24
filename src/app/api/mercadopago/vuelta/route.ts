@@ -1,5 +1,5 @@
 import { modificar } from "@/lib/db";
-import { ErrorDeMercadoPago, conectarVendedor, leerEstadoDeConexion, mercadoPagoDisponible } from "@/lib/mercadopago";
+import { ErrorDeMercadoPago, conectarVendedor, leerEstadoDeConexion, mercadoPagoDisponible } from "@/integraciones/mercadopago-pagos/mercadopago";
 
 // Mercado Pago vuelve acá después de que el prestador autoriza. Se guardan sus credenciales (privadas) y se lo
 // devuelve a su perfil con el resultado.

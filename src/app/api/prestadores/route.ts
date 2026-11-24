@@ -2,7 +2,7 @@ import { RUBRO_IDS, type RubroId } from "@/lib/catalogo";
 import { cuentaDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { sinContacto } from "@/lib/chat";
 import { esCuentaDemo } from "@/lib/demo";
-import { billeteraValida } from "@/lib/stellar";
+import { billeteraValida } from "@/integraciones/cosmos-pagos/stellar";
 import { reputacionDe } from "@/lib/reglas";
 import { limpiarLista, limpiarTexto as texto } from "@/lib/texto";
 import type { Prestador } from "@/lib/tipos";

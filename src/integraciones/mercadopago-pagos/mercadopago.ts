@@ -1,4 +1,4 @@
-import { variable } from "./config";
+import { variable } from "@/lib/config";
 
 // Mercado Pago como marketplace: cada prestador conecta su cuenta de Mercado Pago (OAuth) y el vecino le paga
 // directo en pesos; la comisión fija de NecesitoYa se separa sola con `marketplace_fee`. No queda retenido.

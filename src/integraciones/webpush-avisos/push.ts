@@ -1,4 +1,4 @@
-import { variable } from "./config";
+import { variable } from "@/lib/config";
 
 // Avisos web push con VAPID. Se mandan SIN contenido: el aviso solo despierta al service worker del celular,
 // que pide el texto a /api/avisos/ultimo. Así no hace falta cifrar nada y el texto nunca pasa por el servicio de push.
