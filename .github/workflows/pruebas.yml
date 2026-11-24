@@ -1,0 +1,27 @@
+name: Pruebas en producción
+
+# Corre todas las tandas de pruebas contra la app publicada, desde una conexión de GitHub.
+# Las tandas usan cuentas .test que no cuentan en las métricas y se borran al final.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Dirección de la app
+        default: https://necesitoya.gabriel13iturre.workers.dev
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Todas las tandas
+        env:
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          PRUEBA_BILLETERA: ${{ secrets.PRUEBA_BILLETERA }}
+        run: node scripts/pruebas.mjs "${{ github.event.inputs.url || 'https://necesitoya.gabriel13iturre.workers.dev' }}"
