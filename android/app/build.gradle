@@ -14,10 +14,10 @@ def datoDeFirma = { String clave, String variable ->
 def hayFirma = datoDeFirma('storeFile', 'NECESITOYA_UPLOAD_STORE_FILE') != null
 
 android {
-    namespace = "com.necesitoya.app"
+    namespace = "com.iturrelabs.necesitoya"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.necesitoya.app"
+        applicationId "com.iturrelabs.necesitoya"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // GitHub Actions pasa un número que siempre sube; en una compu se usa el de acá.
