@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { BotonMic } from "@/components/BotonMic";
 import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
@@ -49,6 +50,7 @@ export function PantallaOferta({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [posicion, setPosicion] = useState<number | null>(null);
+  useCerrarConAtras(() => (posicion ? alEnviar() : alCerrar()));
 
   // Copia al día del mensaje: al enviar se espera lo último que se dictó y se manda completo,
   // aunque la pantalla todavía no se haya vuelto a dibujar.

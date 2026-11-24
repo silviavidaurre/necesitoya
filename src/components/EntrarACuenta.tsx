@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { recordarPrestador } from "@/components/usePrestador";
 import { PantallaEliminarCuenta } from "@/components/EliminarCuenta";
 import { Link } from "@/lib/navegacion";
+import { esAppNativa } from "@/lib/nativo";
 import { BotonSecundario, Campo, claseCampo } from "@/components/ui";
 import {
   borrarPrestadorId,
@@ -163,6 +164,9 @@ export function EntrarACuenta({
       }
     }
 
+    // Dentro de la app de Android, Google no deja entrar desde una página web (WebView): queda mail y contraseña.
+    // Para Google adentro de la app hace falta el inicio de sesión nativo (pendiente).
+    if (esAppNativa()) return;
     pedirIdDeLaApp().then(async (id) => {
       if (!id || !vigente) return;
       try {

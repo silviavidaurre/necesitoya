@@ -1,6 +1,7 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { prepararAppNativa } from "./lib/nativo";
 import "./app/globals.css";
 import PerfilPublicoDePrestador from "./app/p/page";
 import SeguimientoPedido from "./app/pedido/page";
@@ -27,10 +28,18 @@ function TemaSegunPantalla() {
   return null;
 }
 
+// Dentro de la app de Android: botón atrás del celular y avisos nativos que abren su pantalla.
+function PreparacionNativa() {
+  const navegar = useNavigate();
+  useEffect(() => prepararAppNativa((ruta) => navegar(ruta)), [navegar]);
+  return null;
+}
+
 createRoot(document.getElementById("raiz")!).render(
   <StrictMode>
     <BrowserRouter>
       <TemaSegunPantalla />
+      <PreparacionNativa />
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-white">
         <Routes>
           <Route path="/" element={<Pedir />} />

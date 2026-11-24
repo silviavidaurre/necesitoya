@@ -6,7 +6,9 @@
 #   NECESITOYA_UPLOAD_KEYSTORE_BASE64  la llave de subida (.jks) en base64
 #   NECESITOYA_UPLOAD_STORE_PASSWORD   contraseña del almacén
 #   NECESITOYA_UPLOAD_KEY_PASSWORD     contraseña de la llave
-# Sin esos secretos el paquete sale sin firmar: sirve para ver que compila, no para subirlo a Play.
+#   NECESITOYA_GOOGLE_SERVICES_JSON_BASE64  el google-services.json de Firebase en base64 (avisos nativos)
+# Sin los de la llave el paquete sale sin firmar: sirve para ver que compila, no para subirlo a Play.
+# Sin el de Firebase la app sale igual, pero sin avisos nativos (la web no los ofrece adentro de la app).
 name: Android
 
 on:
@@ -36,6 +38,16 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Agregar Firebase (avisos nativos)
+        env:
+          FIREBASE: ${{ secrets.NECESITOYA_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -n "$FIREBASE" ]; then
+            echo "$FIREBASE" | base64 -d > android/app/google-services.json
+          else
+            echo "::warning::Sin google-services.json: la app sale sin avisos nativos."
+          fi
 
       - name: Armar la web y copiarla al proyecto de Android
         run: |

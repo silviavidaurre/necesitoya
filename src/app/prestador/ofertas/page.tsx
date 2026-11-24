@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { PantallaCambiarDia, PantallaReclamo } from "@/components/Gestiones";
 import { NavPrestador } from "@/components/NavPrestador";
 import { PantallaChat } from "@/components/PantallaChat";
@@ -278,6 +279,7 @@ function PantallaTerminado({
   const [error, setError] = useState("");
   const entrada = useRef<HTMLInputElement>(null);
   const pila = oferta.cliente?.nombre || "El vecino";
+  useCerrarConAtras(alCerrar);
 
   async function elegir(archivo: File | undefined) {
     if (!archivo) return;
