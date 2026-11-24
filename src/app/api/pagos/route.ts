@@ -42,6 +42,10 @@ function responderError(error: unknown) {
   if (error instanceof ErrorDePago) return Response.json({ error: error.message }, { status: error.estado });
   if (error instanceof ErrorDeMercadoPago) return Response.json({ error: "Mercado Pago no aceptó el pago. Probá de nuevo en un rato." }, { status: 502 });
   if (error instanceof ErrorDeCosmos) {
+    // Si la que no acepta USDC es la billetera de la comisión, el problema es nuestro, no del prestador.
+    if (error.codigo === "trustline_missing" && /merchant fee/i.test(error.message)) {
+      return Response.json({ error: "El pago por la app no está disponible en este momento. Arreglen el pago por el chat.", codigo: "comision_sin_usdc" }, { status: 503 });
+    }
     const mensaje =
       error.codigo === "trustline_missing"
         ? "La billetera del prestador todavía no acepta USDC. Avisale por el chat."
