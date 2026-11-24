@@ -1,5 +1,5 @@
 import { idDeGoogle } from "@/lib/config";
-import { dentroDelCupo, leer, modificar, nuevoId } from "@/lib/db";
+import { conexionDe, dentroDelCupo, dentroDelCupoDe, leer, modificar, nuevoId } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
 import type { BaseDeDatos, Cuenta } from "@/lib/tipos";
 
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
   const contrasena = typeof cuerpo.contrasena === "string" ? cuerpo.contrasena : "";
   if (!MAIL_VALIDO.test(email)) return Response.json({ error: "Escribí un mail válido, por ejemplo nombre@gmail.com." }, { status: 400 });
   if (contrasena.length < 6 || contrasena.length > 100) return Response.json({ error: "La contraseña tiene que tener al menos 6 caracteres." }, { status: 400 });
-  if (!(await dentroDelCupo("cuentas"))) return Response.json({ error: "Hoy hubo demasiados ingresos. Probá de nuevo mañana." }, { status: 429 });
+  if (!(await dentroDelCupo("cuentas")) || !(await dentroDelCupoDe("cuentasPorConexion", conexionDe(request)))) return Response.json({ error: "Hoy hubo demasiados ingresos. Probá de nuevo mañana." }, { status: 429 });
 
   const sub = `mail:${email}`;
   const existente = (await leer()).cuentas?.find((c) => c.sub === sub);
