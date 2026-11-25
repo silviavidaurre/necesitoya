@@ -111,9 +111,16 @@ export default function PerfilPrestador() {
   if (sinConexion) return <SinConexion alReintentar={reintentar} />;
   if (cargando || !prestador || !perfil)
     return error ? (
-      <Pantalla conNav>
-        <ErrorDePantalla>{error}</ErrorDePantalla>
-      </Pantalla>
+      // Sin señal: una frase, reintentar y la barra para ir a otra pestaña (no una pantalla sin salida).
+      <>
+        <SinConexion
+          alReintentar={() => {
+            setError("");
+            void cargar();
+          }}
+        />
+        <NavPrestador />
+      </>
     ) : (
       <Cargando />
     );

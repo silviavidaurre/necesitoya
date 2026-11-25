@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { rubroPorId, type RubroId } from "@/lib/catalogo";
-import { leerMisPedidos, pedir, type PedidoGuardado } from "@/lib/cliente";
+import { ErrorDePedido, leerMisPedidos, pedir, type PedidoGuardado } from "@/lib/cliente";
 import { fechaCorta } from "@/lib/fechas";
 import type { Seguimiento } from "@/lib/seguimiento";
 import { textoDeTurno } from "@/lib/turnos";
@@ -63,6 +63,7 @@ export function iconoDe(pedido: MiPedido) {
 export function useMisPedidos(limite = 20) {
   const [pedidos, setPedidos] = useState<MiPedido[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [sinActualizar, setSinActualizar] = useState(0);
 
   useEffect(() => {
     let vigente = true;
@@ -72,15 +73,24 @@ export function useMisPedidos(limite = 20) {
       setCargando(false);
       return;
     }
+    // Cada pedido se completa apenas llega su respuesta: uno lento (o sin señal) no frena a los demás.
+    let fallas = 0;
     void Promise.all(
       guardados.map((g) =>
         pedir<Seguimiento>(`/api/pedido?id=${encodeURIComponent(g.id)}&clave=${encodeURIComponent(g.clave)}`)
-          .then((datos) => resumirPedido(g, datos))
-          .catch(() => resumirPedido(g, null)),
+          .then((datos) => {
+            if (vigente) setPedidos((antes) => antes.map((p) => (p.id === g.id ? resumirPedido(g, datos) : p)));
+          })
+          .catch((e) => {
+            // Borrado o de otra cuenta: no es falta de señal, se dice que ya no está.
+            if (e instanceof ErrorDePedido && (e.estado === 404 || e.estado === 403)) {
+              if (vigente) setPedidos((antes) => antes.map((p) => (p.id === g.id ? { ...p, texto: "Ya no está disponible" } : p)));
+            } else fallas += 1;
+          }),
       ),
-    ).then((lista) => {
+    ).then(() => {
       if (!vigente) return;
-      setPedidos(lista);
+      setSinActualizar(fallas);
       setCargando(false);
     });
     return () => {
@@ -88,5 +98,6 @@ export function useMisPedidos(limite = 20) {
     };
   }, [limite]);
 
-  return { pedidos, cargando };
+  // sinActualizar: cuántos no se pudieron traer (sin señal, o el pedido ya no existe).
+  return { pedidos, cargando, sinActualizar };
 }

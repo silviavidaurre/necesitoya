@@ -28,7 +28,7 @@ import {
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { ESTADOS_DE_TRABAJO, sePuedeReprogramar, siguienteEstado, textoDeTurno, type EstadoDeTrabajo } from "@/lib/turnos";
 import { pesos, type RubroId } from "@/lib/catalogo";
-import { pedir } from "@/lib/cliente";
+import { ErrorDePedido, pedir } from "@/lib/cliente";
 import { fechaCorta } from "@/lib/fechas";
 import { useRouter } from "@/lib/navegacion";
 import type { EstadoDePago, Oferta, PagoPublico } from "@/lib/tipos";
@@ -126,9 +126,19 @@ export default function MisOfertas() {
 
   useEffect(() => {
     cargar();
-    // Se actualiza sola para que el prestador vea enseguida si lo eligieron o le escribieron.
-    const reloj = setInterval(cargar, 12_000);
-    return () => clearInterval(reloj);
+    // Se actualiza sola para que el prestador vea enseguida si lo eligieron o le escribieron. Con la app de fondo
+    // no gasta datos, y al volver (por ejemplo, desde Google Maps) se actualiza en el momento.
+    const reloj = setInterval(() => {
+      if (document.visibilityState === "visible") cargar();
+    }, 12_000);
+    const alVolver = () => {
+      if (document.visibilityState === "visible") cargar();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      clearInterval(reloj);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
   }, [cargar]);
 
   // Avanza el trabajo un paso (Salgo, Llegué, Empecé). El último, Terminé, pide la foto del después.
@@ -139,10 +149,17 @@ export default function MisOfertas() {
     setAvanzando(oferta.id);
     setError("");
     try {
-      await pedir("/api/ofertas/estado", { method: "POST", body: JSON.stringify({ prestadorId, ofertaId: oferta.id, estado: siguiente }) });
-      await cargar();
+      const respuesta = await pedir<{ trabajo?: Oferta["trabajo"] }>("/api/ofertas/estado", {
+        method: "POST",
+        body: JSON.stringify({ prestadorId, ofertaId: oferta.id, estado: siguiente }),
+      });
+      // El paso nuevo se ve enseguida, aunque el refresco que sigue tarde o falle.
+      if (respuesta.trabajo) setOfertas((antes) => antes?.map((o) => (o.id === oferta.id ? { ...o, trabajo: respuesta.trabajo } : o)) ?? antes);
+      void cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No pudimos avisar. Probá de nuevo.");
+      // 409: el trabajo cambió desde otro lado (otro celular, o el vecino canceló). Se trae cómo está ahora.
+      if (e instanceof ErrorDePedido && e.estado === 409) await cargar();
+      else setError(e instanceof Error ? e.message : "No pudimos avisar. Probá de nuevo.");
     } finally {
       setAvanzando(null);
     }
@@ -166,8 +183,11 @@ export default function MisOfertas() {
         prestadorId={prestador.id}
         alCerrar={() => setCerrando(null)}
         alTerminar={() => {
+          // Se marca terminado acá mismo: si no, por un momento volvería a verse el trabajo "Trabajando".
+          const id = cerrando.id;
+          setOfertas((antes) => antes?.map((o) => (o.id === id ? { ...o, terminado: o.terminado ?? { creado: new Date().toISOString(), fotoId: null } } : o)) ?? antes);
           setCerrando(null);
-          cargar();
+          void cargar();
         }}
       />
     );
@@ -213,7 +233,18 @@ export default function MisOfertas() {
     </>
   );
 
-  const trabajo = idDelTrabajo ? ofertas?.find((o) => o.id === idDelTrabajo && enCurso(o)) : undefined;
+  const abierto = idDelTrabajo ? ofertas?.find((o) => o.id === idDelTrabajo && o.estado === "elegida") : undefined;
+  const trabajo = abierto && enCurso(abierto) ? abierto : undefined;
+  // El trabajo que estaba abierto ya no sigue (el vecino canceló, o se terminó): se avisa qué pasó, en vez de
+  // cambiar la pantalla por la lista sin explicación.
+  if (abierto && !trabajo) {
+    return (
+      <>
+        <TrabajoCerrado oferta={abierto} alVolver={cerrarTrabajo} alEscribir={conChat(abierto) ? () => setChat(abierto) : undefined} />
+        {capas}
+      </>
+    );
+  }
   if (trabajo) {
     return (
       <>
@@ -257,6 +288,14 @@ export default function MisOfertas() {
         </div>
 
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+
+        {/* Mientras llega la primera respuesta, una rueda: con mala señal la pantalla no queda en blanco. */}
+        {ofertas === null && !error && (
+          <div className="mt-12 flex flex-col items-center gap-3" role="status">
+            <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-line border-t-acento" aria-hidden="true" />
+            <span className="text-[15px] text-ink-500">Cargando tus presupuestos</span>
+          </div>
+        )}
 
         {vacio && (
           <div className="mt-10 flex flex-col items-center text-center">
@@ -489,7 +528,8 @@ function TrabajoEnCurso({
   return (
     <Pantalla
       mapa={
-        <Mapa alto={400} variante={estado === "confirmado" ? "destino" : "ruta"} progreso={progreso} rutaEnAcento>
+        // Más bajo que antes: en un celular chico la dirección y los botones quedan a la vista sin bajar.
+        <Mapa alto={300} variante={estado === "confirmado" ? "destino" : "ruta"} progreso={progreso} rutaEnAcento>
           <BotonFlotante icono="atras" etiqueta="Volver a mis presupuestos" onClick={alVolver} />
           <PildoraFlotante>
             <span className="cifra">{cuandoDe(oferta)}</span>
@@ -500,7 +540,8 @@ function TrabajoEnCurso({
         siguiente && DESLIZAR[siguiente] ? (
           <>
             {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
-            <DeslizarParaConfirmar texto={DESLIZAR[siguiente] ?? ""} accion={accion} alConfirmar={alAvanzar} ocupado={ocupado} />
+            {/* Un control nuevo por paso: lo que se mostró en el paso anterior (como el atajo "Confirmar") no pasa al siguiente. */}
+            <DeslizarParaConfirmar key={siguiente} texto={DESLIZAR[siguiente] ?? ""} accion={accion} alConfirmar={alAvanzar} ocupado={ocupado} />
           </>
         ) : undefined
       }
@@ -528,6 +569,54 @@ function TrabajoEnCurso({
           <Estado tono={oferta.pago.estado === "en_disputa" ? "mal" : oferta.pago.estado === "pendiente" ? "neutro" : "bien"}>{PAGO_PARA_EL_PRESTADOR[oferta.pago.estado]}</Estado>
         </p>
       )}
+    </Pantalla>
+  );
+}
+
+// El trabajo que tenía abierto ya no está en curso: el vecino canceló, o el prestador avisó que terminó.
+// Se dice qué pasó y qué sigue, con un solo botón para volver.
+function TrabajoCerrado({ oferta, alVolver, alEscribir }: { oferta: OfertaConPedido; alVolver: () => void; alEscribir?: () => void }) {
+  useCerrarConAtras(alVolver);
+  const pila = pilaDe(oferta);
+  const cancelado = oferta.pedido?.estado === "cancelado";
+  const confirmado = Boolean(oferta.pedido?.confirmado);
+  const titulo = cancelado ? `${pila.charAt(0).toUpperCase()}${pila.slice(1)} canceló el pedido` : confirmado ? "Trabajo confirmado" : oferta.terminado ? "¡Listo, terminaste!" : "Este trabajo ya no está activo";
+  const texto = cancelado
+    ? "No hace falta que vayas. Si tuviste algún problema, escribile por el chat."
+    : confirmado
+      ? `${pila.charAt(0).toUpperCase()}${pila.slice(1)} confirmó que quedó bien. Gracias por usar NecesitoYa.`
+      : oferta.terminado
+        ? `Ahora ${pila} mira la foto y confirma que quedó bien. Te avisamos cuando lo haga.`
+        : "Lo encontrás en tus presupuestos.";
+  useEffect(() => {
+    document.title = `${titulo} · NecesitoYa`;
+  }, [titulo]);
+  return (
+    <Pantalla pie={<BotonPrimario onClick={alVolver}>Volver a mis presupuestos</BotonPrimario>}>
+      <Cabecera alVolver={alVolver} />
+      <div className="mt-6 flex flex-col items-start">
+        <span className={`flex h-16 w-16 items-center justify-center rounded-full ${cancelado ? "bg-subtle text-ink" : "bg-success text-white"}`} aria-hidden="true">
+          <Icono nombre={cancelado ? "cerrar" : "check"} size={30} />
+        </span>
+        <h1 className="mt-5 text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">{titulo}</h1>
+        <p className="mt-2 text-base leading-snug text-ink-500">{texto}</p>
+        <p className="mt-4 text-[15px] text-ink-500">
+          {oferta.pedido?.titulo} · <span className="cifra font-bold text-ink">{pesos(oferta.precio)}</span>
+        </p>
+        {oferta.pago && !cancelado && (
+          <p className="mt-2">
+            <Estado tono={oferta.pago.estado === "en_disputa" ? "mal" : oferta.pago.estado === "pendiente" ? "neutro" : "bien"}>{PAGO_PARA_EL_PRESTADOR[oferta.pago.estado]}</Estado>
+          </p>
+        )}
+        {alEscribir && (
+          <div className="mt-6 w-full">
+            <BotonSecundario onClick={alEscribir}>
+              <Icono nombre="mensaje" size={20} />
+              Escribirle a {pila}
+            </BotonSecundario>
+          </div>
+        )}
+      </div>
     </Pantalla>
   );
 }
@@ -578,6 +667,8 @@ function PantallaTerminado({
       });
       alTerminar();
     } catch (e) {
+      // Si la respuesta anterior se perdió y ya había quedado guardado, no es un error: ya está terminado.
+      if (e instanceof ErrorDePedido && e.estado === 409 && /ya marcaste/i.test(e.message)) return alTerminar();
       setError(e instanceof Error ? e.message : "No pudimos guardarlo. Probá de nuevo.");
       setEnviando(false);
     }

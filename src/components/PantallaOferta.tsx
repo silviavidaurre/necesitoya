@@ -5,7 +5,7 @@ import { BotonMic } from "@/components/BotonMic";
 import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { HojaDeAbajo } from "@/components/Hoja";
-import { FRANJAS, hoyEnJujuy, mismoTurno, nombreDelDia, numeroDelDia, proximosDias, sumarDias, textoDeTurno, type Franja, type Turno } from "@/lib/turnos";
+import { FIN_DE_FRANJA, FRANJAS, hoyEnJujuy, mismoTurno, turnoVigente, nombreDelDia, numeroDelDia, proximosDias, sumarDias, textoDeTurno, type Franja, type Turno } from "@/lib/turnos";
 import { useDictado } from "@/components/useDictado";
 import { BotonPrimario, Cabecera, Chip, ErrorDePantalla, Estado, Falta, Icono, claseCampo } from "@/components/ui";
 import { MAX_OFERTAS, pesos, rubroPorId } from "@/lib/catalogo";
@@ -16,7 +16,6 @@ import type { PedidoParaPrestador } from "@/lib/tipos";
 const URGENCIA = { hoy: "Para hoy", semana: "Esta semana", flexible: "Sin apuro" } as const;
 
 // Hora en que termina cada franja: la de hoy que ya pasó (o está por terminar) no se sugiere.
-const FIN_DE_FRANJA: Record<Franja, number> = { manana: 12, tarde: 17, noche: 21 };
 
 // Tres precios para tocar en vez de escribir: el piso, el medio y el techo de lo que suele costar.
 function preciosRapidos(minimo: number | null, maximo: number | null) {
@@ -100,8 +99,19 @@ export function PantallaOferta({
   const pila = pedido.clienteNombre.split(" ")[0] || "el vecino";
   const numero = Number(precio);
   const rapidos = preciosRapidos(pedido.precioMin, pedido.precioMax);
-  const faltaAlgo = numero < 1000 ? "Falta tu precio" : turnos.length === 0 ? "Elegí al menos un día y un horario" : "";
-  const puedeEnviar = numero >= 1000 && turnos.length > 0 && puedePresupuestar;
+  // El servidor acepta de $1.000 a $50.000.000: se avisa acá, con un motivo claro, en vez de un error genérico.
+  const TOPE_DE_PRECIO = 50_000_000;
+  const faltaAlgo =
+    numero === 0
+      ? "Falta tu precio"
+      : numero < 1000
+        ? "El precio mínimo es $1.000"
+        : numero > TOPE_DE_PRECIO
+          ? "El precio máximo es $50.000.000"
+          : turnos.length === 0
+            ? "Elegí al menos un día y un horario"
+            : "";
+  const puedeEnviar = numero >= 1000 && numero <= TOPE_DE_PRECIO && turnos.length > 0 && puedePresupuestar;
   const lejos =
     numero >= 1000 && pedido.precioMin !== null && pedido.precioMax !== null && (numero < pedido.precioMin * 0.6 || numero > pedido.precioMax * 1.6);
   const otrosTurnos = turnos.filter((t) => !sugeridos.some((s) => mismoTurno(s, t)));
@@ -180,6 +190,8 @@ export function PantallaOferta({
               </span>
             </span>
           </div>
+          {/* Lo que pidió, a la vista: no se presupuesta sin leerlo. El resto, en "Ver el pedido completo". */}
+          {!verMas && pedido.descripcion && <p className="mt-2.5 line-clamp-2 text-[15px] leading-snug text-ink">{pedido.descripcion}</p>}
           {pedido.diagnostico?.causa && (
             <p className="mt-2.5 flex gap-2 text-sm leading-snug text-ink">
               <Icono nombre="alerta" size={16} className="mt-0.5 shrink-0" />
@@ -244,7 +256,8 @@ export function PantallaOferta({
                 <input
                   className="cifra h-[72px] w-full rounded-[18px] bg-subtle pl-12 pr-[18px] text-[36px] font-bold tracking-[-0.02em] text-ink outline-none placeholder:text-ink-500 focus:ring-2 focus:ring-ink"
                   value={precio ? new Intl.NumberFormat("es-AR").format(Number(precio)) : ""}
-                  onChange={(e) => setPrecio(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  // Lo que va después de la coma son centavos: "78.000,50" es $78.000, no $7.800.050.
+                  onChange={(e) => setPrecio(e.target.value.split(",")[0].replace(/\D/g, "").slice(0, 8))}
                   inputMode="numeric"
                   placeholder="0"
                   aria-describedby="ayuda-precio"
@@ -387,14 +400,17 @@ export function PantallaOferta({
                   {FRANJAS.map((franja) => {
                     const turno = { dia, franja: franja.id };
                     const activo = turnos.some((t) => mismoTurno(t, turno));
+                    // Hoy, una franja que ya terminó (o termina en menos de una hora) no se puede ofrecer.
+                    const paso = !turnoVigente(turno);
                     return (
                       <button
                         key={franja.id}
                         type="button"
                         aria-pressed={activo}
-                        aria-label={`${nombreDelDia(dia)} ${numeroDelDia(dia)}, ${franja.texto}`}
+                        disabled={paso && !activo}
+                        aria-label={`${nombreDelDia(dia)} ${numeroDelDia(dia)}, ${franja.texto}${paso ? ", ya pasó" : ""}`}
                         onClick={() => alternarTurno(turno)}
-                        className={`cifra h-11 rounded-xl border-2 text-sm text-ink ${activo ? "border-ink bg-subtle font-bold" : "border-transparent bg-subtle font-semibold"}`}
+                        className={`cifra h-11 rounded-xl border-2 text-sm text-ink disabled:text-ink-400 disabled:line-through ${activo ? "border-ink bg-subtle font-bold" : "border-transparent bg-subtle font-semibold"}`}
                       >
                         {franja.texto}
                       </button>

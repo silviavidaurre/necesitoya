@@ -145,8 +145,10 @@ export default function Pedir() {
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [leerSolo, setLeerSolo] = useState(false);
 
-  const [nombre, setNombre] = useState(recordado.nombre);
-  const tieneNombre = recordado.nombre.trim().length >= 2;
+  // Si ya entró con su cuenta (por ejemplo desde Cuenta), el nombre sale de ahí: no se lo volvemos a pedir.
+  const [nombreInicial] = useState(() => (recordado.nombre.trim() ? recordado.nombre : (leerCuenta()?.nombre ?? "")));
+  const [nombre, setNombre] = useState(nombreInicial);
+  const tieneNombre = nombreInicial.trim().length >= 2;
   const [cambiandoContacto, setCambiandoContacto] = useState(!tieneNombre);
   const [faltas, setFaltas] = useState<{ nombre?: string }>({});
   const [publicando, setPublicando] = useState(false);
@@ -154,8 +156,10 @@ export default function Pedir() {
   const idCliente = useRef(crypto.randomUUID());
 
   // Si la página se recargó en "revisar" ya no hay pedido armado: se muestra Contar, con lo contado guardado.
-  const enRevision = paso === "revisar" && titulo !== "";
-  const enContar = paso === "contar" || (paso === "revisar" && titulo === "");
+  // Se marca aparte que el pedido ya está armado: así, si se borra el título al corregirlo, no se vuelve a Contar.
+  const [armado, setArmado] = useState(false);
+  const enRevision = paso === "revisar" && armado;
+  const enContar = paso === "contar" || (paso === "revisar" && !armado);
 
   // Volver a Contar con el botón atrás después de publicar deja la pantalla vacía: ahí se va al inicio.
   useEffect(() => {
@@ -203,6 +207,7 @@ export default function Pedir() {
         espera: 45_000,
       });
       setTitulo(resultado.pedido.titulo);
+      setArmado(true);
       setDescripcion(resultado.pedido.descripcion);
       setRubro(rubroElegido ?? resultado.pedido.rubro);
       setUrgencia(urgenciaElegida ?? resultado.pedido.urgencia);
@@ -271,6 +276,8 @@ export default function Pedir() {
         <span className="h-12 w-12 animate-spin rounded-full border-[3px] border-line border-t-ink" aria-hidden="true" />
         <h1 className="text-2xl font-bold text-ink">Armando tu pedido</h1>
         <p className="text-[17px] text-ink-500">Tarda unos segundos.</p>
+        {/* En la app de Android, el atrás no la cierra mientras se arma (puede tardar con mala señal): se queda acá. */}
+        <AtrasVuelveUnPaso alVolver={() => undefined} />
       </main>
     );
   }
@@ -295,7 +302,8 @@ export default function Pedir() {
         key="revisar"
         pie={
           <>
-            {falta && <Falta>{falta}</Falta>}
+            {/* El error va pegado al botón: al final del contenido quedaba fuera de vista. */}
+            {error ? <ErrorDePantalla>{error}</ErrorDePantalla> : falta && <Falta>{falta}</Falta>}
             <BotonPrimario onClick={publicar} disabled={Boolean(falta)} cargando={publicando}>
               Pedir presupuestos
             </BotonPrimario>
@@ -378,7 +386,6 @@ export default function Pedir() {
         )}
 
         {foto && <img src={foto.vistaPrevia} alt="Foto que mandaste" className="mt-6 max-h-52 w-full rounded-[22px] object-cover" />}
-        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
     );
   }
@@ -532,7 +539,7 @@ export default function Pedir() {
             <button
               key={id}
               type="button"
-              onClick={() => abrirContar({ rubro: id, ...(relato.trim() ? {} : { relato: `Necesito un trabajo de ${oficio.nombre.toLowerCase()}: ` }) })}
+              onClick={() => abrirContar({ rubro: id })}
               className="flex w-[76px] shrink-0 flex-col items-center gap-2 text-center text-[13px] font-semibold leading-tight text-ink"
             >
               <span className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-subtle active:bg-line" aria-hidden="true">

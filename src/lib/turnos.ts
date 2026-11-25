@@ -61,6 +61,17 @@ export function mismoTurno(a: Turno, b: Turno) {
   return a.dia === b.dia && a.franja === b.franja;
 }
 
+// Hora en que termina cada franja (hora de Jujuy).
+export const FIN_DE_FRANJA: Record<Franja, number> = { manana: 12, tarde: 17, noche: 21 };
+
+// Un turno sigue sirviendo si es de un día que viene, o de hoy y a su franja le queda más de una hora.
+export function turnoVigente(turno: Turno, ahora = Date.now()) {
+  const hoy = hoyEnJujuy(ahora);
+  if (turno.dia > hoy) return true;
+  if (turno.dia < hoy) return false;
+  return new Date(ahora - 3 * 3600_000).getUTCHours() < FIN_DE_FRANJA[turno.franja] - 1;
+}
+
 // Deja solo turnos válidos: días de hoy a dos semanas, franjas conocidas, sin repetir, ordenados.
 export function limpiarTurnos(valor: unknown, ahora = Date.now()): Turno[] {
   if (!Array.isArray(valor)) return [];
