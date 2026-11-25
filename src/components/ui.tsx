@@ -208,7 +208,7 @@ export function Pantalla({
         {/* El espacio para el pie o la barra va dentro de la hoja: así la hoja blanca llega hasta abajo, sin una
             franja gris entre el contenido y la barra flotante. */}
         <main className="flex flex-1 flex-col">
-          <div className="relative -mb-8">{mapa}</div>
+          <div className="mapa-bajo-hoja relative -mb-8">{mapa}</div>
           <div className={`relative flex flex-1 flex-col rounded-t-[28px] bg-white px-5 pt-2.5 ${claseAbajo}`} style={{ boxShadow: "var(--sombra-panel)", ...abajo }}>
             <span className="mb-3 h-[5px] w-10 shrink-0 self-center rounded-full bg-line" aria-hidden="true" />
             {children}

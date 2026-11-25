@@ -204,7 +204,8 @@ export function MapaReal({
           [oeste, sur],
           [este, norte],
         ],
-        { padding: { top: 76, bottom: 40, left: 50, right: 50 }, maxZoom: 16, duration: 800 },
+        // Arriba quedan los botones (volver, "En vivo") y abajo la hoja tapa 32 px: las marcas van fuera de eso.
+        { padding: { top: 100, bottom: 72, left: 60, right: 60 }, maxZoom: 16, duration: 800 },
       );
     } else {
       marcas.current.prestador?.remove();
@@ -215,7 +216,9 @@ export function MapaReal({
   if (fallo && respaldo) return <>{respaldo}</>;
   return (
     <div className="relative w-full overflow-hidden" style={{ height: alto, background: "var(--mapa-fondo)" }}>
-      <div ref={contenedor} className="absolute inset-0" aria-label={prestador ? "Mapa: dónde está el prestador y tu casa" : "Mapa: tu casa"} role="img" />
+      {/* Posición en línea: la hoja de Mapbox pone `.mapboxgl-map { position: relative }` sin capa y le gana a la
+          clase `absolute` de Tailwind (que va en una capa); con eso el contenedor quedaba de alto 0 y el mapa no se veía. */}
+      <div ref={contenedor} style={{ position: "absolute", inset: 0 }} aria-label={prestador ? "Mapa: dónde está el prestador y tu casa" : "Mapa: tu casa"} role="img" />
       {fallo && <p className="absolute inset-x-4 bottom-3 text-center text-[13px] text-ink-500">No pudimos cargar el mapa.</p>}
       {children && <div className="absolute inset-x-4 top-4 flex items-center justify-between">{children}</div>}
     </div>
