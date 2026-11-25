@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MapaReal, useTokenDeMapa, type Punto } from "@/integraciones/mapbox-mapa/MapaReal";
 
 // Mapa dibujado a mano (SVG propio): calles, un río, una plaza y el punto del trabajo. No es un mapa real ni usa
 // servicios de mapas: sirve de fondo para ubicarse, como en las apps de viajes. Los colores salen de los tokens,
@@ -48,7 +49,24 @@ function Casa({ x, y }: { x: number; y: number }) {
   );
 }
 
-export function Mapa({
+// Con `real` (la pantalla de seguimiento) se usa el mapa real de Mapbox si está configurado; si no, el dibujado.
+export function Mapa(props: Parameters<typeof MapaDibujado>[0] & { real?: { calle?: string; zona: string; punto?: Punto; prestador?: Punto | null; oscuro?: boolean } }) {
+  const { real, ...resto } = props;
+  if (!real) return <MapaDibujado {...resto} />;
+  return <MapaConReal real={real} {...resto} />;
+}
+
+function MapaConReal({ real, ...resto }: Parameters<typeof MapaDibujado>[0] & { real: NonNullable<Parameters<typeof Mapa>[0]["real"]> }) {
+  const token = useTokenDeMapa();
+  if (!token) return <MapaDibujado {...resto} />;
+  return (
+    <MapaReal token={token} alto={resto.alto ?? 240} oscuro={real.oscuro} casa={{ calle: real.calle, zona: real.zona, punto: real.punto }} prestador={real.prestador} iniciales={resto.iniciales} respaldo={<MapaDibujado {...resto} />}>
+      {resto.children}
+    </MapaReal>
+  );
+}
+
+function MapaDibujado({
   alto = 240,
   variante = "inicio",
   progreso = 0,

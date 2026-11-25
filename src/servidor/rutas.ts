@@ -5,6 +5,8 @@ import * as bloqueos from "@/app/api/bloqueos/route";
 import * as denuncias from "@/app/api/denuncias/route";
 import * as dia from "@/app/api/ofertas/dia/route";
 import * as estadoDelTrabajo from "@/app/api/ofertas/estado/route";
+import * as ubicacionDelPrestador from "@/app/api/ofertas/ubicacion/route";
+import * as mapa from "@/app/api/mapa/route";
 import * as cancelar from "@/app/api/pedido/cancelar/route";
 import * as reclamos from "@/app/api/reclamos/route";
 import * as verificacion from "@/app/api/verificacion/route";
@@ -49,6 +51,8 @@ const RUTAS: Record<string, Ruta> = {
   "/api/denuncias": denuncias,
   "/api/ofertas/dia": dia,
   "/api/ofertas/estado": estadoDelTrabajo,
+  "/api/ofertas/ubicacion": ubicacionDelPrestador,
+  "/api/mapa": mapa,
   "/api/pedido/cancelar": cancelar,
   "/api/reclamos": reclamos,
   "/api/verificacion": verificacion,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { BotonFlotante, BotonPrimario, BotonSecundario, BotonTexto, Cabecera, Cargando, ErrorDePantalla, Estado, Falta, Icono, Pantalla, Titulo } from "@/components/ui";
 import { Mapa } from "@/components/Mapa";
+import { useTokenDeMapa } from "@/integraciones/mapbox-mapa/MapaReal";
 import { ElegirTurno } from "@/components/Turnos";
 import { ESTADOS_DE_TRABAJO, nombreDelDia, sePuedeCancelar, sePuedeReprogramar, textoDeEstado, textoDeTurno, type EstadoDeTrabajo, type Turno } from "@/lib/turnos";
 import { pesos, rubroPorId } from "@/lib/catalogo";
@@ -56,6 +57,8 @@ export default function SeguimientoPedido() {
   const router = useRouter();
   const [clave, setClave] = useState<string | null>(null);
   const [datos, setDatos] = useState<Seguimiento | null>(null);
+  // Con mapa real (Mapbox) y la ubicación del prestador, el seguimiento es "en vivo" de verdad.
+  const tokenDeMapa = useTokenDeMapa();
   const [error, setError] = useState("");
   const [porConfirmar, setPorConfirmar] = useState<OfertaParaCliente | null>(null);
   // Elegir: el presupuesto marcado en la lista, y el turno y la dirección de la pantalla "¿Cuándo? ¿Dónde?".
@@ -116,12 +119,14 @@ export default function SeguimientoPedido() {
   }, [tituloDelPedido]);
 
   const abierto = datos?.pedido.estado !== "cerrado";
+  // Mientras el prestador va en camino se consulta más seguido, para verlo moverse en el mapa.
+  const enCamino = Boolean(datos?.ofertas.some((o) => o.trabajo?.estado === "en_camino"));
   useEffect(() => {
     cargar();
     // Con el pedido cerrado se sigue consultando, más espaciado: así aparece el aviso de mensaje nuevo.
-    const reloj = setInterval(cargar, abierto ? 8_000 : 12_000);
+    const reloj = setInterval(cargar, enCamino ? 6_000 : abierto ? 8_000 : 12_000);
     return () => clearInterval(reloj);
-  }, [cargar, abierto]);
+  }, [cargar, abierto, enCamino]);
 
   async function elegir(oferta: OfertaParaCliente, turno: Turno | null) {
     if (!clave) return;
@@ -428,12 +433,20 @@ export default function SeguimientoPedido() {
       <>
         <Pantalla
           mapa={
-            <Mapa alto={terminado?.fotoId ? 150 : 230} variante={estado === "confirmado" || confirmado || terminado ? "destino" : "ruta"} progreso={progreso} iniciales={iniciales(elegida.prestador.nombre)}>
+            <Mapa
+              alto={terminado?.fotoId ? 150 : 230}
+              variante={estado === "confirmado" || confirmado || terminado ? "destino" : "ruta"}
+              progreso={progreso}
+              iniciales={iniciales(elegida.prestador.nombre)}
+              // Mientras el trabajo está activo: mapa real (si hay Mapbox) con la casa y, en camino, el prestador.
+              real={activo ? { calle: datos.direccion?.calle, zona: pedido.zona, punto: datos.direccion?.punto, prestador: trabajo?.ubicacion ?? null } : undefined}
+            >
               <BotonFlotante icono="atras" etiqueta="Volver al inicio" href="/" />
               {activo && estado !== "confirmado" && (
                 <span className="flex h-12 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
                   <span className="latido h-2 w-2 rounded-full bg-success" aria-hidden="true" />
-                  En vivo
+                  {/* "En vivo" solo con la ubicación real del prestador; si no, es el estado que se actualiza solo. */}
+                  {trabajo?.ubicacion && tokenDeMapa ? "En vivo" : "Se actualiza solo"}
                 </span>
               )}
             </Mapa>

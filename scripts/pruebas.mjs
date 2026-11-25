@@ -6,7 +6,7 @@
 import { spawnSync } from "node:child_process";
 
 const U = process.argv[2] ?? "http://localhost:3000";
-const TANDAS = ["circuito", "prestador", "muestra", "chat", "cuenta", "voz", "confianza", "avisos", "moderacion", "turnos", "eliminar", "correo", "demo"];
+const TANDAS = ["circuito", "prestador", "muestra", "chat", "cuenta", "voz", "confianza", "avisos", "moderacion", "turnos", "mapa", "eliminar", "correo", "demo"];
 
 let fallas = 0;
 for (const tanda of TANDAS) {

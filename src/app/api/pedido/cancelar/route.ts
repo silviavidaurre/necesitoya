@@ -4,7 +4,7 @@ import { modificar } from "@/lib/db";
 import { anotarEstado, pagoDe } from "@/lib/pagos";
 import { seguimientoDe } from "@/lib/seguimiento";
 import { limpiarTexto } from "@/lib/texto";
-import { trabajoDe } from "@/lib/trabajo";
+import { olvidarUbicacion, trabajoDe } from "@/lib/trabajo";
 import { sePuedeCancelar } from "@/lib/turnos";
 
 class ErrorDeCancelacion extends Error {
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       pedido.cancelacion = { creado: new Date().toISOString(), motivo };
       // Cancelado: la dirección se borra.
       pedido.direccion = null;
+      olvidarUbicacion(db.ofertas.find((o) => o.pedidoId === id && o.estado === "elegida"));
       // Los presupuestos que esperaban respuesta quedan descartados.
       for (const oferta of db.ofertas.filter((o) => o.pedidoId === id && o.estado === "enviada")) oferta.estado = "descartada";
       if (pago) anotarEstado(pago, "cancelado", "cancelado por el vecino");

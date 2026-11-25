@@ -1,3 +1,4 @@
+import { useCompartirUbicacion } from "@/components/useCompartirUbicacion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCerrarConAtras } from "@/components/useAtras";
 import { PantallaCambiarDia, PantallaReclamo } from "@/components/Gestiones";
@@ -198,6 +199,7 @@ export default function MisOfertas() {
                   {oferta.estado === "elegida" && !oferta.terminado && oferta.pedido?.estado === "cerrado" && !oferta.pedido.confirmado ? (
                     <TrabajoEnCurso
                       oferta={oferta}
+                      prestadorId={prestador.id}
                       pila={pila}
                       ocupado={avanzando === oferta.id}
                       alAvanzar={() => avanzar(oferta)}
@@ -351,12 +353,14 @@ function PantallaTerminado({
 // la línea de estados y un botón grande con el paso que sigue.
 function TrabajoEnCurso({
   oferta,
+  prestadorId,
   pila,
   ocupado,
   alAvanzar,
   alEscribir,
 }: {
   oferta: OfertaConPedido;
+  prestadorId: string;
   pila: string;
   ocupado: boolean;
   alAvanzar: () => void;
@@ -367,6 +371,7 @@ function TrabajoEnCurso({
   const pasos = ESTADOS_DE_TRABAJO.filter((e) => e.id !== "confirmado");
   const indice = pasos.findIndex((e) => e.id === estado);
   const turno = oferta.trabajo?.turno;
+  const ubicacion = useCompartirUbicacion(estado === "en_camino", oferta.id, prestadorId);
   return (
     <div className="space-y-3">
       <div className="rounded-[18px] bg-subtle p-4">
@@ -404,6 +409,17 @@ function TrabajoEnCurso({
           </div>
         </div>
       </div>
+      {ubicacion === "compartiendo" && (
+        <p role="status" className="flex items-center gap-2 text-sm font-semibold text-ink-500">
+          <span className="latido h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+          {pila} ve dónde estás hasta que llegues.
+        </p>
+      )}
+      {ubicacion === "sin-permiso" && (
+        <p role="status" className="text-sm font-semibold text-ink-500">
+          Activá la ubicación del celular para que {pila} vea que vas en camino.
+        </p>
+      )}
       {siguiente && (
         <BotonPrimario onClick={alAvanzar} cargando={ocupado}>
           {ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton}

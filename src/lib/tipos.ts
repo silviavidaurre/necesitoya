@@ -109,7 +109,7 @@ export interface Pedido extends PedidoBorrador {
   cancelacion?: { creado: string; motivo: string } | null;
   // Dirección del trabajo. PRIVADA: solo la ven el vecino y el prestador elegido, y este solo mientras el trabajo
   // está activo. Se borra cuando el trabajo termina o se cancela. Nunca sale en listas ni en respuestas para otros.
-  direccion?: { calle: string; referencia: string } | null;
+  direccion?: { calle: string; referencia: string; punto?: { lat: number; lng: number } } | null;
   // true = quedó anonimizado de una cuenta de las pruebas automáticas: no cuenta en métricas y se limpia con ellas.
   dePrueba?: boolean;
 }
@@ -119,6 +119,17 @@ export interface Trabajo {
   estado: EstadoDeTrabajo;
   turno: Turno | null;
   historial: { estado: EstadoDeTrabajo; creado: string }[];
+  // Dónde está el prestador (lo manda su celular). PRIVADO: existe solo mientras va en camino, lo ve solo el vecino
+  // dueño del pedido y se borra al llegar, terminar o cancelar. Ver lib/trabajo.ts.
+  ubicacion?: Ubicacion;
+}
+
+export interface Ubicacion {
+  lat: number;
+  lng: number;
+  // Precisión en metros que informa el celular.
+  precision: number;
+  creado: string;
 }
 
 export type PedidoPublico = Omit<Pedido, "clienteWhatsapp" | "claveCliente" | "idCliente" | "cuenta" | "direccion">;

@@ -22,7 +22,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // GitHub Actions pasa un número que siempre sube; en una compu se usa el de acá.
         versionCode((System.getenv('NECESITOYA_VERSION_CODE') ?: '1') as int)
-        versionName "1.1.1"
+        versionName "1.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

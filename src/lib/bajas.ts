@@ -1,3 +1,4 @@
+import { olvidarUbicacion } from "./trabajo";
 import { esCuentaDePrueba } from "./db";
 import { pagoDe } from "./pagos";
 import type { BaseDeDatos } from "./tipos";
@@ -86,6 +87,7 @@ export function eliminarCuenta(db: BaseDeDatos, sub: string): ResultadoDeBaja {
     pedido.relato = "";
     pedido.fotoId = null;
     pedido.direccion = null;
+    for (const oferta of db.ofertas.filter((o) => o.pedidoId === pedido.id)) olvidarUbicacion(oferta);
     pedido.diagnostico = null;
     if (pedido.calificacion) pedido.calificacion = { ...pedido.calificacion, comentario: "" };
     resultado.anonimizados.pedidos += 1;
