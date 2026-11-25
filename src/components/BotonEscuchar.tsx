@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Estado, Icono } from "@/components/ui";
+import { Icono } from "@/components/ui";
 import { callar, leerEnVozAlta, prepararParlante, type EstadoDeLectura } from "@/lib/lectura";
 import { vozEnServidor } from "@/integraciones/elevenlabs-voz/voz-cliente";
 
-// Acción secundaria para que la app lea en voz alta lo que hay en pantalla. Tocar de nuevo corta el audio.
-// Si el servidor no tiene voz, no aparece: la pantalla queda igual que antes.
+// Acción secundaria, en píldora con borde, para que la app lea en voz alta lo que hay en pantalla.
+// Tocar de nuevo corta el audio. Si el servidor no tiene voz, no aparece: la pantalla queda igual que antes.
 export function BotonEscuchar({
   texto,
   automatico = false,
@@ -77,16 +77,15 @@ export function BotonEscuchar({
   }
 
   return (
-    <div className="mt-6">
+    <div>
       <button
         type="button"
         onClick={alTocar}
-        className="-ml-1 inline-flex min-h-12 items-center gap-3 rounded-full pr-5 text-[15px] font-semibold text-ink active:bg-subtle"
+        aria-busy={estado === "cargando"}
+        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-[15px] font-semibold text-ink active:bg-subtle"
       >
-        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-subtle text-ink">
-          <Icono nombre={estado === "quieto" ? "altavoz" : "detener"} size={22} />
-        </span>
-        {estado === "sonando" ? "Parar" : estado === "cargando" ? <Estado>Preparando la voz</Estado> : "Escuchar"}
+        <Icono nombre={estado === "quieto" ? "altavoz" : "detener"} size={18} />
+        {estado === "sonando" ? "Parar" : estado === "cargando" ? "Preparando la voz" : "Escuchar"}
       </button>
       {/* Para lectores de pantalla: avisa que el audio se está preparando sin mover el foco. */}
       <span role="status" className="sr-only">

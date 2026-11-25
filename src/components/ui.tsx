@@ -440,7 +440,7 @@ export function ChipDesplegable({
         ? `min-h-12 bg-flota px-3.5 text-[15px] ${sombraFlota} active:bg-subtle`
         : "min-h-11 bg-subtle px-3 text-[15px] active:bg-line";
   return (
-    <button type="button" onClick={onClick} aria-haspopup="dialog" aria-label={etiqueta} className={`inline-flex min-w-0 max-w-full shrink-0 items-center gap-1.5 rounded-full font-semibold text-ink ${estilo}`}>
+    <button type="button" onClick={onClick} aria-haspopup="dialog" aria-label={etiqueta} className={`inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full font-semibold text-ink ${estilo}`}>
       {icono && <Icono nombre={icono} size={17} className="shrink-0" />}
       <span className="truncate">{children}</span>
       <Icono nombre="abajo" size={15} className="shrink-0" />
