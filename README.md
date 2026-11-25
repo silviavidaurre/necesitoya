@@ -35,9 +35,9 @@ Arriba aparece un cartel naranja "Demo · todo inventado" mientras estés en una
 
 **Como prestador (Ramiro, plomero matriculado):**
 
-1. En **Pedidos** están los pedidos del barrio para presupuestar. Abrí uno y mandá tu precio eligiendo días y franjas.
-2. En **Mis presupuestos**, el trabajo de Carla está *en camino*: tocá **Llegué**, **Empecé el trabajo** y **Terminé**, con una foto del después. Después entrá como vecina y confirmá que quedó bien.
-3. En **Perfil** está su ficha pública: verificado con matrícula, fotos de trabajos, historial y reseñas.
+1. En **Pedidos** están los pedidos del barrio sobre el mapa y en lista, con los lugares que quedan (●●○). Abrí uno y mandá tu precio eligiendo días y franjas.
+2. En **Presupuestos**, el trabajo de Carla está *en camino*: abrilo y **deslizá** para avisar *Llegué*, *Empecé* y *Terminé* (con una foto del después). Después entrá como vecina y confirmá que quedó bien.
+3. En **Perfil** están sus números (trabajos terminados, cobrados por la app y reseñas) y su ficha pública: verificado con matrícula, fotos de trabajos y reseñas.
 
 ## Qué funciona
 
