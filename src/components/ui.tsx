@@ -179,13 +179,26 @@ const clasePie = "fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white
 // Pantalla: contenido con margen de 20 px y, si hay, la acción principal fija abajo.
 // Con `mapa`, el mapa va arriba a todo el ancho y el contenido sube encima como una hoja con manija.
 // `conNav` deja lugar para la barra flotante de abajo.
-export function Pantalla({ children, pie, conNav = false, mapa }: { children: ReactNode; pie?: ReactNode; conNav?: boolean; mapa?: ReactNode }) {
+export function Pantalla({
+  children,
+  pie,
+  conNav = false,
+  mapa,
+  bordePie = false,
+}: {
+  children: ReactNode;
+  pie?: ReactNode;
+  conNav?: boolean;
+  mapa?: ReactNode;
+  // Una línea arriba del pie, cuando la lista de la pantalla sigue por debajo (por ejemplo, los presupuestos).
+  bordePie?: boolean;
+}) {
   const { alto, medir } = useAltoDelPie();
   // Mientras no se midió, se reserva lo de un botón con una línea de texto.
   const abajo = pie ? { paddingBottom: (alto || 112) + 24 } : undefined;
   const claseAbajo = pie ? "" : conNav ? "pb-32" : "pb-10";
   const elPie = pie && (
-    <div ref={medir} className={clasePie}>
+    <div ref={medir} className={`${clasePie} ${bordePie ? "border-t border-line" : ""}`}>
       {pie}
     </div>
   );
@@ -250,6 +263,20 @@ export function PildoraFlotante({ children, href, onClick, etiqueta }: { childre
     );
   }
   return <span className={clase}>{children}</span>;
+}
+
+// Acción de la pantalla en vivo: botón redondo de 56 px con su etiqueta abajo. `aviso` = punto verde (algo nuevo).
+export function BotonRedondo({ icono, texto, onClick, aviso = false }: { icono: string; texto: string; onClick: () => void; aviso?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} className="group flex min-w-0 flex-col items-center gap-1.5 text-center text-[13px] font-semibold leading-tight text-ink">
+      <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-subtle group-active:bg-line">
+        <Icono nombre={icono} size={22} />
+        {aviso && <span className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-success ring-2 ring-white" aria-hidden="true" />}
+      </span>
+      {texto}
+      {aviso && <span className="sr-only">, hay un mensaje nuevo</span>}
+    </button>
+  );
 }
 
 // Cabecera de 60 px: la flecha (o la X) y, en las hojas de pantalla completa, el título centrado.
