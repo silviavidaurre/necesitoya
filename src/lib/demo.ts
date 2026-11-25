@@ -247,7 +247,9 @@ export async function armarBarrioDemo(clavesPrevias: Partial<Record<"vecina" | "
   const inodoroRamiro = nuevaOferta(inodoro, p.ramiro, 45000, 15, "Voy con la sonda. Si es la cañería principal te aviso antes de seguir.", [turno(0, "tarde")]);
   nuevaOferta(inodoro, p.marcela, 40000, 40, "Puedo mañana a la tarde.", [turno(1, "tarde")]);
   elegir(inodoro, inodoroRamiro, turno(0, "tarde"), [["confirmado", 140], ["en_camino", 8]]);
-  inodoro.direccion = { calle: "Calle Demo 120 (dirección inventada)", referencia: "Portón negro" };
+  // Puntos inventados en Alto Comedero, para el mapa real: la casa y dónde viene Ramiro (en la demo no vence).
+  inodoro.direccion = { calle: "Calle Demo 120 (dirección inventada)", referencia: "Portón negro", punto: { lat: -24.2412, lng: -65.2618 } };
+  if (inodoroRamiro.trabajo) inodoroRamiro.trabajo.ubicacion = { lat: -24.2361, lng: -65.2683, precision: 15, creado: iso(ahora - MIN) };
   charla(inodoroRamiro, [
     ["vecino", "Hola Ramiro, te elegí. ¿Venís a la tarde?", 135],
     ["prestador", "Hola Carla, sí. Tipo 14 estoy por allá.", 130],
@@ -270,7 +272,7 @@ export async function armarBarrioDemo(clavesPrevias: Partial<Record<"vecina" | "
   });
   const termicaLucia = nuevaOferta(termica, p.lucia, 35000, 25, "Reviso el circuito con el medidor y cambio lo que haga falta. Soy matriculada.", [turno(0, "manana")]);
   elegir(termica, termicaLucia, turno(0, "manana"), [["confirmado", 20 * 60], ["en_camino", 95], ["llego", 70], ["trabajando", 62]]);
-  termica.direccion = { calle: "Calle Demo 120 (dirección inventada)", referencia: "Portón negro" };
+  termica.direccion = { calle: "Calle Demo 120 (dirección inventada)", referencia: "Portón negro", punto: { lat: -24.2412, lng: -65.2618 } };
   charla(termicaLucia, [
     ["prestador", "Llegué. El problema era el toma del lavadero, no tenía tierra. Lo estoy cambiando.", 55],
     ["vecino", "Genial, gracias Lucía.", 50],

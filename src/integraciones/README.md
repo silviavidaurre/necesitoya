@@ -12,6 +12,7 @@ Si falta la variable de un servicio, esa parte se apaga sola y la app sigue anda
 | `webpush-avisos` | Web push (VAPID) | Avisos en el navegador |
 | `firebase-avisos` | Firebase Cloud Messaging | Avisos en la app de Android |
 | `resend-correo` | Resend | Mails: recuperar la contraseña y confirmar una baja (apagado hasta configurar) |
+| `mapbox-mapa` | Mapbox | Mapa real del seguimiento y el prestador en camino (apagado hasta cargar el token) |
 | `google-cuenta` | Google | Entrar con Google (web y app de Android) |
 | `capacitor-android` | Capacitor | Lo propio de la app de Android: botón atrás, avisos nativos, Google nativo |
 

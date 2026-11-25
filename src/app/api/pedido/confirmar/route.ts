@@ -1,3 +1,4 @@
+import { olvidarUbicacion } from "@/lib/trabajo";
 import { modificar } from "@/lib/db";
 import { seguimientoDe } from "@/lib/seguimiento";
 
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
       if (!pedido.confirmado) pedido.confirmado = new Date().toISOString();
       // Trabajo cerrado: la dirección ya no hace falta y se borra.
       pedido.direccion = null;
+      olvidarUbicacion(elegida);
       return seguimientoDe(db, pedido);
     });
     return Response.json(seguimiento);

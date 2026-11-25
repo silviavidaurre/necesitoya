@@ -1,3 +1,4 @@
+import { useCompartirUbicacion } from "@/components/useCompartirUbicacion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCerrarConAtras } from "@/components/useAtras";
@@ -250,6 +251,7 @@ export default function MisOfertas() {
       <>
         <TrabajoEnCurso
           oferta={trabajo}
+          prestadorId={prestador.id}
           ocupado={avanzando === trabajo.id}
           error={error}
           alVolver={cerrarTrabajo}
@@ -496,6 +498,7 @@ function Direccion({ direccion, fondo = "bg-subtle" }: { direccion: { calle: str
 // los botones redondos (mensaje, cómo llegar, problema) y el control para deslizar al próximo estado.
 function TrabajoEnCurso({
   oferta,
+  prestadorId,
   ocupado,
   error,
   alVolver,
@@ -505,6 +508,7 @@ function TrabajoEnCurso({
   alCambiarDia,
 }: {
   oferta: OfertaConPedido;
+  prestadorId: string;
   ocupado: boolean;
   error: string;
   alVolver: () => void;
@@ -518,6 +522,8 @@ function TrabajoEnCurso({
   const siguiente = siguienteEstado(estado);
   const accion = ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton ?? "";
   const progreso = estado === "confirmado" ? 0 : estado === "en_camino" ? 0.5 : 1;
+  // Mientras va en camino (y solo si hay mapa real), el celular manda dónde está para que el vecino lo vea llegar.
+  const ubicacion = useCompartirUbicacion(estado === "en_camino", oferta.id, prestadorId);
   // Cómo llegar: Google Maps con la dirección (que solo ve el prestador elegido, mientras dura el trabajo).
   const destino = oferta.direccion ? `${oferta.direccion.calle}, ${oferta.pedido?.zona ?? ""}, Jujuy, Argentina` : "";
   const comoLlegar = destino ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}` : "";
@@ -554,6 +560,17 @@ function TrabajoEnCurso({
         <div className="mt-3.5">
           <Direccion direccion={oferta.direccion} />
         </div>
+      )}
+      {ubicacion === "compartiendo" && (
+        <p role="status" className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink-500">
+          <span className="latido h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+          {pilaDe(oferta)} ve dónde estás hasta que llegues.
+        </p>
+      )}
+      {ubicacion === "sin-permiso" && (
+        <p role="status" className="mt-3 text-sm font-semibold text-ink-500">
+          Activá la ubicación del celular para que {pilaDe(oferta)} vea que vas en camino.
+        </p>
       )}
       <div className="mt-4 grid grid-cols-4 gap-2">
         <BotonRedondo icono="mensaje" texto="Mensaje" onClick={alEscribir} aviso={oferta.sinLeer > 0} />
