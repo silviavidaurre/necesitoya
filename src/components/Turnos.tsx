@@ -1,6 +1,7 @@
-import { FRANJAS, nombreDelDia, numeroDelDia, proximosDias, type Franja, type Turno } from "@/lib/turnos";
+import { FRANJAS, nombreDelDia, numeroDelDia, type Turno } from "@/lib/turnos";
 
-// Elegir días y franjas tocando, sin escribir. Días en tarjetas con el número grande; franjas debajo.
+// Elegir día y franja tocando, sin escribir. Días en tarjetas con el número grande; franjas debajo.
+// (El prestador ofrece los suyos en PantallaOferta: una grilla de turnos sugeridos y una hoja con la semana.)
 
 function TarjetaDeDia({ dia, activo, onClick }: { dia: string; activo: boolean; onClick: () => void }) {
   const nombre = nombreDelDia(dia);
@@ -55,39 +56,4 @@ export function ElegirTurno({ turnos, valor, alCambiar }: { turnos: Turno[]; val
       </div>
     </div>
   );
-}
-
-// El prestador ofrece VARIOS: los días en que puede y las franjas. Se combinan entre sí.
-export function OfrecerTurnos({
-  dias,
-  franjas,
-  alCambiarDias,
-  alCambiarFranjas,
-}: {
-  dias: string[];
-  franjas: Franja[];
-  alCambiarDias: (dias: string[]) => void;
-  alCambiarFranjas: (franjas: Franja[]) => void;
-}) {
-  const alternar = <T,>(lista: T[], valor: T) => (lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor]);
-  return (
-    <div>
-      <div className="sin-barra -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
-        {proximosDias().map((dia) => (
-          <span key={dia} className="w-[72px] shrink-0">
-            <TarjetaDeDia dia={dia} activo={dias.includes(dia)} onClick={() => alCambiarDias(alternar(dias, dia))} />
-          </span>
-        ))}
-      </div>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        {FRANJAS.map((f) => (
-          <BotonDeFranja key={f.id} texto={f.texto} activo={franjas.includes(f.id)} onClick={() => alCambiarFranjas(alternar(franjas, f.id))} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function combinarTurnos(dias: string[], franjas: Franja[]): Turno[] {
-  return dias.flatMap((dia) => franjas.map((franja) => ({ dia, franja })));
 }
