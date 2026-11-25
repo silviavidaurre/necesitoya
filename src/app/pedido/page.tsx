@@ -72,6 +72,12 @@ export default function SeguimientoPedido() {
   const { id = "" } = useParams();
   const ubicacion = useLocation();
   const router = useRouter();
+  // Volver a donde estaba (el inicio o la lista de pedidos). Si se abrió directo (un enlace o un aviso), al inicio.
+  const volverAtras = () => {
+    const indice = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (indice > 0) window.history.back();
+    else router.replace("/");
+  };
   const [clave, setClave] = useState<string | null>(null);
   const [datos, setDatos] = useState<Seguimiento | null>(null);
   const [error, setError] = useState("");
@@ -335,7 +341,7 @@ export default function SeguimientoPedido() {
   // Arriba del mapa, en los presupuestos: volver y una píldora con el pedido.
   const sobreElMapa = (alVolver?: () => void) => (
     <div className="flex min-w-0 items-center gap-3">
-      {alVolver ? <BotonFlotante icono="atras" etiqueta="Volver a los presupuestos" onClick={alVolver} /> : <BotonFlotante icono="atras" etiqueta="Volver al inicio" href="/" />}
+      {alVolver ? <BotonFlotante icono="atras" etiqueta="Volver a los presupuestos" onClick={alVolver} /> : <BotonFlotante icono="atras" etiqueta="Volver" onClick={volverAtras} />}
       <span className="min-w-0 rounded-[22px] bg-flota px-4 py-2 text-sm leading-tight text-ink shadow-[var(--sombra-flota)]">
         <span className="block truncate font-bold">{pedido.titulo}</span>
         <span className="block truncate text-ink-500">
@@ -487,7 +493,7 @@ export default function SeguimientoPedido() {
               progreso={progreso}
               iniciales={iniciales(elegida.prestador.nombre)}
             >
-              <BotonFlotante icono="atras" etiqueta="Volver al inicio" href="/" />
+              <BotonFlotante icono="atras" etiqueta="Volver" onClick={volverAtras} />
               {enVivo ? (
                 <PildoraFlotante>
                   <span className="latido h-2.5 w-2.5 rounded-full bg-success" aria-hidden="true" />
