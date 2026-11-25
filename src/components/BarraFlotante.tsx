@@ -43,3 +43,17 @@ export function BarraFlotante({ pestanas, etiqueta }: { pestanas: Pestana[]; eti
     </nav>
   );
 }
+
+// Barra de abajo del vecino: Inicio · Mis pedidos · Cuenta.
+export function NavVecino() {
+  return (
+    <BarraFlotante
+      etiqueta="Secciones"
+      pestanas={[
+        { href: "/", nombre: "Inicio", icono: "casa", tambien: ["/pedir"] },
+        { href: "/mis-pedidos", nombre: "Mis pedidos", icono: "lista" },
+        { href: "/cuenta", nombre: "Cuenta", icono: "usuario" },
+      ]}
+    />
+  );
+}

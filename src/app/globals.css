@@ -186,3 +186,21 @@ button.text-brand {
   border-color: #8e918f;
   color: #e3e3e3;
 }
+
+/* Imprimir o guardar en PDF solo el comprobante, sin la pantalla de atrás. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .imprimible,
+  .imprimible * {
+    visibility: visible;
+  }
+  .imprimible {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    color: #0d0d0d;
+    background: #ffffff;
+  }
+}

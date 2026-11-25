@@ -20,6 +20,18 @@ export function appConAvisosNativos() {
   return esAppNativa() && typeof navigator !== "undefined" && navigator.userAgent.includes("NecesitoYaAndroid/fcm");
 }
 
+// La versión que se muestra en Cuenta: la de la app de Android si se abre adentro de ella; si no, la de la web.
+export async function versionDeLaApp(): Promise<string> {
+  if (esAppNativa()) {
+    try {
+      return (await App.getInfo()).version;
+    } catch {
+      // Sigue con la de la web.
+    }
+  }
+  return __VERSION_WEB__;
+}
+
 // --- Barra de estado -------------------------------------------------------------------------------
 // Acompaña al tema de la pantalla: fondo blanco con íconos oscuros en claro, fondo negro con íconos claros en oscuro.
 // Las versiones de la app que no traen el complemento siguen con la barra blanca de capacitor.config.ts.

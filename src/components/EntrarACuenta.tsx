@@ -106,7 +106,7 @@ export function abrirCuenta(entrada: Entrada, alEntrar?: (cuenta: CuentaGuardada
 }
 
 // Al salir, el celular queda limpio para que entre otra cuenta. Lo de la cuenta sigue guardado: vuelve al entrar.
-function cerrarCuenta() {
+export function cerrarCuenta() {
   guardarCuenta(null);
   borrarPrestadorId();
   recordarPrestador(null);
