@@ -6,6 +6,7 @@ import { BarraDeEstados } from "@/components/EstadosDeTrabajo";
 import { HojaDeAbajo } from "@/components/Hoja";
 import { Mapa } from "@/components/Mapa";
 import { ElegirTurno } from "@/components/Turnos";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { nombreDelDia, sePuedeCancelar, sePuedeReprogramar, textoDeEstado, textoDeTurno, type EstadoDeTrabajo, type Turno } from "@/lib/turnos";
 import { pesos, rubroPorId } from "@/lib/catalogo";
 import { ErrorDePedido, guardarMiPedido, leerMisPedidos, pedir } from "@/lib/cliente";
@@ -36,6 +37,12 @@ const URGENCIA: Record<Urgencia, string> = { hoy: "Para hoy", semana: "Esta sema
 
 const pilaDe = (nombre: string) => nombre.split(" ")[0];
 
+// En la app de Android, el botón atrás del celular vuelve de "Día y dirección" a los presupuestos.
+function AtrasVuelveUnPaso({ alVolver }: { alVolver: () => void }) {
+  useCerrarConAtras(alVolver);
+  return null;
+}
+
 // "$78k" para el pin del mapa.
 const precioCorto = (precio: number) => `$${Math.round(precio / 1000)}k`;
 
@@ -48,8 +55,10 @@ function cuandoPuede(oferta: OfertaParaCliente) {
 // Una etiqueta por presupuesto, como en "Elegí un viaje": verde para el más barato; neutras para lo demás.
 function etiquetaDe(oferta: OfertaParaCliente, ofertas: OfertaParaCliente[]): { texto: string; bien: boolean } | null {
   if (oferta.prestador.ejemplo) return { texto: "De muestra", bien: false };
-  const minimo = Math.min(...ofertas.map((o) => o.precio));
-  if (ofertas.length > 1 && oferta.precio === minimo && ofertas.filter((o) => o.precio === minimo).length === 1) return { texto: "Más barato", bien: true };
+  // Se compara contra los presupuestos reales (los de muestra no cuentan).
+  const reales = ofertas.filter((o) => !o.prestador.ejemplo);
+  const minimo = Math.min(...reales.map((o) => o.precio));
+  if (reales.length > 1 && oferta.precio === minimo && reales.filter((o) => o.precio === minimo).length === 1) return { texto: "Más barato", bien: true };
   const primero = oferta.turnos?.[0];
   if (primero && nombreDelDia(primero.dia) === "Hoy") return { texto: "Llega hoy", bien: false };
   if (oferta.prestador.nivel >= 3) return { texto: "Matriculado", bien: false };
@@ -367,6 +376,7 @@ export default function SeguimientoPedido() {
         mapa={
           <Mapa alto={290} variante="inicio" etiqueta={pedido.zona} marcas={marcasDelMapa(porConfirmar)}>
             {sobreElMapa(() => setPorConfirmar(null))}
+            <AtrasVuelveUnPaso alVolver={() => setPorConfirmar(null)} />
           </Mapa>
         }
         bordePie
@@ -693,7 +703,13 @@ export default function SeguimientoPedido() {
                 <span className="flex-1">{pagoDeLaMarcada.titulo}</span>
                 <Icono nombre="chevron" size={20} className="text-ink-500" />
               </button>
-              <BotonPrimario onClick={() => setPorConfirmar(marcada)}>
+              <BotonPrimario
+                onClick={() => {
+                  // El turno se elige de nuevo: los de otro presupuesto no sirven.
+                  setTurnoElegido(null);
+                  setPorConfirmar(marcada);
+                }}
+              >
                 Elegir a {pilaDe(marcada.prestador.nombre)} · <span className="cifra">{pesos(marcada.precio)}</span>
               </BotonPrimario>
             </>
@@ -729,8 +745,7 @@ export default function SeguimientoPedido() {
           <>
             <h1 className="text-center text-[21px] font-bold tracking-[-0.01em] text-ink">Elegí un presupuesto</h1>
             <p className="mt-0.5 text-center text-sm text-ink-500">
-              Llegaron {reales > 0 ? reales : ofertas.length}
-              {reales > 0 && reales < maximo ? ` de ${maximo}` : ""} · tocá uno para compararlo
+              {reales > 0 ? `Llegaron ${reales}${reales < maximo ? ` de ${maximo}` : ""}` : `${ofertas.length} de muestra`} · tocá uno para compararlo
             </p>
             {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
             <ul className="-mx-5 mt-2.5 flex flex-col gap-1 border-t border-line px-3 pt-2">
