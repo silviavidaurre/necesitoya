@@ -46,7 +46,8 @@ type Parte = "causa" | "pasos" | "materiales";
 // Con gas o electricidad, el aviso de matriculado queda siempre a la vista, arriba de la tarjeta.
 // `para` cambia el tono: el vecino ve "qué hacer ya"; el prestador ve lo mismo para llegar preparado.
 export function Diagnostico({ diagnostico, para = "vecino" }: { diagnostico: DatosDeDiagnostico; para?: "vecino" | "prestador" }) {
-  const [abierta, setAbierta] = useState<Parte | null>(null);
+  // Con pasos de seguridad o riesgo alto, "Qué hacer ya" arranca abierto: no tiene que quedar escondido.
+  const [abierta, setAbierta] = useState<Parte | null>(diagnostico.seguridad.length > 0 || diagnostico.riesgo === "alto" ? "pasos" : null);
   const alternar = (parte: Parte) => setAbierta((actual) => (actual === parte ? null : parte));
   const pasos = [...diagnostico.seguridad, ...diagnostico.queHacerYa];
   const riesgo = RIESGO[diagnostico.riesgo];

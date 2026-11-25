@@ -6,6 +6,7 @@ import { CajaRelato } from "@/components/CajaRelato";
 import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { ChipConOpciones } from "@/components/Hoja";
+import { useCerrarConAtras } from "@/components/useAtras";
 import { Mapa } from "@/components/Mapa";
 import { iconoDe, useMisPedidos, type MiPedido } from "@/components/useMisPedidos";
 import { BotonPrimario, Cabecera, Campo, ErrorDePantalla, Falta, Icono, Pantalla, PildoraFlotante, Seccion, Titulo, claseCampo } from "@/components/ui";
@@ -47,6 +48,17 @@ const URGENCIAS: { id: Urgencia; texto: string; icono: string }[] = [
   { id: "flexible", texto: "Sin apuro", icono: "calendario" },
 ];
 const OFICIOS = RUBROS.map((r) => ({ id: r.id as RubroId, texto: r.nombre, icono: r.id }));
+// En Contar se puede volver a dejar el oficio en manos de la IA.
+const OFICIOS_O_LA_APP: { id: RubroId | "app"; texto: string; icono: string; detalle?: string }[] = [
+  { id: "app", texto: "Que lo decida la app", icono: "ayuda", detalle: "Según lo que cuentes" },
+  ...OFICIOS,
+];
+
+// En la app de Android, el botón atrás del celular vuelve un paso (si no, cerraría la app: todos los pasos son "/").
+function AtrasVuelveUnPaso({ alVolver }: { alVolver: () => void }) {
+  useCerrarConAtras(alVolver);
+  return null;
+}
 
 // Accesos por oficio en el inicio: tocar uno abre Contar con ese oficio elegido.
 const OFICIOS_DEL_INICIO: RubroId[] = ["plomeria", "electricidad", "gas", "cerrajeria", "albanileria", "pintura", "carpinteria", "herreria"];
@@ -101,10 +113,16 @@ export default function Pedir() {
     usoLaVoz.current = true;
   }, []);
 
-  // "Pedir de nuevo" y los oficios del inicio llegan con el relato y el oficio en el historial: se precargan.
+  // "Pedir de nuevo", los oficios del inicio y los perfiles públicos (?texto=) llegan con el relato y el oficio:
+  // se precargan una sola vez y se sacan de la entrada del historial. Así, volver o avanzar a Contar no pisa lo
+  // que la persona escribió después (y no se puede publicar dos veces lo mismo volviendo atrás).
   useEffect(() => {
+    const texto = parametros.get("texto");
+    if (!estadoDelPaso.relato && !estadoDelPaso.rubro && texto === null) return;
     if (estadoDelPaso.relato) setRelato(estadoDelPaso.relato);
+    else if (texto !== null) setRelato(texto);
     if (estadoDelPaso.rubro) setRubroElegido(estadoDelPaso.rubro);
+    navegar(ubicacion.pathname, { replace: true, state: { paso: estadoDelPaso.paso ?? "contar" } });
     // Solo cuando cambia la entrada del historial.
   }, [ubicacion.key]);
 
@@ -139,7 +157,7 @@ export default function Pedir() {
 
   // Volver a Contar con el botón atrás después de publicar deja la pantalla vacía: ahí se va al inicio.
   useEffect(() => {
-    if (paso === "contar" && tipoDeNavegacion === "POP" && !relato.trim() && !estadoDelPaso.relato) {
+    if (paso === "contar" && tipoDeNavegacion === "POP" && !relato.trim()) {
       navegar(ubicacion.pathname, { replace: true, state: null });
     }
     // Solo al llegar a esta entrada del historial.
@@ -283,6 +301,7 @@ export default function Pedir() {
           </>
         }
       >
+        <AtrasVuelveUnPaso alVolver={volver} />
         <Cabecera alVolver={volver} titulo="Tu pedido" />
         {fuente === "basico" && <p className="mt-1 text-[15px] text-ink-500">No pudimos ordenarlo solos. Revisá el texto y el oficio.</p>}
 
@@ -380,6 +399,7 @@ export default function Pedir() {
           </>
         }
       >
+        <AtrasVuelveUnPaso alVolver={volver} />
         <Cabecera alVolver={volver} titulo="Contanos qué pasa" />
 
         <div className="mt-2 flex flex-wrap gap-2">
@@ -394,7 +414,13 @@ export default function Pedir() {
             etiqueta={urgenciaActual ? `Urgencia: ${urgenciaActual.texto}. Cambiar` : "Elegir para cuándo lo necesitás"}
           />
           {rubroElegido && (
-            <ChipConOpciones titulo="¿Qué oficio es?" opciones={OFICIOS} valor={rubroElegido} alCambiar={setRubroElegido} etiqueta={`Oficio: ${rubroPorId(rubroElegido).nombre}. Cambiar`} />
+            <ChipConOpciones
+              titulo="¿Qué oficio es?"
+              opciones={OFICIOS_O_LA_APP}
+              valor={rubroElegido}
+              alCambiar={(valor) => setRubroElegido(valor === "app" ? null : valor)}
+              etiqueta={`Oficio: ${rubroPorId(rubroElegido).nombre}. Cambiar`}
+            />
           )}
         </div>
 
