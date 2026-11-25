@@ -249,7 +249,9 @@ export function BotonFlotante({ icono, etiqueta, href, onClick }: { icono: strin
 
 // Píldora que flota sobre el mapa: el barrio, "Tengo un oficio", "En vivo". Con `href` u `onClick` es un botón.
 export function PildoraFlotante({ children, href, onClick, etiqueta }: { children: ReactNode; href?: string; onClick?: () => void; etiqueta?: string }) {
-  const clase = `flex h-12 min-w-0 items-center gap-2 rounded-full bg-flota px-4 text-[15px] font-bold text-ink ${sombraFlota}`;
+  // Textos cortos ("Tengo un oficio", "Necesito algo"): no se parten en dos renglones; si falta lugar, se achica
+  // lo que está al lado (el selector de barrio corta su texto).
+  const clase = `flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-flota px-4 text-[15px] font-bold text-ink ${sombraFlota}`;
   if (href) {
     return (
       <Link href={href} aria-label={etiqueta} className={`${clase} active:bg-subtle`}>

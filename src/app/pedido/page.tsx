@@ -99,7 +99,22 @@ export default function SeguimientoPedido() {
   const [error, setError] = useState("");
   const [porConfirmar, setPorConfirmar] = useState<OfertaParaCliente | null>(null);
   // Elegir: el presupuesto marcado en la lista, y el turno y la dirección del paso "Día y dirección".
-  const [seleccionada, setSeleccionada] = useState<string | null>(null);
+  // El marcado se recuerda en la pestaña: al volver de "Ver perfil" sigue marcado el mismo.
+  const [seleccionada, setMarcada] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(`marcada:${id}`);
+    } catch {
+      return null;
+    }
+  });
+  const setSeleccionada = (ofertaId: string) => {
+    setMarcada(ofertaId);
+    try {
+      sessionStorage.setItem(`marcada:${id}`, ofertaId);
+    } catch {
+      // Sin almacenamiento (modo privado): se marca igual, solo que no se recuerda.
+    }
+  };
   const [turnoElegido, setTurnoElegido] = useState<Turno | null>(null);
   const [calle, setCalle] = useState("");
   const [referencia, setReferencia] = useState("");
@@ -571,8 +586,8 @@ export default function SeguimientoPedido() {
           <PantallaCambiarDia
             ofertaId={elegida.id}
             quien={{ pedidoId: id, clave }}
-            actual={elegida.cuando}
-            turnos={elegida.turnos ?? []}
+            actual={elegida.trabajo?.turno ? textoDeTurno(elegida.trabajo.turno) : elegida.cuando}
+            turnoActual={elegida.trabajo?.turno}
             alCerrar={(nuevo) => {
               setGestion(null);
               if (nuevo) cargar();

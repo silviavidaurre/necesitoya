@@ -73,10 +73,10 @@ await j(`/api/chat?ofertaId=${oferta.datos.oferta.id}&pedidoId=${pedido.id}&clav
 const avanzar = (estado, prestadorId = elegido.id) => j("/api/ofertas/estado", { prestadorId, ofertaId: oferta.datos.oferta.id, estado }, prestadorId);
 ok("no se puede saltar un paso", (await avanzar("llego")).estado === 409);
 ok("otro prestador no puede avanzar el trabajo", (await avanzar("en_camino", otro.id)).estado === 403);
-ok("con el trabajo confirmado se puede reprogramar", (await j("/api/ofertas/dia", { ofertaId: oferta.datos.oferta.id, pedidoId: pedido.id, clave: pedido.clave, turno: { dia: hoy, franja: "tarde" } }, "vecino")).estado === 200);
+ok("con el trabajo confirmado se puede reprogramar", (await j("/api/ofertas/dia", { ofertaId: oferta.datos.oferta.id, pedidoId: pedido.id, clave: pedido.clave, turno: { dia: manana, franja: "tarde" } }, "vecino")).estado === 200);
 ok("el prestador sale: En camino", (await avanzar("en_camino")).estado === 200);
 const enCamino = (await j(`/api/pedido?id=${pedido.id}&clave=${pedido.clave}`, undefined, "vecino")).datos.ofertas.find((o) => o.estado === "elegida");
-ok("el vecino ve En camino y el nuevo turno", enCamino?.trabajo?.estado === "en_camino" && enCamino.trabajo.turno?.dia === hoy && enCamino.trabajo.historial.length >= 2);
+ok("el vecino ve En camino y el nuevo turno", enCamino?.trabajo?.estado === "en_camino" && enCamino.trabajo.turno?.dia === manana && enCamino.trabajo.historial.length >= 2);
 ok("en camino ya no se reprograma", (await j("/api/ofertas/dia", { ofertaId: oferta.datos.oferta.id, pedidoId: pedido.id, clave: pedido.clave, turno: { dia: manana, franja: "manana" } }, "vecino")).estado === 409);
 ok("llegó", (await avanzar("llego")).estado === 200);
 ok("con el prestador en la casa ya no se cancela", (await j("/api/pedido/cancelar", { id: pedido.id, clave: pedido.clave, motivo: "Prueba" }, "vecino")).estado === 409);

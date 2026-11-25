@@ -4,7 +4,7 @@ import { useCerrarConAtras } from "@/components/useAtras";
 import { pedir } from "@/lib/cliente";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
 import { MOTIVOS_DE_RECLAMO } from "@/lib/motivos";
-import { textoDeTurno, type Turno } from "@/lib/turnos";
+import { textoDeTurno, turnosParaCambiar, type Turno } from "@/lib/turnos";
 import { ElegirTurno } from "@/components/Turnos";
 
 // Gestiones de un trabajo elegido, a pantalla completa y con un solo botón: reclamar, cambiar el día, cancelar.
@@ -144,36 +144,32 @@ export function PantallaReclamo({ ofertaId, quien, nombre, alCerrar }: { ofertaI
   );
 }
 
-const DIAS = ["Hoy", "Mañana", "Esta semana", "La semana que viene", "A coordinar"];
-
-// Reprogramar: otro de los turnos que ofreció el prestador (o, si no dejó turnos, un día a elegir).
-// Queda escrito en el chat para que el otro se entere.
+// Cambiar el día: cualquier franja que todavía sirva de los próximos días (menos la actual). Le avisamos al otro.
 export function PantallaCambiarDia({
   ofertaId,
   quien,
   actual,
-  turnos = [],
+  turnoActual,
   alCerrar,
 }: {
   ofertaId: string;
   quien: Quien;
   actual: string;
-  turnos?: Turno[];
+  turnoActual?: Turno | null;
   alCerrar: (nuevo?: string) => void;
 }) {
-  const [cuando, setCuando] = useState("");
-  const [otro, setOtro] = useState("");
+  const [opciones] = useState(() => turnosParaCambiar(turnoActual));
   const [turno, setTurno] = useState<Turno | null>(null);
   useCerrarConAtras(() => alCerrar());
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
-  const elegido = turno ? textoDeTurno(turno) : (cuando === "otro" ? otro : cuando).trim();
 
   async function guardar() {
+    if (!turno) return;
     setEnviando(true);
     setError("");
     try {
-      const respuesta = await pedir<{ cuando: string }>("/api/ofertas/dia", { method: "POST", body: JSON.stringify({ ofertaId, ...quien, ...(turno ? { turno } : { cuando: elegido }) }) });
+      const respuesta = await pedir<{ cuando: string }>("/api/ofertas/dia", { method: "POST", body: JSON.stringify({ ofertaId, ...quien, turno }) });
       alCerrar(respuesta.cuando);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos cambiar el día. Probá de nuevo.");
@@ -187,25 +183,14 @@ export function PantallaCambiarDia({
         <Cabecera alVolver={() => alCerrar()} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Para cuándo?</h1>
         <p className="mt-2 text-base text-ink-500">Ahora: {actual}. Le avisamos.</p>
-        {turnos.length > 0 ? (
-          <div className="mt-6">
-            <ElegirTurno turnos={turnos} valor={turno} alCambiar={setTurno} />
-          </div>
-        ) : (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {[...DIAS, "otro"].map((d) => (
-            <Chip key={d} activo={cuando === d} onClick={() => setCuando(d)}>
-              {d === "otro" ? "Otro día" : d}
-            </Chip>
-          ))}
+        <div className="mt-6">
+          <ElegirTurno turnos={opciones} valor={turno} alCambiar={setTurno} />
         </div>
-        )}
-        {turnos.length === 0 && cuando === "otro" && <input className={`${claseCampo} mt-4`} value={otro} onChange={(e) => setOtro(e.target.value)} maxLength={80} placeholder="Ej: el sábado a la mañana" autoFocus />}
-        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </div>
       <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
-        <BotonPrimario onClick={guardar} disabled={!elegido} cargando={enviando}>
-          {turno ? textoDeTurno(turno) : "Guardar el nuevo día"}
+        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+        <BotonPrimario onClick={guardar} disabled={!turno} cargando={enviando}>
+          {turno ? `Cambiar a ${textoDeTurno(turno)}` : "Elegí el nuevo día"}
         </BotonPrimario>
       </div>
     </div>

@@ -2,7 +2,7 @@ import { avisar } from "@/lib/avisos";
 import { modificar, nuevoId } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
 import { trabajoDe } from "@/lib/trabajo";
-import { limpiarTurnos, sePuedeReprogramar, textoDeTurno } from "@/lib/turnos";
+import { limpiarTurnos, sePuedeReprogramar, textoDeTurno, turnoVigente } from "@/lib/turnos";
 import type { Mensaje } from "@/lib/tipos";
 
 class ErrorDeDia extends Error {
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
   const turno = limpiarTurnos(cuerpo?.turno ? [cuerpo.turno] : [])[0] ?? null;
   const cuando = turno ? textoDeTurno(turno) : limpiarTexto(cuerpo?.cuando, 80);
   if (!ofertaId || !cuando) return Response.json({ error: "Decinos el nuevo día." }, { status: 400 });
+  if (turno && !turnoVigente(turno)) return Response.json({ error: "A ese horario ya se le pasó la hora. Elegí otro." }, { status: 400 });
 
   try {
     const resultado = await modificar((db) => {

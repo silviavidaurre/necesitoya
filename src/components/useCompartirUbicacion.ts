@@ -8,14 +8,17 @@ const CADA_MS = 12_000;
 
 // Mientras el prestador va en camino, el celular manda dónde está para que el vecino lo vea en el mapa.
 // Solo si hay mapa real (Mapbox): sin mapa no tiene sentido mandarla. Se corta sola al llegar o al salir de la pantalla.
-export function useCompartirUbicacion(enCamino: boolean, ofertaId: string, prestadorId: string | undefined): EstadoDeUbicacion {
+// Devuelve también el último punto, para que el prestador se vea en su propio mapa.
+export function useCompartirUbicacion(enCamino: boolean, ofertaId: string, prestadorId: string | undefined): { estado: EstadoDeUbicacion; punto: { lat: number; lng: number } | null } {
   const token = useTokenDeMapa();
   const [estado, setEstado] = useState<EstadoDeUbicacion>("apagado");
+  const [punto, setPunto] = useState<{ lat: number; lng: number } | null>(null);
   const activo = enCamino && Boolean(token) && Boolean(prestadorId);
 
   useEffect(() => {
     if (!activo) {
       setEstado("apagado");
+      setPunto(null);
       return;
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -26,10 +29,11 @@ export function useCompartirUbicacion(enCamino: boolean, ofertaId: string, prest
     const id = navigator.geolocation.watchPosition(
       (posicion) => {
         setEstado("compartiendo");
+        const { latitude: lat, longitude: lng, accuracy: precision } = posicion.coords;
+        setPunto({ lat, lng });
         const ahora = Date.now();
         if (ahora - ultima < CADA_MS) return;
         ultima = ahora;
-        const { latitude: lat, longitude: lng, accuracy: precision } = posicion.coords;
         // Si falla un envío no pasa nada: el siguiente lo reemplaza.
         void pedir("/api/ofertas/ubicacion", { method: "POST", body: JSON.stringify({ ofertaId, prestadorId, lat, lng, precision }) }).catch(() => undefined);
       },
@@ -39,5 +43,5 @@ export function useCompartirUbicacion(enCamino: boolean, ofertaId: string, prest
     return () => navigator.geolocation.clearWatch(id);
   }, [activo, ofertaId, prestadorId]);
 
-  return estado;
+  return { estado, punto };
 }
