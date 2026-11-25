@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Modo oscuro antes de pintar (después lo maneja main.tsx): el prestador siempre, el vecino si el celular está en oscuro.
+      (function () {
+        try {
+          var ruta = location.pathname;
+          var oscuro = ruta.indexOf("/prestador") === 0 || (ruta.indexOf("/admin") !== 0 && matchMedia("(prefers-color-scheme: dark)").matches);
+          if (!oscuro) return;
+          document.documentElement.classList.add("tema-oscuro");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#0d0d0d");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />

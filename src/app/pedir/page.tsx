@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { ChipBarrio } from "@/components/Barrio";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { CajaRelato } from "@/components/CajaRelato";
 import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
+import { ChipConOpciones } from "@/components/Hoja";
 import { Mapa, MarcaEnPildora } from "@/components/Mapa";
 import {
   BotonPrimario,
   BotonSecundario,
   Cabecera,
   Campo,
-  Chip,
   ErrorDePantalla,
   Falta,
   Fila,
@@ -18,11 +19,10 @@ import {
   IconoCirculo,
   Pantalla,
   Seccion,
-  Segmentado,
   Titulo,
   claseCampo,
 } from "@/components/ui";
-import { RUBROS, ZONAS, pesos, rubroPorId, type RubroId } from "@/lib/catalogo";
+import { RUBROS, pesos, rubroPorId, type RubroId } from "@/lib/catalogo";
 import {
   guardarBorrador,
   guardarMiPedido,
@@ -48,18 +48,15 @@ interface ResultadoPedido {
   aviso?: string;
 }
 
-type Cambio = "texto" | "rubro" | "zona" | "urgencia" | null;
-
-const URGENCIAS: { id: Urgencia; texto: string }[] = [
-  { id: "hoy", texto: "Hoy" },
-  { id: "semana", texto: "Esta semana" },
-  { id: "flexible", texto: "Sin apuro" },
+const URGENCIAS: { id: Urgencia; texto: string; icono: string }[] = [
+  { id: "hoy", texto: "Para hoy", icono: "reloj" },
+  { id: "semana", texto: "Esta semana", icono: "calendario" },
+  { id: "flexible", texto: "Sin apuro", icono: "calendario" },
 ];
-const TEXTO_URGENCIA: Record<Urgencia, string> = { hoy: "Para hoy", semana: "Esta semana", flexible: "Sin apuro" };
+const OFICIOS = RUBROS.map((r) => ({ id: r.id as RubroId, texto: r.nombre, icono: r.id }));
 
 // Accesos por oficio en el inicio: tocar uno empieza el relato.
 const OFICIOS_DEL_INICIO: RubroId[] = ["plomeria", "electricidad", "gas", "cerrajeria", "albanileria", "pintura"];
-const OTRO_BARRIO = "__otro__";
 
 // "Llegás y pedís": el inicio ya es el pedido. Se habla (o se escribe, o se saca una foto), la IA lo ordena
 // y en una sola pantalla se revisa y se publica. El barrio y el nombre quedan recordados en el celular,
@@ -86,8 +83,6 @@ export default function Pedir() {
 
   // Contar
   const [zona, setZona] = useState(recordado.zona);
-  const [eligiendoZona, setEligiendoZona] = useState(!recordado.zona);
-  const [zonaLibre, setZonaLibre] = useState(false);
   const [relato, setRelato] = useState(parametros.get("texto") ?? borrador?.relato ?? "");
   const [foto, setFoto] = useState<FotoLista | null>(null);
   const [cargandoFoto, setCargandoFoto] = useState(false);
@@ -117,7 +112,8 @@ export default function Pedir() {
   const [urgencia, setUrgencia] = useState<Urgencia>("semana");
   const [rango, setRango] = useState<{ min: number; max: number } | null>(null);
   const [diagnostico, setDiagnostico] = useState<DatosDeDiagnostico | null>(null);
-  const [cambio, setCambio] = useState<Cambio>(null);
+  // Corregir el título y el detalle que armó la IA.
+  const [corrigiendo, setCorrigiendo] = useState(false);
   const [leerSolo, setLeerSolo] = useState(false);
 
   const [nombre, setNombre] = useState(recordado.nombre);
@@ -169,7 +165,7 @@ export default function Pedir() {
       );
       setDiagnostico(resultado.pedido.diagnostico ?? null);
       setFuente(resultado.fuente);
-      setCambio(resultado.fuente === "basico" ? "rubro" : null);
+      setCorrigiendo(false);
       setLeerSolo(usoLaVoz.current);
       navegar(ubicacion.pathname, { state: { paso: "revisar" } });
     } catch (e) {
@@ -221,36 +217,6 @@ export default function Pedir() {
     }
   }
 
-  const selectorDeBarrio = (
-    <>
-      <select
-        className={claseCampo}
-        value={zonaLibre ? OTRO_BARRIO : zona}
-        onChange={(e) => {
-          if (e.target.value === OTRO_BARRIO) {
-            setZonaLibre(true);
-            setZona("");
-          } else {
-            setZonaLibre(false);
-            setZona(e.target.value);
-            if (e.target.value) setEligiendoZona(false);
-          }
-        }}
-      >
-        <option value="">Elegí tu barrio</option>
-        {ZONAS.map((opcion) => (
-          <option key={opcion} value={opcion}>
-            {opcion}
-          </option>
-        ))}
-        <option value={OTRO_BARRIO}>Otro barrio</option>
-      </select>
-      {zonaLibre && (
-        <input className={`${claseCampo} mt-2`} value={zona} onChange={(e) => setZona(e.target.value)} placeholder="Escribí el nombre de tu barrio" maxLength={60} />
-      )}
-    </>
-  );
-
   if (armando) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-8 text-center" role="status">
@@ -293,7 +259,7 @@ export default function Pedir() {
           <BotonEscuchar texto={resumenEnVoz} automatico={leerSolo} />
         </div>
 
-        {cambio === "texto" ? (
+        {corrigiendo ? (
           <>
             <Campo etiqueta="Qué necesitás">
               <input className={claseCampo} value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={80} />
@@ -306,56 +272,18 @@ export default function Pedir() {
           <div className="mt-6">
             <p className="text-[22px] font-bold leading-snug tracking-[-0.01em] text-ink">{titulo}</p>
             <p className="mt-2 text-base text-ink-500">{descripcion}</p>
-            <button type="button" onClick={() => setCambio("texto")} className="mt-1 flex min-h-12 items-center text-base font-semibold text-brand">
+            <button type="button" onClick={() => setCorrigiendo(true)} className="mt-1 flex min-h-12 items-center text-base font-semibold text-brand">
               Corregir el texto
             </button>
           </div>
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setCambio(cambio === "rubro" ? null : "rubro")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#8f96a1] px-4 text-[15px] font-semibold text-ink">
-            <Icono nombre={rubroActual.id} size={18} />
-            {rubroActual.nombre}
-          </button>
-          <button type="button" onClick={() => setCambio(cambio === "zona" ? null : "zona")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#8f96a1] px-4 text-[15px] font-semibold text-ink">
-            <Icono nombre="pin" size={18} />
-            {zona || "Elegí tu barrio"}
-          </button>
-          <button type="button" onClick={() => setCambio(cambio === "urgencia" ? null : "urgencia")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#8f96a1] px-4 text-[15px] font-semibold text-ink">
-            <Icono nombre="reloj" size={18} />
-            {TEXTO_URGENCIA[urgencia]}
-          </button>
+          <ChipConOpciones titulo="¿Qué oficio es?" opciones={OFICIOS} valor={rubro} alCambiar={setRubro} etiqueta={`Oficio: ${rubroActual.nombre}. Cambiar`} />
+          <ChipBarrio zona={zona} alCambiar={setZona} />
+          <ChipConOpciones titulo="¿Para cuándo?" opciones={URGENCIAS} valor={urgencia} alCambiar={setUrgencia} icono="reloj" etiqueta={`Urgencia: ${URGENCIAS.find((u) => u.id === urgencia)?.texto}. Cambiar`} />
         </div>
-        {cambio === null && <p className="mt-2 text-[15px] text-ink-500">Tocá cualquiera para cambiarlo.</p>}
-        {cambio === "rubro" && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {RUBROS.map((opcion) => (
-              <Chip
-                key={opcion.id}
-                activo={rubro === opcion.id}
-                onClick={() => {
-                  setRubro(opcion.id);
-                  setCambio(null);
-                }}
-              >
-                {opcion.nombre}
-              </Chip>
-            ))}
-          </div>
-        )}
-        {cambio === "zona" && <div className="mt-3">{selectorDeBarrio}</div>}
-        {cambio === "urgencia" && (
-          <div className="mt-3">
-            <Segmentado
-              opciones={URGENCIAS}
-              valor={urgencia}
-              alCambiar={(valor) => {
-                setUrgencia(valor);
-                setCambio(null);
-              }}
-            />
-          </div>
-        )}
+        <p className="mt-2 text-[15px] text-ink-500">{fuente === "basico" ? "Revisá el oficio: lo elegimos sin la IA." : "Tocá cualquiera para cambiarlo."}</p>
 
         {rango && (
           <div className="mt-7">
@@ -436,19 +364,9 @@ export default function Pedir() {
         <Titulo>¿Qué se rompió?</Titulo>
       </div>
 
-      <div className="mt-3">
-        {eligiendoZona ? (
-          <label className="block">
-            <span className="text-[15px] font-semibold text-ink">¿En qué barrio es?</span>
-            <div className="mt-2">{selectorDeBarrio}</div>
-          </label>
-        ) : (
-          <button type="button" onClick={() => setEligiendoZona(true)} className="inline-flex min-h-12 items-center gap-2 rounded-[14px] bg-subtle px-4 text-[15px] text-ink">
-            <Icono nombre="pin" size={18} />
-            <span className="font-semibold">{zona}</span>
-            <span className="font-semibold text-ink-500 underline underline-offset-2">Cambiar</span>
-          </button>
-        )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {!zona && <span className="text-[15px] font-semibold text-ink">¿En qué barrio es?</span>}
+        <ChipBarrio zona={zona} alCambiar={setZona} />
       </div>
 
       <div className="mt-5">

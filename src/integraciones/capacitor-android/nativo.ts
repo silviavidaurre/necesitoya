@@ -20,6 +20,21 @@ export function appConAvisosNativos() {
   return esAppNativa() && typeof navigator !== "undefined" && navigator.userAgent.includes("NecesitoYaAndroid/fcm");
 }
 
+// --- Barra de estado -------------------------------------------------------------------------------
+// Acompaña al tema de la pantalla: fondo blanco con íconos oscuros en claro, fondo negro con íconos claros en oscuro.
+// Las versiones de la app que no traen el complemento siguen con la barra blanca de capacitor.config.ts.
+export async function pintarBarraDeEstado(oscuro: boolean) {
+  if (!esAppNativa()) return;
+  try {
+    const { StatusBar, Style } = await import("@capacitor/status-bar");
+    // Style.Dark = íconos claros, para fondos oscuros.
+    await StatusBar.setStyle({ style: oscuro ? Style.Dark : Style.Light });
+    await StatusBar.setBackgroundColor({ color: oscuro ? "#0d0d0d" : "#ffffff" });
+  } catch {
+    // Sin el complemento (o en un Android que no deja pintarla) la barra queda como estaba.
+  }
+}
+
 // --- Botón atrás del celular -----------------------------------------------------------------------
 // Las pantallas que se abren encima (chat, presupuestar, reclamos...) se anotan acá: atrás cierra la de arriba.
 // Si no hay ninguna, vuelve a la pantalla anterior; en el inicio, sale de la app.

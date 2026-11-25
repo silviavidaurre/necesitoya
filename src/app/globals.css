@@ -2,7 +2,8 @@
 
 /* Tokens de NecesitoYa · variante tipo Uber.
    Negro tinta y blanco, con un único acento naranja (sobre naranja, siempre texto negro).
-   El lado del vecino es claro; el del prestador, oscuro (clase .tema-oscuro en <html>).
+   El lado del vecino sigue el modo del celular (claro u oscuro); el del prestador es siempre oscuro.
+   El oscuro es la clase .tema-oscuro en <html>, que pone main.tsx (y index.html antes de pintar).
    La acción principal es negra en el lado claro y naranja en el oscuro. Verde = salió bien. Rojo = error.
    Los estados van con un punto y una palabra. Títulos y números en Space Grotesk; el resto en Inter. */
 @theme {
@@ -17,8 +18,12 @@
   --color-subtle: #f2f2ef;
   --color-line: #e3e2de;
   --color-success: #0a7a3d;
+  --color-success-50: #e1f2e7;
   --color-danger: #c8261b;
   --color-white: #ffffff;
+  /* Lo que flota sobre el mapa o la pantalla (barra de abajo, botones redondos, píldoras) y la pestaña activa. */
+  --color-flota: #ffffff;
+  --color-pestana: #f2f2ef;
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-display: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
 }
@@ -31,28 +36,36 @@
   --mapa-plaza: #cfe2c8;
   --mapa-texto: #6f6b62;
   --sombra-panel: 0 -8px 30px rgba(0, 0, 0, 0.12);
+  --sombra-flota: 0 4px 14px rgba(0, 0, 0, 0.16);
+  --sombra-barra: 0 8px 24px rgba(0, 0, 0, 0.14);
 }
 
-/* Lado del prestador: oscuro. Se invierten los tokens y la acción principal pasa a naranja con texto negro
-   (el "blanco" del texto sobre el botón se vuelve negro). Contrastes revisados: todos 4,5:1 o más. */
+/* Modo oscuro: el prestador siempre, el vecino cuando su celular está en oscuro. Se invierten los tokens y la
+   acción principal pasa a naranja con texto negro (el "blanco" del texto sobre el botón se vuelve negro).
+   Contrastes revisados: todos 4,5:1 o más. */
 .tema-oscuro {
   --color-white: #0d0d0d;
   --color-ink: #ffffff;
   --color-ink-500: #a3a3a3;
   --color-ink-400: #9a9a9a;
-  --color-subtle: #1c1c1c;
+  --color-subtle: #1f1f1f;
   --color-line: #2b2b2b;
   --color-brand: #ff5a1f;
   --color-brand-600: #e8501a;
   --color-brand-50: #2b2b2b;
   --color-success: #3ccf7f;
+  --color-success-50: #143222;
   --color-danger: #ff7a6e;
+  --color-flota: #1f1f1f;
+  --color-pestana: #2b2b2b;
   --mapa-fondo: #161616;
   --mapa-calle: #2b2b2b;
   --mapa-rio: #1f2e36;
   --mapa-plaza: #1d2a1d;
   --mapa-texto: #8a8a8a;
   --sombra-panel: 0 -8px 30px rgba(0, 0, 0, 0.5);
+  --sombra-flota: 0 4px 14px rgba(0, 0, 0, 0.3);
+  --sombra-barra: 0 8px 24px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
 
@@ -118,10 +131,27 @@ h2,
   animation: latido 1.6s ease-in-out infinite;
 }
 
+/* Hoja que sube desde abajo (selectores de barrio, urgencia, oficio...). */
+@keyframes subir {
+  from {
+    transform: translateY(40px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.subir {
+  animation: subir 0.22s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .grabando,
   .entrar,
-  .latido {
+  .latido,
+  .subir {
     animation: none;
   }
 }

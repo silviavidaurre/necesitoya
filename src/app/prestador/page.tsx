@@ -135,7 +135,7 @@ export default function PedidosPrestador() {
           </div>
         ) : (
           rubrosConPedidos.length > 1 && (
-            <div className="sin-barra -mx-6 mt-5 flex gap-2 overflow-x-auto px-6 pb-1">
+            <div className="sin-barra -mx-5 mt-5 flex gap-2 overflow-x-auto px-5 pb-1">
               <Chip activo={rubro === null} onClick={() => setRubro(null)}>
                 Todos
               </Chip>

@@ -53,7 +53,7 @@ export function Denunciar({
   if (listo) {
     return (
       <div className={marco} role="dialog" aria-modal="true" aria-label="Listo">
-        <div className="flex flex-1 flex-col px-6">
+        <div className="flex flex-1 flex-col px-5">
           <Cabecera alVolver={() => alCerrar({ bloqueado: conBloqueo && Boolean(bloquear) })} cerrar />
           <div className="mt-6 flex flex-col items-center text-center">
             <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-success">
@@ -66,7 +66,7 @@ export function Denunciar({
             </p>
           </div>
         </div>
-        <div className="px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        <div className="px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
           <BotonPrimario onClick={() => alCerrar({ bloqueado: conBloqueo && Boolean(bloquear) })}>Listo</BotonPrimario>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function Denunciar({
   const falta = !cuenta ? "Entrá con tu cuenta para denunciar" : !soloBloqueo && !motivo && !conBloqueo ? "Elegí un motivo" : "";
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label="Denunciar">
-      <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
+      <div className="sin-barra flex-1 overflow-y-auto px-5 pb-6">
         <Cabecera alVolver={() => alCerrar()} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">{soloBloqueo ? `¿Bloquear a ${nombre}?` : tipo === "perfil" ? "Denunciar este perfil" : `Denunciar a ${nombre}`}</h1>
         {!soloBloqueo && (
@@ -103,7 +103,7 @@ export function Denunciar({
         )}
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </div>
-      <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         {falta && <p className="mb-2 text-center text-[15px] font-medium text-ink-500">{falta}</p>}
         <BotonPrimario onClick={enviar} disabled={Boolean(falta) || (!motivo && !conBloqueo)} cargando={enviando}>
           {motivo || !bloquear ? "Enviar denuncia" : "Bloquear"}

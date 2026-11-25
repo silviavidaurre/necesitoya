@@ -63,7 +63,7 @@ export function PantallaEliminarCuenta({ alCerrar }: { alCerrar: () => void }) {
   if (lista) {
     return (
       <div className={marco} role="dialog" aria-modal="true" aria-label="Cuenta eliminada">
-        <div className="flex flex-1 flex-col px-6">
+        <div className="flex flex-1 flex-col px-5">
           <div className="mt-[72px] flex flex-col items-center text-center">
             <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-success">
               <Icono nombre="check" size={36} />
@@ -81,7 +81,7 @@ export function PantallaEliminarCuenta({ alCerrar }: { alCerrar: () => void }) {
 
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label="Eliminar mi cuenta">
-      <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
+      <div className="sin-barra flex-1 overflow-y-auto px-5 pb-6">
         <Cabecera alVolver={alCerrar} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Eliminar tu cuenta?</h1>
         <p className="mt-2 text-base text-ink-500">No se puede deshacer.</p>

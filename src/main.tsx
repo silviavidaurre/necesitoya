@@ -1,7 +1,7 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { prepararAppNativa } from "@/integraciones/capacitor-android/nativo";
+import { pintarBarraDeEstado, prepararAppNativa } from "@/integraciones/capacitor-android/nativo";
 import "./app/globals.css";
 import PerfilPublicoDePrestador from "./app/p/page";
 import SeguimientoPedido from "./app/pedido/page";
@@ -19,14 +19,39 @@ import EliminarCuentaPublica from "./app/eliminar-cuenta/page";
 import Recuperar from "./app/recuperar/page";
 import { AvisoDemo } from "./components/AvisoDemo";
 
-// El lado del prestador va oscuro y el del vecino claro: se cambia la clase de <html> según la pantalla.
+const MODO_OSCURO = "(prefers-color-scheme: dark)";
+
+function celularEnOscuro() {
+  try {
+    return window.matchMedia(MODO_OSCURO).matches;
+  } catch {
+    return false;
+  }
+}
+
+// El lado del prestador va siempre oscuro; el del vecino sigue el modo del celular. El panel interno queda claro.
+// Se cambia la clase de <html> (los tokens de globals.css), el color de la barra del navegador y, en la app de
+// Android, la barra de estado. index.html hace lo mismo antes de pintar, para que no parpadee al abrir.
 function TemaSegunPantalla() {
   const { pathname } = useLocation();
+  const [sistemaOscuro, setSistemaOscuro] = useState(celularEnOscuro);
   useEffect(() => {
-    const oscuro = pathname.startsWith("/prestador");
+    let consulta: MediaQueryList;
+    try {
+      consulta = window.matchMedia(MODO_OSCURO);
+    } catch {
+      return;
+    }
+    const alCambiar = () => setSistemaOscuro(consulta.matches);
+    consulta.addEventListener("change", alCambiar);
+    return () => consulta.removeEventListener("change", alCambiar);
+  }, []);
+  useEffect(() => {
+    const oscuro = pathname.startsWith("/prestador") || (sistemaOscuro && !pathname.startsWith("/admin"));
     document.documentElement.classList.toggle("tema-oscuro", oscuro);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", oscuro ? "#0d0d0d" : "#ffffff");
-  }, [pathname]);
+    void pintarBarraDeEstado(oscuro);
+  }, [pathname, sistemaOscuro]);
   return null;
 }
 
