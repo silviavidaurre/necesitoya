@@ -72,7 +72,7 @@ export function OfrecerTurnos({
   const alternar = <T,>(lista: T[], valor: T) => (lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor]);
   return (
     <div>
-      <div className="sin-barra -mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
+      <div className="sin-barra -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
         {proximosDias().map((dia) => (
           <span key={dia} className="w-[72px] shrink-0">
             <TarjetaDeDia dia={dia} activo={dias.includes(dia)} onClick={() => alCambiarDias(alternar(dias, dia))} />

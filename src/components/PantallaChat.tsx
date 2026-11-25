@@ -164,7 +164,7 @@ export function PantallaChat({
       aria-modal="true"
       aria-label={`Chat con ${nombre}`}
     >
-      <div className="shrink-0 border-b border-line px-6 pb-3">
+      <div className="shrink-0 border-b border-line px-5 pb-3">
         <Cabecera
           alVolver={alCerrar}
           cerrar
@@ -180,7 +180,7 @@ export function PantallaChat({
         <p className="mt-0.5 truncate text-[15px] text-ink-500">{titulo}</p>
       </div>
 
-      <div ref={lista} className="sin-barra flex-1 overflow-y-auto px-6 py-4" aria-live="polite">
+      <div ref={lista} className="sin-barra flex-1 overflow-y-auto px-5 py-4" aria-live="polite">
         {mensajes === null ? (
           !error && <p className="mt-8 text-center text-[15px] text-ink-500">{sinSenal ? "Sin conexión. Seguimos intentando." : "Cargando"}</p>
         ) : mensajes.length === 0 ? (
@@ -203,7 +203,7 @@ export function PantallaChat({
         {aviso && <p className="mt-4 text-center text-sm font-medium text-ink-500">{AVISO_OCULTO}</p>}
       </div>
 
-      <div className="shrink-0 border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="shrink-0 border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         {mensajes !== null && sinSenal && (
           <p className="mb-2">
             <Estado>Sin conexión. Seguimos intentando</Estado>

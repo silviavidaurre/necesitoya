@@ -1,15 +1,17 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@/lib/navegacion";
 
 // Piezas base de la interfaz (variante tipo Uber). Reglas que respetan:
-// una acción principal grande por pantalla (negra en el lado claro, naranja en el oscuro), fija abajo;
-// títulos de pocas palabras en Space Grotesk; números grandes; estados con punto y palabra;
-// zonas táctiles de 48 px o más; paneles inferiores sobre un mapa dibujado cuando la pantalla lo pide.
+// una acción principal grande por pantalla (negra en el lado claro, naranja en el oscuro), fija abajo y sin tapar nada;
+// títulos de pocas palabras en Space Grotesk (grandes y a la izquierda en las listas, centrados en las hojas);
+// números grandes; estados con punto y palabra; campos rellenos en gris, sin borde; selectores en chips con ▾;
+// acciones secundarias en píldoras con ícono; hojas que suben sobre un mapa dibujado cuando la pantalla lo pide.
 
 const TRAZOS: Record<string, ReactNode> = {
   atras: <path d="M19 12H5M11 6l-6 6 6 6" />,
   cerrar: <path d="M18 6 6 18M6 6l12 12" />,
   chevron: <path d="m9 6 6 6-6 6" />,
+  abajo: <path d="m6 9 6 6 6-6" />,
   check: <path d="M20 6 9 17l-5-5" />,
   mic: (
     <>
@@ -68,6 +70,29 @@ const TRAZOS: Record<string, ReactNode> = {
   ),
   casa: <path d="M3 11 12 4l9 7M5 10v10h14V10" />,
   flecha: <path d="M5 12h14M13 6l6 6-6 6" />,
+  ayuda: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17h.01" />
+    </>
+  ),
+  tarjeta: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M3 10h18" />
+    </>
+  ),
+  campana: <path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" />,
+  recibo: <path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6" />,
+  repetir: <path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5" />,
+  calendario: (
+    <>
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <path d="M4 10h16M9 3v4M15 3v4" />
+    </>
+  ),
+  alerta: <path d="M12 3 2 20h20zM12 10v4M12 17h.01" />,
+  navegar: <path d="M3 11 21 3l-8 18-2-8z" />,
   // Oficios
   plomeria: <path d="M12 2.700s6 6.1 6 10.800a6 6 0 0 1-12 0C6 8.8 12 2.7 12 2.700Z" />,
   gas: <path d="M12 3c1 3.5 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2-4.2.300 1.4 1 2.2 2 2.700C11.2 9 12 6.5 12 3Z" />,
@@ -128,43 +153,71 @@ export function IconoCirculo({ nombre, size = 48 }: { nombre: string; size?: num
   );
 }
 
-// Pantalla: contenido con margen de 24 px y, si hay, la acción principal fija abajo.
-// Con `mapa`, el mapa va arriba a todo el ancho y el contenido sube encima como un panel con esquinas redondeadas.
+// Alto del pie fijo, medido: el contenido deja abajo ese espacio y el botón principal nunca tapa nada
+// (aunque el pie crezca con un aviso, un error o la letra agrandada del celular).
+function useAltoDelPie() {
+  const [alto, setAlto] = useState(0);
+  const observador = useRef<ResizeObserver | null>(null);
+  const medir = useCallback((pie: HTMLDivElement | null) => {
+    observador.current?.disconnect();
+    observador.current = null;
+    if (!pie) {
+      setAlto(0);
+      return;
+    }
+    setAlto(pie.offsetHeight);
+    if (typeof ResizeObserver === "undefined") return;
+    observador.current = new ResizeObserver(() => setAlto(pie.offsetHeight));
+    observador.current.observe(pie);
+  }, []);
+  useEffect(() => () => observador.current?.disconnect(), []);
+  return { alto, medir };
+}
+
+const clasePie = "fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3";
+
+// Pantalla: contenido con margen de 20 px y, si hay, la acción principal fija abajo.
+// Con `mapa`, el mapa va arriba a todo el ancho y el contenido sube encima como una hoja con manija.
+// `conNav` deja lugar para la barra flotante de abajo.
 export function Pantalla({ children, pie, conNav = false, mapa }: { children: ReactNode; pie?: ReactNode; conNav?: boolean; mapa?: ReactNode }) {
-  const abajo = pie ? "pb-40" : conNav ? "pb-28" : "pb-10";
+  const { alto, medir } = useAltoDelPie();
+  // Mientras no se midió, se reserva lo de un botón con una línea de texto.
+  const abajo = pie ? { paddingBottom: (alto || 112) + 24 } : undefined;
+  const claseAbajo = pie ? "" : conNav ? "pb-32" : "pb-10";
+  const elPie = pie && (
+    <div ref={medir} className={clasePie}>
+      {pie}
+    </div>
+  );
   if (mapa) {
     return (
       <>
-        <main className={`flex flex-1 flex-col ${abajo}`}>
-          <div className="relative -mb-7">{mapa}</div>
-          <div className="relative flex flex-1 flex-col rounded-t-[28px] bg-white px-6 pt-2.5" style={{ boxShadow: "var(--sombra-panel)" }}>
-            <span className="mb-3 h-[5px] w-10 self-center rounded-full bg-line" aria-hidden="true" />
+        <main className={`flex flex-1 flex-col ${claseAbajo}`} style={abajo}>
+          <div className="relative -mb-8">{mapa}</div>
+          <div className="relative flex flex-1 flex-col rounded-t-[28px] bg-white px-5 pt-2.5" style={{ boxShadow: "var(--sombra-panel)" }}>
+            <span className="mb-3 h-[5px] w-10 shrink-0 self-center rounded-full bg-line" aria-hidden="true" />
             {children}
           </div>
         </main>
-        {pie && (
-          <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
-            {pie}
-          </div>
-        )}
+        {elPie}
       </>
     );
   }
   return (
     <>
-      <main className={`flex flex-1 flex-col px-6 ${abajo}`}>{children}</main>
-      {pie && (
-        <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
-          {pie}
-        </div>
-      )}
+      <main className={`flex flex-1 flex-col px-5 ${claseAbajo}`} style={abajo}>
+        {children}
+      </main>
+      {elPie}
     </>
   );
 }
 
+const sombraFlota = "shadow-[var(--sombra-flota)]";
+
 // Botón redondo que flota sobre el mapa (volver, cuenta).
 export function BotonFlotante({ icono, etiqueta, href, onClick }: { icono: string; etiqueta: string; href?: string; onClick?: () => void }) {
-  const clase = "flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-[0_4px_14px_rgba(0,0,0,0.16)] active:bg-subtle";
+  const clase = `flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-flota text-ink ${sombraFlota} active:bg-subtle`;
   if (href) {
     return (
       <Link href={href} aria-label={etiqueta} className={clase}>
@@ -179,22 +232,56 @@ export function BotonFlotante({ icono, etiqueta, href, onClick }: { icono: strin
   );
 }
 
-// Cabecera de 60 px: solo la flecha (o la X) y, a lo sumo, algo chico a la derecha.
+// Píldora que flota sobre el mapa: el barrio, "Tengo un oficio", "En vivo". Con `href` u `onClick` es un botón.
+export function PildoraFlotante({ children, href, onClick, etiqueta }: { children: ReactNode; href?: string; onClick?: () => void; etiqueta?: string }) {
+  const clase = `flex h-12 min-w-0 items-center gap-2 rounded-full bg-flota px-4 text-[15px] font-bold text-ink ${sombraFlota}`;
+  if (href) {
+    return (
+      <Link href={href} aria-label={etiqueta} className={`${clase} active:bg-subtle`}>
+        {children}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} aria-label={etiqueta} className={`${clase} active:bg-subtle`}>
+        {children}
+      </button>
+    );
+  }
+  return <span className={clase}>{children}</span>;
+}
+
+// Cabecera de 60 px: la flecha (o la X) y, en las hojas de pantalla completa, el título centrado.
+// Con `titulo` el título es el <h1> de la pantalla: toma el foco al abrir (lo anuncia el lector de pantalla).
 export function Cabecera({
   volver,
   alVolver,
   cerrar = false,
   derecha,
+  titulo,
 }: {
   volver?: string;
   alVolver?: () => void;
   cerrar?: boolean;
   derecha?: ReactNode;
+  titulo?: string;
 }) {
   const icono = <Icono nombre={cerrar ? "cerrar" : "atras"} size={24} />;
-  const clase = "-ml-1 inline-flex h-12 w-12 items-center justify-center rounded-full bg-subtle text-ink active:bg-line";
+  const clase = "relative z-[1] -ml-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-subtle text-ink active:bg-line";
+  const encabezado = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!titulo) return;
+    encabezado.current?.focus({ preventScroll: true });
+    document.title = `${titulo} · NecesitoYa`;
+  }, [titulo]);
   return (
-    <header className="flex h-[60px] shrink-0 items-center justify-between">
+    <header className="relative flex h-[60px] shrink-0 items-center justify-between">
+      {titulo && (
+        <h1 ref={encabezado} tabIndex={-1} className="absolute inset-x-14 truncate text-center text-[19px] font-bold text-ink outline-none">
+          {titulo}
+        </h1>
+      )}
       {alVolver ? (
         <button type="button" onClick={alVolver} aria-label={cerrar ? "Cerrar" : "Volver"} className={clase}>
           {icono}
@@ -312,19 +399,88 @@ export function Campo({ etiqueta, ayuda, error, children }: { etiqueta: string; 
   );
 }
 
+// Campo relleno: gris, sin borde. Al tocarlo se marca con un anillo de tinta (bien visible en claro y en oscuro).
 export const claseCampo =
-  "w-full rounded-2xl border-[1.5px] border-ink-400 bg-white px-4 py-3.5 text-base text-ink outline-none placeholder:text-ink-400 focus:border-ink focus:ring-2 focus:ring-acento/40";
+  "w-full rounded-2xl border-0 bg-subtle px-4 py-3.5 text-base text-ink outline-none placeholder:text-ink-500 focus:ring-2 focus:ring-ink";
 
+// Chip para elegir tocando (uno o varios): el elegido va invertido, el resto relleno en gris.
 export function Chip({ children, activo, onClick }: { children: ReactNode; activo: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       aria-pressed={activo}
       onClick={onClick}
-      className={`inline-flex min-h-12 items-center gap-1.5 rounded-[14px] px-4 text-[15px] font-semibold ${activo ? "border-2 border-ink bg-white text-ink" : "border border-line bg-subtle text-ink"}`}
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold ${activo ? "bg-ink text-white" : "bg-subtle text-ink active:bg-line"}`}
     >
-      {activo && <Icono nombre="check" size={16} className="text-ink" />}
       {children}
+    </button>
+  );
+}
+
+// Selector en chip: muestra lo elegido con su ícono y un ▾. Tocarlo abre una hoja de abajo con las opciones.
+// `borde` es la variante de filtro (contorno, sin relleno); `flotante` va sobre el mapa.
+export function ChipDesplegable({
+  children,
+  icono,
+  onClick,
+  etiqueta,
+  variante = "relleno",
+}: {
+  children: ReactNode;
+  icono?: string;
+  onClick: () => void;
+  // Nombre completo para el lector de pantalla, por ejemplo "Barrio: Centro. Cambiar".
+  etiqueta?: string;
+  variante?: "relleno" | "borde" | "flotante";
+}) {
+  const estilo =
+    variante === "borde"
+      ? "min-h-11 border border-line bg-transparent px-3.5 text-[15px] active:bg-subtle"
+      : variante === "flotante"
+        ? `min-h-12 bg-flota px-3.5 text-[15px] ${sombraFlota} active:bg-subtle`
+        : "min-h-11 bg-subtle px-3 text-[15px] active:bg-line";
+  return (
+    <button type="button" onClick={onClick} aria-haspopup="dialog" aria-label={etiqueta} className={`inline-flex min-w-0 max-w-full shrink-0 items-center gap-1.5 rounded-full font-semibold text-ink ${estilo}`}>
+      {icono && <Icono nombre={icono} size={17} className="shrink-0" />}
+      <span className="truncate">{children}</span>
+      <Icono nombre="abajo" size={15} className="shrink-0" />
+    </button>
+  );
+}
+
+// Acción secundaria en píldora con ícono ("Comprobante", "Pedir de nuevo", "Escuchar").
+export function Pildora({
+  children,
+  icono,
+  onClick,
+  href,
+  borde = false,
+  disabled = false,
+}: {
+  children: ReactNode;
+  icono?: string;
+  onClick?: () => void;
+  href?: string;
+  borde?: boolean;
+  disabled?: boolean;
+}) {
+  const clase = `inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[15px] font-semibold text-ink disabled:opacity-60 ${borde ? "border border-line active:bg-subtle" : "bg-subtle active:bg-line"}`;
+  const contenido = (
+    <>
+      {icono && <Icono nombre={icono} size={18} className="shrink-0" />}
+      {children}
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={clase}>
+        {contenido}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className={clase}>
+      {contenido}
     </button>
   );
 }

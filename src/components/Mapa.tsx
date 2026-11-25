@@ -63,7 +63,8 @@ export function Mapa({
   iniciales?: string;
   // Texto chico del barrio (nunca la dirección).
   etiqueta?: string;
-  // Globitos sobre el mapa, por ejemplo los precios de los presupuestos.
+  // Globitos sobre el mapa, por ejemplo los precios de los presupuestos. `acento` = el elegido (va con el color de la
+  // acción principal: negro en claro, naranja en oscuro).
   marcas?: { texto: string; acento?: boolean }[];
   children?: ReactNode;
 }) {
@@ -115,7 +116,7 @@ export function Mapa({
       {marcas.slice(0, 3).map((m, i) => (
         <span
           key={`${m.texto}-${i}`}
-          className={`cifra absolute flex h-8 items-center rounded-full px-3 text-sm font-bold shadow-[0_4px_12px_rgba(0,0,0,0.18)] ${m.acento ? "bg-acento text-[#0d0d0d]" : "bg-[#0d0d0d] text-[#ffffff]"}`}
+          className={`cifra absolute flex h-8 items-center rounded-full px-3 text-sm font-bold shadow-[var(--sombra-flota)] ${m.acento ? "bg-brand text-white" : "bg-flota text-ink"}`}
           style={{ left: posiciones[i][0], top: Math.min(posiciones[i][1], alto - 70) }}
         >
           {m.texto}

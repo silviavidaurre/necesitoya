@@ -16,7 +16,7 @@ const marco = "fixed inset-0 z-30 mx-auto flex w-full max-w-md flex-col bg-white
 function Hecho({ titulo, texto, boton, alTocar }: { titulo: string; texto: string; boton: string; alTocar: () => void }) {
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label={titulo}>
-      <div className="flex flex-1 flex-col px-6">
+      <div className="flex flex-1 flex-col px-5">
         <Cabecera alVolver={alTocar} cerrar />
         <div className="mt-6 flex flex-col items-center text-center">
           <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-success">
@@ -26,7 +26,7 @@ function Hecho({ titulo, texto, boton, alTocar }: { titulo: string; texto: strin
           <p className="mt-2 text-[17px] text-ink-500">{texto}</p>
         </div>
       </div>
-      <div className="px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         <BotonPrimario onClick={alTocar}>{boton}</BotonPrimario>
       </div>
     </div>
@@ -98,7 +98,7 @@ export function PantallaReclamo({ ofertaId, quien, nombre, alCerrar }: { ofertaI
   const falta = !motivo ? "Elegí qué pasó" : detalle.trim().length < 10 ? "Contá un poco más qué pasó" : "";
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label="Reclamo">
-      <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
+      <div className="sin-barra flex-1 overflow-y-auto px-5 pb-6">
         <Cabecera alVolver={() => alCerrar(false)} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Qué pasó?</h1>
         <p className="mt-2 text-[17px] text-ink-500">Lo revisamos a mano. El chat con {nombre} también sirve de prueba.</p>
@@ -134,7 +134,7 @@ export function PantallaReclamo({ ofertaId, quien, nombre, alCerrar }: { ofertaI
         </div>
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </div>
-      <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         {falta && (motivo || detalle) && <p className="mb-2 text-center text-[15px] font-medium text-ink-500">{falta}</p>}
         <BotonPrimario onClick={enviar} disabled={Boolean(falta)} cargando={enviando}>
           Enviar reclamo
@@ -183,7 +183,7 @@ export function PantallaCambiarDia({
 
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label="Cambiar el día">
-      <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
+      <div className="sin-barra flex-1 overflow-y-auto px-5 pb-6">
         <Cabecera alVolver={() => alCerrar()} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Para cuándo?</h1>
         <p className="mt-2 text-base text-ink-500">Ahora: {actual}. Le avisamos.</p>
@@ -203,7 +203,7 @@ export function PantallaCambiarDia({
         {turnos.length === 0 && cuando === "otro" && <input className={`${claseCampo} mt-4`} value={otro} onChange={(e) => setOtro(e.target.value)} maxLength={80} placeholder="Ej: el sábado a la mañana" autoFocus />}
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </div>
-      <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         <BotonPrimario onClick={guardar} disabled={!elegido} cargando={enviando}>
           {turno ? textoDeTurno(turno) : "Guardar el nuevo día"}
         </BotonPrimario>
@@ -234,7 +234,7 @@ export function PantallaCancelar({ pedidoId, clave, alCerrar }: { pedidoId: stri
 
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label="Cancelar el pedido">
-      <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
+      <div className="sin-barra flex-1 overflow-y-auto px-5 pb-6">
         <Cabecera alVolver={() => alCerrar(false)} cerrar />
         <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Cancelar el pedido?</h1>
         <p className="mt-2 text-[17px] text-ink-500">Los prestadores dejan de verlo y no se puede deshacer.</p>
@@ -247,7 +247,7 @@ export function PantallaCancelar({ pedidoId, clave, alCerrar }: { pedidoId: stri
         </div>
         {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </div>
-      <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+      <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
         {!motivo && <p className="mb-2 text-center text-[15px] font-medium text-ink-500">Elegí el motivo</p>}
         <BotonPrimario onClick={cancelar} disabled={!motivo} cargando={enviando}>
           Sí, cancelar el pedido

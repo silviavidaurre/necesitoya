@@ -111,7 +111,7 @@ export function PantallaOferta({
   if (posicion) {
     return (
       <div className={marco} role="dialog" aria-modal="true" aria-label="Presupuesto enviado">
-        <div className="flex flex-1 flex-col px-6">
+        <div className="flex flex-1 flex-col px-5">
           <Cabecera alVolver={alEnviar} cerrar />
           <div className="mt-6 flex flex-col items-center text-center">
             <span className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-subtle text-success">
@@ -124,7 +124,7 @@ export function PantallaOferta({
             </p>
           </div>
         </div>
-        <div className="px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        <div className="px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
           <BotonPrimario onClick={alEnviar}>Ver más pedidos</BotonPrimario>
         </div>
       </div>
@@ -133,7 +133,7 @@ export function PantallaOferta({
 
   return (
     <div className={marco} role="dialog" aria-modal="true" aria-label="Enviar presupuesto">
-      <div className="sin-barra flex-1 overflow-y-auto px-6 pb-6">
+      <div className="sin-barra flex-1 overflow-y-auto px-5 pb-6">
         <Cabecera alVolver={alCerrar} cerrar />
         <h1 className="text-[28px] font-bold leading-[1.15] tracking-[-0.02em] text-ink">{pedido.titulo}</h1>
         <p className="mt-2 flex items-center gap-2 text-[15px] text-ink-500">
@@ -272,7 +272,7 @@ export function PantallaOferta({
       </div>
 
       {!pedido.yaOferte && pedido.cupos > 0 && (
-        <div className="border-t border-line px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
           {prestadorId === null ? (
             <BotonPrimario onClick={alAnotarse}>Anotarme y presupuestar</BotonPrimario>
           ) : !conCuenta ? (
