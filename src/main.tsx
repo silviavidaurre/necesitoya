@@ -23,6 +23,13 @@ import { AvisoDemo } from "./components/AvisoDemo";
 
 const MODO_OSCURO = "(prefers-color-scheme: dark)";
 
+// Un pedido nuevo es una pantalla nueva: al pasar de /pedido/A a /pedido/B (por ejemplo, tocando un aviso) no se
+// arrastran el turno marcado, la dirección escrita, las estrellas ni el chat abierto del anterior.
+function PedidoPorId() {
+  const { pathname } = useLocation();
+  return <SeguimientoPedido key={pathname} />;
+}
+
 function celularEnOscuro() {
   try {
     return window.matchMedia(MODO_OSCURO).matches;
@@ -74,7 +81,7 @@ createRoot(document.getElementById("raiz")!).render(
         <Routes>
           <Route path="/" element={<Pedir />} />
           <Route path="/pedir" element={<Pedir />} />
-          <Route path="/pedido/:id" element={<SeguimientoPedido />} />
+          <Route path="/pedido/:id" element={<PedidoPorId />} />
           <Route path="/mis-pedidos" element={<MisPedidos />} />
           <Route path="/cuenta" element={<Cuenta />} />
           <Route path="/prestador" element={<PedidosPrestador />} />

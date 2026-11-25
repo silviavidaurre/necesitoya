@@ -33,6 +33,8 @@ interface OfertaMia {
   id: string;
   estado: "enviada" | "elegida" | "descartada";
   pedido: { titulo: string; confirmado: string | null; estado: "abierto" | "cerrado" | "cancelado" } | null;
+  // Ya avisó que terminó: deja de ser un "trabajo en curso" aunque el vecino todavía no confirme.
+  terminado?: { creado: string } | null;
   sinLeer: number;
 }
 
@@ -66,7 +68,7 @@ export default function PedidosPrestador() {
     try {
       const datos = await pedir<{ ofertas: OfertaMia[] }>(`/api/ofertas?prestadorId=${encodeURIComponent(prestadorId)}`);
       // Solo los trabajos que siguen en curso: los que el vecino ya confirmó o canceló quedan en Mis presupuestos.
-      setMeEligieron(datos.ofertas.filter((o) => o.estado === "elegida" && !o.pedido?.confirmado && o.pedido?.estado !== "cancelado"));
+      setMeEligieron(datos.ofertas.filter((o) => o.estado === "elegida" && !o.terminado && !o.pedido?.confirmado && o.pedido?.estado !== "cancelado"));
       setHayMensajes(datos.ofertas.some((o) => o.sinLeer > 0));
     } catch {
       // Es un aviso extra: si falla, la lista de pedidos sigue funcionando.
@@ -184,7 +186,7 @@ export default function PedidosPrestador() {
         {meEligieron.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">
             {meEligieron.slice(0, 2).map((oferta) => (
-              <Link key={oferta.id} href="/prestador/ofertas" className="flex min-h-16 items-center gap-3 rounded-2xl bg-success-50 px-4 py-3">
+              <Link key={oferta.id} href={`/prestador/ofertas?trabajo=${oferta.id}`} className="flex min-h-16 items-center gap-3 rounded-2xl bg-success-50 px-4 py-3">
                 <Icono nombre="check" size={22} className="shrink-0 text-success" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-bold text-ink">Te eligieron: {oferta.pedido?.titulo ?? "un pedido"}</span>

@@ -6,7 +6,9 @@ import { entrarConGoogleNativo, esAppNativa, googleNativoDisponible } from "@/in
 import { BotonSecundario, Campo, claseCampo } from "@/components/ui";
 import {
   borrarPrestadorId,
+  guardarBorrador,
   guardarCuenta,
+  guardarMisDatos,
   guardarPrestadorId,
   leerCuenta,
   leerMisPedidos,
@@ -108,6 +110,9 @@ export function abrirCuenta(entrada: Entrada, alEntrar?: (cuenta: CuentaGuardada
 // Al salir, el celular queda limpio para que entre otra cuenta. Lo de la cuenta sigue guardado: vuelve al entrar.
 export function cerrarCuenta() {
   guardarCuenta(null);
+  // En un celular compartido, quien entra después no ve lo que la otra persona estaba contando ni su nombre.
+  guardarBorrador(null);
+  guardarMisDatos({ nombre: "" });
   borrarPrestadorId();
   recordarPrestador(null);
   reemplazarMisPedidos([]);
@@ -340,7 +345,8 @@ export function EntrarACuenta({
         </p>
       )}
       <div className="mt-4">
-        <BotonSecundario onClick={() => void conMail()} disabled={entrando}>
+        {/* Es el botón del formulario: así «Ir» o Enter en el teclado también entran. */}
+        <BotonSecundario enviar disabled={entrando}>
           {entrando ? "Entrando" : "Entrar"}
         </BotonSecundario>
       </div>

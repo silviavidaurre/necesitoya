@@ -44,7 +44,10 @@ function elegidaDe(p: MiPedido) {
 export default function MisPedidos() {
   const router = useRouter();
   const navegar = useNavigate();
-  const { pedidos, cargando } = useMisPedidos();
+  const { pedidos: todos, cargando, sinActualizar } = useMisPedidos();
+  // Mientras carga, un pedido que todavía no respondió no se muestra: si no, uno en camino aparecía un momento
+  // como "anterior", con "Pedir de nuevo".
+  const pedidos = cargando ? todos.filter((p) => p.estado !== "sin-datos") : todos;
   const [estado, setEstado] = useState<FiltroDeEstado>("todos");
   const [oficio, setOficio] = useState<RubroId | "todos">("todos");
   const [conCuenta] = useState(() => Boolean(leerCuenta()));
@@ -90,6 +93,18 @@ export default function MisPedidos() {
               />
             )}
           </div>
+        )}
+
+        {cargando && (
+          <div className="mt-6 flex items-center gap-3 text-[15px] text-ink-500" role="status">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-line border-t-acento" aria-hidden="true" />
+            Actualizando tus pedidos
+          </div>
+        )}
+        {!cargando && sinActualizar > 0 && (
+          <p className="mt-4 text-[15px] text-ink-500" role="status">
+            {sinActualizar === 1 ? "No pudimos actualizar un pedido." : `No pudimos actualizar ${sinActualizar} pedidos.`} Si no tenés señal, probá en un rato.
+          </p>
         )}
 
         {pedidos.length === 0 && !cargando && (
@@ -206,11 +221,14 @@ function FilaAnterior({ pedido, alPedirDeNuevo }: { pedido: MiPedido; alPedirDeN
             {estado}
           </span>
         </Link>
-        <div>
-          <Pildora icono="repetir" borde onClick={alPedirDeNuevo}>
-            Pedir de nuevo
-          </Pildora>
-        </div>
+        {/* Sin datos (sin señal o borrado) no se sabe qué era: no se ofrece repetirlo. */}
+        {pedido.estado !== "sin-datos" && (
+          <div>
+            <Pildora icono="repetir" borde onClick={alPedirDeNuevo}>
+              Pedir de nuevo
+            </Pildora>
+          </div>
+        )}
       </div>
     </div>
   );

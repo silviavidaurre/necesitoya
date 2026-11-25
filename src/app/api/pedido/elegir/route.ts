@@ -1,7 +1,7 @@
 import { avisar } from "@/lib/avisos";
 import { modificar } from "@/lib/db";
 import { limpiarTexto } from "@/lib/texto";
-import { limpiarTurnos, mismoTurno, textoDeTurno } from "@/lib/turnos";
+import { limpiarTurnos, mismoTurno, textoDeTurno, turnoVigente } from "@/lib/turnos";
 import { seguimientoDe } from "@/lib/seguimiento";
 
 class ErrorDeEleccion extends Error {
@@ -38,8 +38,11 @@ export async function POST(request: Request) {
       const elegidaAhora = delPedido.find((o) => o.id === ofertaId);
       const deMuestra = Boolean(elegidaAhora?.ejemplo);
       if (!deMuestra && calle.length < 4) throw new ErrorDeEleccion("Escribí la dirección: calle y número.", 400);
-      if (!deMuestra && (elegidaAhora?.turnos?.length ?? 0) > 0) {
-        if (!turno || !elegidaAhora?.turnos?.some((t) => mismoTurno(t, turno))) throw new ErrorDeEleccion("Elegí uno de los días y horarios que ofreció.", 400);
+      // Si a todos los turnos que ofreció ya se les pasó la hora, se lo puede elegir igual y el día se coordina por
+      // el chat (antes quedaba trabado: ningún turno servía y no se lo podía elegir).
+      const vigentes = (elegidaAhora?.turnos ?? []).filter((t) => turnoVigente(t));
+      if (!deMuestra && vigentes.length > 0) {
+        if (!turno || !vigentes.some((t) => mismoTurno(t, turno))) throw new ErrorDeEleccion("Elegí uno de los días y horarios que ofreció.", 400);
       }
 
       for (const oferta of delPedido) oferta.estado = oferta.id === ofertaId ? "elegida" : "descartada";

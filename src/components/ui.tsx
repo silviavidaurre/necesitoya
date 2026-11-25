@@ -205,9 +205,11 @@ export function Pantalla({
   if (mapa) {
     return (
       <>
-        <main className={`flex flex-1 flex-col ${claseAbajo}`} style={abajo}>
+        {/* El espacio para el pie o la barra va dentro de la hoja: así la hoja blanca llega hasta abajo, sin una
+            franja gris entre el contenido y la barra flotante. */}
+        <main className="flex flex-1 flex-col">
           <div className="relative -mb-8">{mapa}</div>
-          <div className="relative flex flex-1 flex-col rounded-t-[28px] bg-white px-5 pt-2.5" style={{ boxShadow: "var(--sombra-panel)" }}>
+          <div className={`relative flex flex-1 flex-col rounded-t-[28px] bg-white px-5 pt-2.5 ${claseAbajo}`} style={{ boxShadow: "var(--sombra-panel)", ...abajo }}>
             <span className="mb-3 h-[5px] w-10 shrink-0 self-center rounded-full bg-line" aria-hidden="true" />
             {children}
           </div>
@@ -335,7 +337,7 @@ export function Titulo({ children, pregunta }: { children: ReactNode; pregunta?:
   }, [texto]);
   return (
     <div>
-      <h1 ref={titulo} tabIndex={-1} className="text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-ink outline-none">
+      <h1 ref={titulo} tabIndex={-1} className="text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-ink outline-none [overflow-wrap:anywhere]">
         {children}
       </h1>
       {pregunta && <p className="mt-2 text-base leading-snug text-ink-500">{pregunta}</p>}
@@ -388,10 +390,21 @@ export function BotonPrimario({
 }
 
 // Acción secundaria: gris tonal, nunca azul.
-export function BotonSecundario({ children, onClick, disabled = false }: { children: ReactNode; onClick?: () => void; disabled?: boolean }) {
+// `enviar`: es el botón de un formulario (Enter o «Ir» en el teclado lo tocan solos).
+export function BotonSecundario({
+  children,
+  onClick,
+  disabled = false,
+  enviar = false,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  enviar?: boolean;
+}) {
   return (
     <button
-      type="button"
+      type={enviar ? "submit" : "button"}
       onClick={onClick}
       disabled={disabled}
       className="flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl bg-subtle px-6 text-base font-bold text-ink active:bg-line disabled:text-ink-400"
@@ -521,7 +534,9 @@ export function Segmentado<T extends string>({ opciones, valor, alCambiar }: { o
           type="button"
           aria-pressed={valor === opcion.id}
           onClick={() => alCambiar(opcion.id)}
-          className={`min-h-12 flex-1 rounded-xl px-3 text-[15px] font-semibold ${valor === opcion.id ? "bg-white text-ink shadow-sm" : "text-ink-500"}`}
+          // En oscuro, "white" es casi negro y no se distingue del riel: la pestaña elegida usa el gris de las
+          // pestañas activas (se ve bien en claro y en oscuro).
+          className={`min-h-12 flex-1 rounded-xl px-3 text-[15px] font-semibold ${valor === opcion.id ? "bg-white text-ink shadow-sm dark-pestana" : "text-ink-500"}`}
         >
           {opcion.texto}
         </button>

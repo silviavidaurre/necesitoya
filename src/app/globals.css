@@ -69,6 +69,11 @@
   color-scheme: dark;
 }
 
+/* La opción elegida de un control segmentado: en oscuro, el "blanco" es casi negro y se perdía contra el riel. */
+.tema-oscuro .dark-pestana {
+  background-color: var(--color-pestana);
+}
+
 html,
 body {
   background: var(--color-subtle);

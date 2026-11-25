@@ -7,8 +7,8 @@ const RIESGO = { bajo: "riesgo bajo", medio: "riesgo medio", alto: "riesgo alto"
 function Lista({ items }: { items: string[] }) {
   return (
     <ul className="space-y-2">
-      {items.map((item) => (
-        <li key={item} className="flex gap-3 text-[15px] leading-snug text-ink">
+      {items.map((item, i) => (
+        <li key={`${i}-${item}`} className="flex gap-3 text-[15px] leading-snug text-ink">
           <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-ink-400" aria-hidden="true" />
           {item}
         </li>

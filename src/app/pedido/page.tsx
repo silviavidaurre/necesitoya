@@ -7,7 +7,7 @@ import { HojaDeAbajo, OpcionDeHoja } from "@/components/Hoja";
 import { Mapa } from "@/components/Mapa";
 import { ElegirTurno } from "@/components/Turnos";
 import { useCerrarConAtras } from "@/components/useAtras";
-import { nombreDelDia, sePuedeCancelar, sePuedeReprogramar, textoDeEstado, textoDeTurno, type EstadoDeTrabajo, type Turno } from "@/lib/turnos";
+import { mismoTurno, nombreDelDia, sePuedeCancelar, sePuedeReprogramar, textoDeEstado, textoDeTurno, turnoVigente, type EstadoDeTrabajo, type Turno } from "@/lib/turnos";
 import { pesos, rubroPorId } from "@/lib/catalogo";
 import { ErrorDePedido, guardarMiPedido, leerMisPedidos, pedir } from "@/lib/cliente";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
@@ -49,8 +49,10 @@ const precioCorto = (precio: number) => `$${Math.round(precio / 1000)}k`;
 
 // Cuándo puede ir: el primer turno que ofreció ("Hoy 13–17 h") o lo que escribió.
 function cuandoPuede(oferta: OfertaParaCliente) {
-  const primero = oferta.turnos?.[0];
-  return primero ? textoDeTurno(primero).replace(" · ", " ") : oferta.cuando;
+  // El primer turno que todavía sirve. Si a todos se les pasó la hora, se coordina por el chat.
+  const primero = oferta.turnos?.find((t) => turnoVigente(t));
+  if (primero) return textoDeTurno(primero).replace(" · ", " ");
+  return (oferta.turnos?.length ?? 0) > 0 ? "A coordinar" : oferta.cuando;
 }
 
 // Una etiqueta por presupuesto, como en "Elegí un viaje": verde para el más barato; neutras para lo demás.
@@ -62,7 +64,7 @@ function etiquetaDe(oferta: OfertaParaCliente, ofertas: OfertaParaCliente[]): { 
   if (reales.length > 1 && oferta.precio === minimo && reales.filter((o) => o.precio === minimo).length === 1) return { texto: "Más barato", bien: true };
   const primero = oferta.turnos?.[0];
   if (primero && nombreDelDia(primero.dia) === "Hoy") return { texto: "Llega hoy", bien: false };
-  if (oferta.prestador.nivel >= 3) return { texto: "Matriculado", bien: false };
+  if (oferta.prestador.nivel >= 3) return { texto: "Oficio certificado", bien: false };
   return null;
 }
 
@@ -101,6 +103,8 @@ export default function SeguimientoPedido() {
   const [eligiendo, setEligiendo] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [calificando, setCalificando] = useState(false);
+  // "Quedó bien" no tiene vuelta atrás (cierra el trabajo y puede liberar el pago): se pregunta una vez.
+  const [confirmandoFin, setConfirmandoFin] = useState(false);
   const [estrellas, setEstrellas] = useState(0);
   const [comentario, setComentario] = useState("");
   const [enviandoNota, setEnviandoNota] = useState(false);
@@ -157,12 +161,25 @@ export default function SeguimientoPedido() {
   }, [tituloDelPedido]);
 
   const abierto = datos?.pedido.estado !== "cerrado";
+  // Cancelado, o terminado y calificado: ya no cambia nada, se deja de consultar.
+  const final = datos?.pedido.estado === "cancelado" || Boolean(datos?.pedido.confirmado && datos.pedido.calificacion);
   useEffect(() => {
     cargar();
-    // Con el pedido cerrado se sigue consultando, más espaciado: así aparece el aviso de mensaje nuevo.
-    const reloj = setInterval(cargar, abierto ? 8_000 : 12_000);
-    return () => clearInterval(reloj);
-  }, [cargar, abierto]);
+    if (final) return;
+    // Con el pedido cerrado se sigue consultando, más espaciado: así aparece el aviso de mensaje nuevo. Con la app
+    // de fondo no consulta, y al volver se actualiza en el momento.
+    const reloj = setInterval(() => {
+      if (document.visibilityState === "visible") cargar();
+    }, abierto ? 8_000 : 12_000);
+    const alVolver = () => {
+      if (document.visibilityState === "visible") cargar();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      clearInterval(reloj);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [cargar, abierto, final]);
 
   async function elegir(oferta: OfertaParaCliente, turno: Turno | null) {
     if (!clave) return;
@@ -363,17 +380,21 @@ export default function SeguimientoPedido() {
       </span>
     </div>
   );
-  const marcada = ofertas.find((o) => o.id === seleccionada) ?? ofertas[0];
+  // De entrada se marca el primer presupuesto real. Los de muestra no se marcan solos: elegir uno cierra el pedido,
+  // y con dos toques sin leer se podía cerrar un pedido real.
+  const marcada = ofertas.find((o) => o.id === seleccionada) ?? ofertas.find((o) => !o.prestador.ejemplo);
   const marcasDelMapa = (elegido?: OfertaParaCliente) => ofertas.map((o) => ({ texto: precioCorto(o.precio), acento: o.id === elegido?.id }));
 
   // Día, franja y dirección: el vecino elige entre los turnos que ofreció el prestador y carga dónde es.
   // Es la misma hoja de los presupuestos, un paso más. La dirección es privada: solo la ve el prestador elegido,
   // mientras el trabajo está activo.
-  if (porConfirmar) {
+  // Si mientras tanto ya quedó elegido (por ejemplo, la respuesta se perdió pero se guardó), se pasa al seguimiento.
+  if (porConfirmar && !elegida) {
     const pila = pilaDe(porConfirmar.prestador.nombre);
     const muestra = porConfirmar.prestador.ejemplo;
-    const turnos = porConfirmar.turnos ?? [];
-    const turno = turnoElegido ?? turnos[0] ?? null;
+    // Solo los turnos que todavía sirven: los días que pasaron (o la franja de hoy que ya terminó) no se ofrecen.
+    const turnos = (porConfirmar.turnos ?? []).filter((t) => turnoVigente(t));
+    const turno = turnoElegido && turnos.some((t) => mismoTurno(t, turnoElegido)) ? turnoElegido : (turnos[0] ?? null);
     const faltaDireccion = !muestra && calle.trim().length < 4;
     return (
       <Pantalla
@@ -386,9 +407,11 @@ export default function SeguimientoPedido() {
         bordePie
         pie={
           <>
-            {faltaDireccion && <Falta>Falta la dirección</Falta>}
+            {/* El error va pegado al botón: si queda arriba, con el teclado abierto no se ve. */}
+            {error ? <ErrorDePantalla>{error}</ErrorDePantalla> : faltaDireccion ? <Falta>Falta la dirección</Falta> : null}
+            {muestra && <Falta>Es de muestra: si lo elegís, tu pedido se cierra y no te llegan presupuestos reales.</Falta>}
             <BotonPrimario onClick={() => elegir(porConfirmar, turno)} disabled={faltaDireccion} cargando={eligiendo}>
-              {turno ? `Confirmar: ${textoDeTurno(turno)}` : `Elegir a ${pila}`}
+              {muestra ? `Probar con ${pila}` : turno ? `Confirmar: ${textoDeTurno(turno)}` : `Elegir a ${pila}`}
             </BotonPrimario>
           </>
         }
@@ -421,7 +444,6 @@ export default function SeguimientoPedido() {
           Solo la ve {pila}, hasta que termine
         </p>
         {porConfirmar.prestador.pagoProtegido && <p className="mt-3 text-[15px] text-ink-500">Después pagás protegido: la plata queda retenida hasta que confirmes.</p>}
-        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
     );
   }
@@ -432,11 +454,16 @@ export default function SeguimientoPedido() {
     return (
       <Pantalla
         pie={
-          <BotonPrimario onClick={calificar} disabled={estrellas < 1} cargando={enviandoNota}>
-            Enviar calificación
-          </BotonPrimario>
+          <>
+            {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+            <BotonPrimario onClick={calificar} disabled={estrellas < 1} cargando={enviandoNota}>
+              Enviar calificación
+            </BotonPrimario>
+          </>
         }
       >
+        {/* El atrás del celular cierra la calificación, sin salir del pedido ni perder las estrellas. */}
+        <AtrasVuelveUnPaso alVolver={() => setCalificando(false)} />
         <Cabecera alVolver={() => setCalificando(false)} cerrar />
         <Titulo pregunta="Le sirve a otros vecinos.">¿Cómo trabajó {pila}?</Titulo>
         <div className="mt-8">
@@ -452,7 +479,6 @@ export default function SeguimientoPedido() {
             placeholder="Opcional. Si llegó a horario, si quedó bien."
           />
         </label>
-        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
       </Pantalla>
     );
   }
@@ -477,7 +503,7 @@ export default function SeguimientoPedido() {
 
     let principal: { texto: string; accion: () => void } | null = null;
     if (porLiberar) principal = { texto: "Liberar el pago", accion: () => abrirPago(pago.urlDePago) };
-    else if (porConfirmarTrabajo) principal = { texto: "Quedó bien", accion: confirmar };
+    else if (porConfirmarTrabajo) principal = { texto: "Quedó bien", accion: () => setConfirmandoFin(true) };
     else if (porPagar && confirmado) principal = { texto: pago ? "Terminar el pago" : `Pagarle a ${pila}`, accion: pagar };
     else if (confirmado && !pedido.calificacion) principal = { texto: `Calificar a ${pila}`, accion: () => setCalificando(true) };
     else if (porPagar) principal = { texto: pago ? "Terminar el pago" : protegido ? "Pagar protegido" : "Pagar por la app", accion: pagar };
@@ -501,6 +527,30 @@ export default function SeguimientoPedido() {
     const capas = (
       <>
         {pantallaDeChat}
+        {confirmandoFin && (
+          <HojaDeAbajo titulo="¿Quedó bien?" alCerrar={() => setConfirmandoFin(false)}>
+            <p className="text-base leading-snug text-ink">Al confirmar, el trabajo de {pila} queda cerrado y no se puede deshacer.</p>
+            <p className="mt-2 text-[15px] leading-snug text-ink-500">Si algo no quedó bien, avisá antes con «Tengo un problema».</p>
+            <div className="mt-5 flex flex-col gap-2">
+              <BotonPrimario
+                onClick={() => {
+                  setConfirmandoFin(false);
+                  void confirmar();
+                }}
+              >
+                Sí, quedó bien
+              </BotonPrimario>
+              <BotonSecundario
+                onClick={() => {
+                  setConfirmandoFin(false);
+                  setGestion("reclamo");
+                }}
+              >
+                Tengo un problema
+              </BotonSecundario>
+            </div>
+          </HojaDeAbajo>
+        )}
         {gestion === "reclamo" && clave && (
           <PantallaReclamo
             ofertaId={elegida.id}
@@ -708,20 +758,19 @@ export default function SeguimientoPedido() {
         <Pantalla
           mapa={
             <Mapa
-              alto={terminado?.fotoId ? 220 : 380}
+              // En un celular chico, el mapa no empuja los botones fuera de la pantalla.
+              alto={terminado?.fotoId ? 220 : Math.min(380, Math.round(window.innerHeight * 0.45))}
               variante={estado === "confirmado" || confirmado || terminado ? "destino" : "ruta"}
               progreso={progreso}
               iniciales={iniciales(elegida.prestador.nombre)}
             >
               <BotonFlotante icono="atras" etiqueta="Volver" onClick={volverAtras} />
-              {enVivo ? (
+              {/* El día y la franja ya están al lado del título de la hoja: arriba solo va «En vivo». */}
+              {enVivo && (
                 <PildoraFlotante>
                   <span className="latido h-2.5 w-2.5 rounded-full bg-success" aria-hidden="true" />
                   En vivo
                 </PildoraFlotante>
-              ) : (
-                trabajo?.turno &&
-                activo && <PildoraFlotante>{textoDeTurno(trabajo.turno)}</PildoraFlotante>
               )}
             </Mapa>
           }
@@ -976,7 +1025,12 @@ export default function SeguimientoPedido() {
                           {!oferta.prestador.ejemplo && (
                             <Pildora icono="mensaje" onClick={() => setChat(oferta)}>
                               Mensaje
-                              {oferta.sinLeer > 0 && <span className="h-2 w-2 rounded-full bg-success" aria-label="nuevo" />}
+                              {oferta.sinLeer > 0 && (
+                                <>
+                                  <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+                                  <span className="sr-only">, mensaje nuevo</span>
+                                </>
+                              )}
                             </Pildora>
                           )}
                         </div>

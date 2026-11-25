@@ -27,30 +27,39 @@ export function DeslizarParaConfirmar({
   const conPuntero = useRef(false);
   const [avance, setAvance] = useState(0);
   const [aviso, setAviso] = useState(false);
+  // El dedo que empezó el gesto: un segundo dedo no lo mueve ni lo termina.
+  const dedo = useRef<number | null>(null);
 
   const recorrido = () => Math.max(1, (pista.current?.clientWidth ?? 300) - 64);
+  const avanceEn = (x: number) => (inicio.current === null ? 0 : Math.max(0, Math.min(1, (x - inicio.current) / recorrido())));
 
   function alApretar(e: PointerEvent<HTMLButtonElement>) {
-    if (ocupado) return;
+    if (ocupado || !e.isPrimary) return;
     conPuntero.current = true;
+    dedo.current = e.pointerId;
     inicio.current = e.clientX;
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
   function alMover(e: PointerEvent<HTMLButtonElement>) {
-    if (inicio.current === null) return;
-    setAvance(Math.max(0, Math.min(1, (e.clientX - inicio.current) / recorrido())));
+    if (inicio.current === null || e.pointerId !== dedo.current) return;
+    setAvance(avanceEn(e.clientX));
   }
 
-  function alSoltar() {
-    if (inicio.current === null) return;
+  // Se mide donde se soltó (no el último dibujo): un deslizamiento rápido también llega al final.
+  function alSoltar(e: PointerEvent<HTMLButtonElement>) {
+    if (inicio.current === null || e.pointerId !== dedo.current) return;
+    const final = Math.max(avance, avanceEn(e.clientX));
     inicio.current = null;
-    if (avance >= TOPE) {
+    dedo.current = null;
+    if (final >= TOPE) {
       setAvance(1);
+      // Confirmado con el gesto: el atajo "Confirmar" se esconde, así el paso siguiente vuelve a pedir deslizar.
+      setAviso(false);
       alConfirmar();
       setTimeout(() => setAvance(0), 600);
     } else {
-      if (avance < 0.05) setAviso(true);
+      if (final < 0.05) setAviso(true);
       setAvance(0);
     }
   }
@@ -87,6 +96,7 @@ export function DeslizarParaConfirmar({
         onPointerUp={alSoltar}
         onPointerCancel={() => {
           inicio.current = null;
+          dedo.current = null;
           setAvance(0);
         }}
         onClick={(e) => {
