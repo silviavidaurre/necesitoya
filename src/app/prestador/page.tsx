@@ -92,20 +92,22 @@ export default function PedidosPrestador() {
   if (cargando) return <Cargando />;
 
   const todos = pedidos ?? [];
+  const misZonas = prestador?.zonas ?? [];
+  // Sin zonas cargadas, o con "Toda la ciudad" (como lo cuenta el servidor), "Mis zonas" son todos los barrios.
+  const todaLaCiudad = misZonas.length === 0 || misZonas.includes("Toda la ciudad");
   // Sin perfil no hay "míos": se ve todo.
   const filtroDeOficio: FiltroDeOficio = !prestador && oficio === "mios" ? "todos" : oficio;
   const filtroDeZona: FiltroDeZona = !prestador && zona === "mias" ? "todas" : zona;
   const visibles = todos.filter(
     (p) =>
       (filtroDeOficio === "todos" || (filtroDeOficio === "mios" ? p.coincide : p.rubro === filtroDeOficio)) &&
-      (filtroDeZona === "todas" || (filtroDeZona === "mias" ? (prestador?.zonas ?? []).includes(p.zona) || p.enMiZona : p.zona === filtroDeZona)),
+      (filtroDeZona === "todas" || (filtroDeZona === "mias" ? todaLaCiudad || misZonas.includes(p.zona) || p.enMiZona : p.zona === filtroDeZona)),
   );
   // Solo los oficios y barrios que tienen algún pedido, para no mostrar filtros vacíos.
   const rubrosConPedidos = [...new Set(todos.map((p) => p.rubro))];
   const zonasConPedidos = [...new Set(todos.map((p) => p.zona))];
-  const misZonas = prestador?.zonas ?? [];
   const textoDeZona =
-    filtroDeZona === "mias" ? (misZonas.length === 0 ? "Mis zonas" : `${misZonas[0]}${misZonas.length > 1 ? ` +${misZonas.length - 1}` : ""}`) : filtroDeZona === "todas" ? "Todos los barrios" : filtroDeZona;
+    filtroDeZona === "mias" ? (todaLaCiudad ? "Toda la ciudad" : `${misZonas[0]}${misZonas.length > 1 ? ` +${misZonas.length - 1}` : ""}`) : filtroDeZona === "todas" ? "Todos los barrios" : filtroDeZona;
   const nuevos = visibles.filter(esNuevo).length;
 
   return (
@@ -123,7 +125,7 @@ export default function PedidosPrestador() {
               texto={textoDeZona}
               etiqueta={`Zonas: ${textoDeZona}. Cambiar`}
               opciones={[
-                ...(prestador ? [{ id: "mias", texto: "Mis zonas", detalle: misZonas.length > 0 ? misZonas.join(", ") : "Cargalas en tu perfil", icono: "pin" }] : []),
+                ...(prestador ? [{ id: "mias", texto: "Mis zonas", detalle: misZonas.length > 0 ? misZonas.join(", ") : "Todavía no cargaste zonas: se ven todas", icono: "pin" }] : []),
                 { id: "todas", texto: "Todos los barrios", icono: "casa" },
                 ...zonasConPedidos.map((z) => ({ id: z, texto: z, icono: "pin" })),
               ]}

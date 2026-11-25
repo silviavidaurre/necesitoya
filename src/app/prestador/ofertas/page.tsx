@@ -500,7 +500,7 @@ function TrabajoEnCurso({
         siguiente && DESLIZAR[siguiente] ? (
           <>
             {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
-            <DeslizarParaConfirmar texto={DESLIZAR[siguiente] ?? ""} accion={`Avisar al vecino: ${accion}`} alConfirmar={alAvanzar} ocupado={ocupado} />
+            <DeslizarParaConfirmar texto={DESLIZAR[siguiente] ?? ""} accion={accion} alConfirmar={alAvanzar} ocupado={ocupado} />
           </>
         ) : undefined
       }

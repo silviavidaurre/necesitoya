@@ -4,8 +4,9 @@ import { Icono } from "@/components/ui";
 const TOPE = 0.85;
 
 // Confirmar deslizando, para no cambiar el estado del trabajo sin querer: se arrastra la flecha hasta el final.
-// Es un <button>: con teclado (Enter o espacio) o con el lector de pantalla (doble toque) se activa como cualquier
-// botón. Un toque con el dedo o el mouse, sin deslizar, no hace nada: solo recuerda que hay que deslizar.
+// Es un <button>: con teclado (Enter o espacio) se activa como cualquier botón. Un toque sin deslizar no cambia
+// nada: muestra cómo se usa y un botón "Confirmar" aparte, para quien no puede arrastrar (VoiceOver, acceso por
+// interruptor, control por voz). Así sigue haciendo falta un gesto deliberado: deslizar, o tocar dos veces.
 export function DeslizarParaConfirmar({
   texto,
   accion,
@@ -56,11 +57,29 @@ export function DeslizarParaConfirmar({
 
   return (
     <div>
+      {/* Va arriba del control: el pie crece hacia arriba y el control no se mueve bajo el dedo
+          (si apareciera abajo, el mismo toque caería sobre "Confirmar"). */}
+      {aviso && (
+        <div className="mb-2 flex flex-col items-center" aria-live="polite">
+          <p className="text-center text-[13px] font-semibold text-ink">Arrastrá la flecha hasta el final, o tocá Confirmar.</p>
+          <button
+            type="button"
+            disabled={ocupado}
+            onClick={() => {
+              setAviso(false);
+              alConfirmar();
+            }}
+            className="flex min-h-11 items-center px-4 text-[15px] font-bold text-ink underline underline-offset-[3px]"
+          >
+            Confirmar: {accion}
+          </button>
+        </div>
+      )}
       <button
         ref={pista}
         type="button"
         disabled={ocupado}
-        aria-label={accion}
+        aria-label={`${texto}. Avisar al vecino: ${accion}`}
         aria-describedby={idAyuda}
         aria-busy={ocupado}
         onPointerDown={alApretar}
@@ -88,8 +107,8 @@ export function DeslizarParaConfirmar({
           {ocupado ? "Avisando" : texto}
         </span>
       </button>
-      <p id={idAyuda} className={`mt-2 text-center text-[13px] ${aviso ? "font-semibold text-ink" : "sr-only"}`} aria-live="polite">
-        {aviso ? "Arrastrá la flecha hasta el final para confirmar." : "Deslizá la flecha hasta el final, o activalo, para avisarle al vecino."}
+      <p id={idAyuda} className="sr-only">
+        Deslizá la flecha hasta el final para avisarle al vecino.
       </p>
     </div>
   );
