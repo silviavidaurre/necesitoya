@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Denunciar } from "@/components/Denunciar";
 import { FichaPrestador } from "@/components/FichaPrestador";
 import { Logo } from "@/components/Logo";
-import { BotonPrimario, Cargando, Pantalla, Titulo } from "@/components/ui";
+import { BotonPrimario, Cabecera, Cargando, Pantalla, Titulo } from "@/components/ui";
 import { rubroPorId } from "@/lib/catalogo";
 import { ErrorDePedido, pedir } from "@/lib/cliente";
 import { Link, useRouter } from "@/lib/navegacion";
@@ -17,6 +17,9 @@ export default function PerfilPublicoDePrestador() {
   const [perfil, setPerfil] = useState<PerfilPublico | null>(null);
   const [error, setError] = useState("");
   const [denunciando, setDenunciando] = useState(false);
+  // Abierto desde la app (Ver perfil en un presupuesto, o el prestador mirando el suyo): se vuelve con la flecha
+  // y no se ofrece "Pedir presupuesto", que ahí confunde. Abierto desde un enlace compartido, es la puerta de entrada.
+  const [desdeLaApp] = useState(() => ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0);
 
   useEffect(() => {
     let vigente = true;
@@ -53,17 +56,23 @@ export default function PerfilPublicoDePrestador() {
   return (
     <Pantalla
       pie={
-        <>
-          <BotonPrimario onClick={() => router.push(frase ? `/pedir?texto=${encodeURIComponent(frase)}` : "/pedir")}>Pedir presupuesto</BotonPrimario>
-          <p className="mt-2 text-center text-[13px] text-ink-500">Gratis. Te responden {pila} y otros prestadores de tu barrio.</p>
-        </>
+        desdeLaApp ? undefined : (
+          <>
+            <BotonPrimario onClick={() => router.push(frase ? `/pedir?texto=${encodeURIComponent(frase)}` : "/pedir")}>Pedir presupuesto</BotonPrimario>
+            <p className="mt-2 text-center text-[13px] text-ink-500">Gratis. Te responden {pila} y otros prestadores de tu barrio.</p>
+          </>
+        )
       }
     >
-      <header className="flex h-[60px] items-center">
-        <Link href="/" aria-label="Ir al inicio de NecesitoYa">
-          <Logo />
-        </Link>
-      </header>
+      {desdeLaApp ? (
+        <Cabecera alVolver={() => window.history.back()} />
+      ) : (
+        <header className="flex h-[60px] items-center">
+          <Link href="/" aria-label="Ir al inicio de NecesitoYa">
+            <Logo />
+          </Link>
+        </header>
+      )}
       <FichaPrestador perfil={perfil} />
       {!perfil.ejemplo && (
         <button type="button" onClick={() => setDenunciando(true)} className="mx-auto mt-8 flex min-h-12 items-center px-4 text-[15px] font-semibold text-ink-500">

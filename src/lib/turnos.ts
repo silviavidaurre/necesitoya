@@ -72,6 +72,14 @@ export function turnoVigente(turno: Turno, ahora = Date.now()) {
   return new Date(ahora - 3 * 3600_000).getUTCHours() < FIN_DE_FRANJA[turno.franja] - 1;
 }
 
+// Para cambiar el día de un trabajo: todas las franjas que todavía sirven de los próximos días, menos la que ya
+// tiene. No se limita a las que ofreció el prestador al presupuestar: esas suelen haber pasado.
+export function turnosParaCambiar(actual?: Turno | null, ahora = Date.now()): Turno[] {
+  return proximosDias(ahora)
+    .flatMap((dia) => FRANJAS.map((f) => ({ dia, franja: f.id })))
+    .filter((t) => turnoVigente(t, ahora) && !(actual && mismoTurno(t, actual)));
+}
+
 // Deja solo turnos válidos: días de hoy a dos semanas, franjas conocidas, sin repetir, ordenados.
 export function limpiarTurnos(valor: unknown, ahora = Date.now()): Turno[] {
   if (!Array.isArray(valor)) return [];

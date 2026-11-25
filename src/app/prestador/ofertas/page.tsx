@@ -1,3 +1,4 @@
+import { useCompartirUbicacion } from "@/components/useCompartirUbicacion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCerrarConAtras } from "@/components/useAtras";
@@ -66,7 +67,7 @@ interface OfertaConPedido extends Oferta {
   pago: PagoPublico | null;
   reclamos: { de: "vecino" | "prestador"; motivo: string; estado: "abierto" | "resuelto"; resolucion: string }[];
   // Solo mientras el trabajo está activo y solo para el prestador elegido. Si no, null.
-  direccion: { calle: string; referencia: string } | null;
+  direccion: { calle: string; referencia: string; punto?: { lat: number; lng: number } } | null;
   // Solo el nombre de pila del vecino: se le escribe por el chat de la app, su teléfono no se muestra.
   cliente: { nombre: string } | null;
   // Mensajes del chat con el vecino: cuántos hay y cuántos faltan leer.
@@ -222,8 +223,8 @@ export default function MisOfertas() {
         <PantallaCambiarDia
           ofertaId={gestion.oferta.id}
           quien={{ prestadorId: prestador.id }}
-          actual={gestion.oferta.cuando}
-          turnos={gestion.oferta.turnos ?? []}
+          actual={cuandoDe(gestion.oferta)}
+          turnoActual={gestion.oferta.trabajo?.turno}
           alCerrar={(nuevo) => {
             setGestion(null);
             if (nuevo) cargar();
@@ -250,6 +251,7 @@ export default function MisOfertas() {
       <>
         <TrabajoEnCurso
           oferta={trabajo}
+          prestadorId={prestador.id}
           ocupado={avanzando === trabajo.id}
           error={error}
           alVolver={cerrarTrabajo}
@@ -446,7 +448,8 @@ function TarjetaDeTrabajo({ oferta, alAbrir }: { oferta: OfertaConPedido; alAbri
   const siguiente = siguienteEstado(estado);
   const boton = ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton;
   return (
-    <article className="flex flex-col gap-3 rounded-[20px] bg-subtle p-4">
+    // Toda la tarjeta abre el trabajo (con el dedo es lo natural); el botón queda para el teclado y el lector.
+    <article onClick={alAbrir} className="flex cursor-pointer flex-col gap-3 rounded-[20px] bg-subtle p-4">
       <div className="flex items-center justify-between gap-3">
         <span className="cifra text-[22px] font-bold leading-tight text-ink">{cuandoDe(oferta)}</span>
         <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-success">
@@ -465,7 +468,13 @@ function TarjetaDeTrabajo({ oferta, alAbrir }: { oferta: OfertaConPedido; alAbri
       )}
       <BarraDeEstados estado={estado} quien="prestador" />
       {boton && (
-        <button type="button" onClick={alAbrir} className="flex min-h-14 items-center justify-center gap-2.5 rounded-2xl bg-brand text-[17px] font-bold text-white active:bg-brand-600">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            alAbrir();
+          }}
+          className="flex min-h-14 items-center justify-center gap-2.5 rounded-2xl bg-brand text-[17px] font-bold text-white active:bg-brand-600">
           {boton}
           <Icono nombre="flecha" size={20} />
         </button>
@@ -496,6 +505,7 @@ function Direccion({ direccion, fondo = "bg-subtle" }: { direccion: { calle: str
 // los botones redondos (mensaje, cómo llegar, problema) y el control para deslizar al próximo estado.
 function TrabajoEnCurso({
   oferta,
+  prestadorId,
   ocupado,
   error,
   alVolver,
@@ -505,6 +515,7 @@ function TrabajoEnCurso({
   alCambiarDia,
 }: {
   oferta: OfertaConPedido;
+  prestadorId: string;
   ocupado: boolean;
   error: string;
   alVolver: () => void;
@@ -518,6 +529,8 @@ function TrabajoEnCurso({
   const siguiente = siguienteEstado(estado);
   const accion = ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton ?? "";
   const progreso = estado === "confirmado" ? 0 : estado === "en_camino" ? 0.5 : 1;
+  // Mientras va en camino (y solo si hay mapa real), el celular manda dónde está para que el vecino lo vea llegar.
+  const { estado: ubicacion, punto: miPunto } = useCompartirUbicacion(estado === "en_camino", oferta.id, prestadorId);
   // Cómo llegar: Google Maps con la dirección (que solo ve el prestador elegido, mientras dura el trabajo).
   const destino = oferta.direccion ? `${oferta.direccion.calle}, ${oferta.pedido?.zona ?? ""}, Jujuy, Argentina` : "";
   const comoLlegar = destino ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}` : "";
@@ -529,7 +542,25 @@ function TrabajoEnCurso({
     <Pantalla
       mapa={
         // Más bajo que antes: en un celular chico la dirección y los botones quedan a la vista sin bajar.
-        <Mapa alto={300} variante={estado === "confirmado" ? "destino" : "ruta"} progreso={progreso} rutaEnAcento>
+        // Con Mapbox, el mapa real: la casa y, en camino, dónde va el prestador (su GPS, o el último punto que mandó).
+        <Mapa
+          alto={300}
+          variante={estado === "confirmado" ? "destino" : "ruta"}
+          progreso={progreso}
+          rutaEnAcento
+          iniciales="Vos"
+          real={
+            oferta.direccion
+              ? {
+                  calle: oferta.direccion.calle,
+                  zona: oferta.pedido?.zona ?? "",
+                  punto: oferta.direccion.punto,
+                  prestador: estado === "en_camino" ? (miPunto ?? oferta.trabajo?.ubicacion ?? null) : null,
+                  oscuro: true,
+                }
+              : undefined
+          }
+        >
           <BotonFlotante icono="atras" etiqueta="Volver a mis presupuestos" onClick={alVolver} />
           <PildoraFlotante>
             <span className="cifra">{cuandoDe(oferta)}</span>
@@ -554,6 +585,17 @@ function TrabajoEnCurso({
         <div className="mt-3.5">
           <Direccion direccion={oferta.direccion} />
         </div>
+      )}
+      {ubicacion === "compartiendo" && (
+        <p role="status" className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink-500">
+          <span className="latido h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+          {pilaDe(oferta)} ve dónde estás hasta que llegues.
+        </p>
+      )}
+      {ubicacion === "sin-permiso" && (
+        <p role="status" className="mt-3 text-sm font-semibold text-ink-500">
+          Activá la ubicación del celular para que {pilaDe(oferta)} vea que vas en camino.
+        </p>
       )}
       <div className="mt-4 grid grid-cols-4 gap-2">
         <BotonRedondo icono="mensaje" texto="Mensaje" onClick={alEscribir} aviso={oferta.sinLeer > 0} />

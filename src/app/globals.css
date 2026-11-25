@@ -74,6 +74,13 @@
   background-color: var(--color-pestana);
 }
 
+/* Mapa real bajo la hoja: la hoja tapa los últimos 32 px del mapa (-mb-8), así que el logo y la atribución de
+   Mapbox (que tienen que verse) suben ese tanto para quedar arriba del borde y no encima de la hoja. */
+.mapa-bajo-hoja .mapboxgl-ctrl-bottom-left,
+.mapa-bajo-hoja .mapboxgl-ctrl-bottom-right {
+  bottom: 2rem;
+}
+
 html,
 body {
   background: var(--color-subtle);

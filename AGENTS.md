@@ -16,7 +16,7 @@ src/
     reglas.ts, trabajo.ts, turnos.ts, pagos.ts, chat.ts, moderacion.ts, bajas.ts, demo.ts, metricas.ts…
   integraciones/           un servicio externo por carpeta, cada una con su README
     anthropic-ia  elevenlabs-voz  cosmos-pagos  mercadopago-pagos
-    webpush-avisos  firebase-avisos  resend-correo  google-cuenta  capacitor-android
+    webpush-avisos  firebase-avisos  resend-correo  google-cuenta  capacitor-android  mapbox-mapa
   servidor/
     rutas.ts               registro de la API (cada ruta nueva se agrega acá a mano)
     cloudflare/            producción: Worker + D1, una tabla por colección

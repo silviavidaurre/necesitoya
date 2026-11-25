@@ -43,7 +43,7 @@ Arriba aparece un cartel naranja "Demo · todo inventado" mientras estés en una
 
 - **Pedido con voz, texto o foto.** La IA arma un pedido claro y un **diagnóstico orientativo**: lo más probable, el riesgo, qué hacer ya, materiales y preguntas para el prestador. Con gas o electricidad siempre pide un matriculado y da los pasos de seguridad.
 - **Hasta tres presupuestos**, con el último lugar guardado 15 minutos para prestadores del barrio. Cada prestador dice si está **verificado**: DNI y, si tiene, matrícula, revisados a mano.
-- **Trabajo tipo Uber.** El prestador ofrece días y franjas, y el vecino elige y carga la dirección. La dirección la ve solo el elegido, mientras dura el trabajo, y se borra al terminar. Los estados En camino, Llegó, Trabajando y Terminado se siguen en vivo.
+- **Trabajo tipo Uber.** El prestador ofrece días y franjas, y el vecino elige y carga la dirección. La dirección la ve solo el elegido, mientras dura el trabajo, y se borra al terminar. Los estados En camino, Llegó, Trabajando y Terminado se actualizan solos y, con el mapa real activado, el vecino ve al prestador acercarse.
 - **Chat dentro de la app.** Nadie ve el teléfono de nadie: los números se tapan en el chat, en los presupuestos, en los pedidos y en los perfiles. Se puede denunciar o bloquear.
 - **Cierre con foto y calificación.** Hay un perfil público con historial y reseñas.
 - **Reclamos con fotos, cancelación y reprogramación.** Hay un panel interno en `/admin` para verificar, moderar, resolver reclamos y ver métricas de uso real.
@@ -58,6 +58,7 @@ Arriba aparece un cartel naranja "Demo · todo inventado" mientras estés en una
 - **Pago protegido** (la plata retenida hasta que el vecino confirma): la app está lista para activarlo sola, pero Cosmos todavía no lo publicó en su API. Hoy el pago es directo.
 - **Mercado Pago:** el código está hecho, faltan las credenciales de la aplicación ([pasos](docs/mercadopago-pasos.md)).
 - **Mails** para recuperar la contraseña y confirmar una baja: el código está hecho, falta configurar el proveedor ([pasos](docs/correo-pasos.md)).
+- **Mapa real y prestador en camino en vivo:** el código está hecho con Mapbox, falta cargar el token ([pasos](docs/mapbox-pasos.md)). Mientras tanto el mapa es un dibujo y el estado del trabajo se actualiza solo.
 - **Llamadas sin mostrar el número:** falta un proveedor de telefonía.
 
 ## Arquitectura
@@ -86,7 +87,7 @@ src/app/            pantallas (page.tsx) y API (api/**/route.ts)
 src/components/     piezas de pantalla
 src/lib/            reglas de la app: base, pedidos, trabajo, pagos, chat, moderación, demo, métricas
 src/integraciones/  anthropic-ia, elevenlabs-voz, cosmos-pagos, mercadopago-pagos, webpush-avisos,
-                    firebase-avisos, resend-correo, google-cuenta, capacitor-android
+                    firebase-avisos, resend-correo, google-cuenta, capacitor-android, mapbox-mapa
 src/servidor/       rutas de la API, cloudflare/ (Worker + D1) y local/ (desarrollo)
 pruebas/            tandas de pruebas contra una URL
 scripts/            íconos, capturas para Play y correr todas las pruebas

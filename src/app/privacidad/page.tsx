@@ -42,6 +42,7 @@ export default function Privacidad() {
         <Dato dato="Nombre" para="Para que el prestador o el vecino sepa con quién habla. A los demás solo les mostramos el nombre de pila." />
         <Dato dato="Mail y contraseña" para="Para tu cuenta. La contraseña no se guarda: guardamos una huella que no se puede leer. Si entrás con Google, guardamos solo un identificador y tu nombre de pila." />
         <Dato dato="Barrio y dirección del trabajo" para="El barrio, para avisar a los prestadores de la zona. La dirección la ve solo el prestador que elegís, mientras el trabajo está activo; se borra cuando termina o se cancela." />
+        <Dato dato="Ubicación del prestador en camino" para="Si sos el prestador elegido, mientras vas en camino tu celular manda dónde estás (si lo permitís) para que el vecino te vea llegar en el mapa. La ve solo ese vecino y se borra al llegar, al terminar o si se cancela." />
         <Dato dato="Celular (opcional, prestadores)" para="No se le muestra a nadie. Todo el contacto es por el chat de la app." />
         <Dato dato="Fotos" para="La foto del problema, las de tus trabajos y la del trabajo terminado, para pedir y elegir presupuestos." />
         <Dato dato="Foto del DNI, selfie y matrícula" para="Solo si pedís verificarte. Las ve únicamente el equipo para revisarlas; a los vecinos les mostramos solo “Verificado” o “Sin verificar”." />
@@ -60,6 +61,7 @@ export default function Privacidad() {
       <Punto>Mientras tengas la cuenta. Si la eliminás, se borra en el momento, salvo:</Punto>
       <ul className="mt-2 list-disc space-y-1.5 pl-5 text-base leading-relaxed text-ink">
         <li>la dirección del trabajo, que se borra antes: cuando el trabajo termina o se cancela;</li>
+        <li>la ubicación del prestador en camino, que se borra apenas llega (o si se termina o cancela el trabajo);</li>
         <li>los registros de pagos ya hechos, que se guardan sin tus datos hasta 10 años, por obligaciones contables y para prevenir fraudes;</li>
         <li>los reclamos abiertos, que se guardan sin tus datos hasta que se resuelven y 1 año más;</li>
         <li>las copias de seguridad, de las que lo borrado desaparece en hasta 30 días.</li>
@@ -82,6 +84,7 @@ export default function Privacidad() {
         <li>Mercado Pago: procesa los pagos en pesos, cuando esté disponible.</li>
         <li>El servicio de avisos de tu navegador (Google, Apple o Mozilla): entrega los avisos, sin su texto.</li>
         <li>Firebase (Google): entrega los avisos de la app de Android, con su texto.</li>
+        <li>Mapbox: muestra el mapa del seguimiento y ubica en él la dirección del trabajo, que se le manda desde tu celular al abrir el mapa (no la guarda para nosotros); ve tu dirección de internet.</li>
         <li>Resend: manda los mails para elegir otra contraseña o confirmar que se borre una cuenta (solo tu mail), cuando esté activado.</li>
       </ul>
       <Punto>A cada uno le mandamos solo lo necesario para su tarea.</Punto>
@@ -120,7 +123,7 @@ export default function Privacidad() {
         </Link>
         .
       </Punto>
-      <p className="mt-8 text-[13px] text-ink-500">Iturre Labs · San Salvador de Jujuy, Argentina · Última actualización: 24 de noviembre de 2026.</p>
+      <p className="mt-8 text-[13px] text-ink-500">Iturre Labs · San Salvador de Jujuy, Argentina · Última actualización: 25 de noviembre de 2026.</p>
     </Pantalla>
   );
 }

@@ -5,6 +5,7 @@ import { Avatar, iniciales } from "@/components/Avatar";
 import { BarraDeEstados } from "@/components/EstadosDeTrabajo";
 import { HojaDeAbajo, OpcionDeHoja } from "@/components/Hoja";
 import { Mapa } from "@/components/Mapa";
+import { useTokenDeMapa } from "@/integraciones/mapbox-mapa/MapaReal";
 import { ElegirTurno } from "@/components/Turnos";
 import { useCerrarConAtras } from "@/components/useAtras";
 import { mismoTurno, nombreDelDia, sePuedeCancelar, sePuedeReprogramar, textoDeEstado, textoDeTurno, turnoVigente, type EstadoDeTrabajo, type Turno } from "@/lib/turnos";
@@ -93,10 +94,27 @@ export default function SeguimientoPedido() {
   };
   const [clave, setClave] = useState<string | null>(null);
   const [datos, setDatos] = useState<Seguimiento | null>(null);
+  // Con mapa real (Mapbox) y la ubicación del prestador, el seguimiento es "en vivo" de verdad.
+  const tokenDeMapa = useTokenDeMapa();
   const [error, setError] = useState("");
   const [porConfirmar, setPorConfirmar] = useState<OfertaParaCliente | null>(null);
   // Elegir: el presupuesto marcado en la lista, y el turno y la dirección del paso "Día y dirección".
-  const [seleccionada, setSeleccionada] = useState<string | null>(null);
+  // El marcado se recuerda en la pestaña: al volver de "Ver perfil" sigue marcado el mismo.
+  const [seleccionada, setMarcada] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(`marcada:${id}`);
+    } catch {
+      return null;
+    }
+  });
+  const setSeleccionada = (ofertaId: string) => {
+    setMarcada(ofertaId);
+    try {
+      sessionStorage.setItem(`marcada:${id}`, ofertaId);
+    } catch {
+      // Sin almacenamiento (modo privado): se marca igual, solo que no se recuerda.
+    }
+  };
   const [turnoElegido, setTurnoElegido] = useState<Turno | null>(null);
   const [calle, setCalle] = useState("");
   const [referencia, setReferencia] = useState("");
@@ -163,6 +181,8 @@ export default function SeguimientoPedido() {
   const abierto = datos?.pedido.estado !== "cerrado";
   // Cancelado, o terminado y calificado: ya no cambia nada, se deja de consultar.
   const final = datos?.pedido.estado === "cancelado" || Boolean(datos?.pedido.confirmado && datos.pedido.calificacion);
+  // Mientras el prestador va en camino se consulta más seguido, para verlo moverse en el mapa.
+  const enCamino = Boolean(datos?.ofertas.some((o) => o.trabajo?.estado === "en_camino"));
   useEffect(() => {
     cargar();
     if (final) return;
@@ -170,7 +190,7 @@ export default function SeguimientoPedido() {
     // de fondo no consulta, y al volver se actualiza en el momento.
     const reloj = setInterval(() => {
       if (document.visibilityState === "visible") cargar();
-    }, abierto ? 8_000 : 12_000);
+    }, enCamino ? 6_000 : abierto ? 8_000 : 12_000);
     const alVolver = () => {
       if (document.visibilityState === "visible") cargar();
     };
@@ -179,7 +199,7 @@ export default function SeguimientoPedido() {
       clearInterval(reloj);
       document.removeEventListener("visibilitychange", alVolver);
     };
-  }, [cargar, abierto, final]);
+  }, [cargar, abierto, final, enCamino]);
 
   async function elegir(oferta: OfertaParaCliente, turno: Turno | null) {
     if (!clave) return;
@@ -566,8 +586,8 @@ export default function SeguimientoPedido() {
           <PantallaCambiarDia
             ofertaId={elegida.id}
             quien={{ pedidoId: id, clave }}
-            actual={elegida.cuando}
-            turnos={elegida.turnos ?? []}
+            actual={elegida.trabajo?.turno ? textoDeTurno(elegida.trabajo.turno) : elegida.cuando}
+            turnoActual={elegida.trabajo?.turno}
             alCerrar={(nuevo) => {
               setGestion(null);
               if (nuevo) cargar();
@@ -763,13 +783,26 @@ export default function SeguimientoPedido() {
               variante={estado === "confirmado" || confirmado || terminado ? "destino" : "ruta"}
               progreso={progreso}
               iniciales={iniciales(elegida.prestador.nombre)}
+              // Mientras el trabajo está activo: mapa real (si hay Mapbox) con la casa y, en camino, el prestador.
+              real={
+                activo
+                  ? {
+                      calle: datos.direccion?.calle,
+                      zona: pedido.zona,
+                      punto: datos.direccion?.punto,
+                      prestador: trabajo?.ubicacion ?? null,
+                      oscuro: document.documentElement.classList.contains("tema-oscuro"),
+                    }
+                  : undefined
+              }
             >
               <BotonFlotante icono="atras" etiqueta="Volver" onClick={volverAtras} />
-              {/* El día y la franja ya están al lado del título de la hoja: arriba solo va «En vivo». */}
+              {/* El día y la franja ya están al lado del título de la hoja: arriba solo va el estado del seguimiento.
+                  "En vivo" solo con la ubicación real del prestador; si no, es el estado, que se actualiza solo. */}
               {enVivo && (
                 <PildoraFlotante>
                   <span className="latido h-2.5 w-2.5 rounded-full bg-success" aria-hidden="true" />
-                  En vivo
+                  {trabajo?.ubicacion && tokenDeMapa ? "En vivo" : "Se actualiza solo"}
                 </PildoraFlotante>
               )}
             </Mapa>
