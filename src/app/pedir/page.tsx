@@ -1,27 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import { ChipBarrio } from "@/components/Barrio";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { CajaRelato } from "@/components/CajaRelato";
 import { Diagnostico } from "@/components/Diagnostico";
 import { EntrarACuenta } from "@/components/EntrarACuenta";
 import { ChipConOpciones } from "@/components/Hoja";
-import { Mapa, MarcaEnPildora } from "@/components/Mapa";
-import {
-  BotonPrimario,
-  BotonSecundario,
-  Cabecera,
-  Campo,
-  ErrorDePantalla,
-  Falta,
-  Fila,
-  Icono,
-  IconoCirculo,
-  Pantalla,
-  Seccion,
-  Titulo,
-  claseCampo,
-} from "@/components/ui";
+import { Mapa } from "@/components/Mapa";
+import { iconoDe, useMisPedidos, type MiPedido } from "@/components/useMisPedidos";
+import { BotonPrimario, Cabecera, Campo, ErrorDePantalla, Falta, Icono, Pantalla, PildoraFlotante, Seccion, Titulo, claseCampo } from "@/components/ui";
 import { RUBROS, pesos, rubroPorId, type RubroId } from "@/lib/catalogo";
 import {
   guardarBorrador,
@@ -30,11 +17,9 @@ import {
   leerBorrador,
   leerCuenta,
   leerMisDatos,
-  leerMisPedidos,
   leerPrestadorId,
   pedir,
   type CuentaGuardada,
-  type PedidoGuardado,
 } from "@/lib/cliente";
 import { frasePedidoPorRevisar } from "@/lib/frases";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
@@ -48,6 +33,14 @@ interface ResultadoPedido {
   aviso?: string;
 }
 
+// Lo que viaja en el historial del navegador: en qué paso está y, si viene de "Pedir de nuevo" o de un oficio
+// del inicio, el relato y el oficio para precargar.
+interface EstadoDelPaso {
+  paso?: "contar" | "revisar";
+  relato?: string;
+  rubro?: RubroId;
+}
+
 const URGENCIAS: { id: Urgencia; texto: string; icono: string }[] = [
   { id: "hoy", texto: "Para hoy", icono: "reloj" },
   { id: "semana", texto: "Esta semana", icono: "calendario" },
@@ -55,35 +48,44 @@ const URGENCIAS: { id: Urgencia; texto: string; icono: string }[] = [
 ];
 const OFICIOS = RUBROS.map((r) => ({ id: r.id as RubroId, texto: r.nombre, icono: r.id }));
 
-// Accesos por oficio en el inicio: tocar uno empieza el relato.
-const OFICIOS_DEL_INICIO: RubroId[] = ["plomeria", "electricidad", "gas", "cerrajeria", "albanileria", "pintura"];
+// Accesos por oficio en el inicio: tocar uno abre Contar con ese oficio elegido.
+const OFICIOS_DEL_INICIO: RubroId[] = ["plomeria", "electricidad", "gas", "cerrajeria", "albanileria", "pintura", "carpinteria", "herreria"];
 
-// "Llegás y pedís": el inicio ya es el pedido. Se habla (o se escribe, o se saca una foto), la IA lo ordena
-// y en una sola pantalla se revisa y se publica. El barrio y el nombre quedan recordados en el celular,
-// así la segunda vez son dos toques. No se pide teléfono: el prestador le escribe por el chat de la app.
+// Pedir en tres pasos, como en una app de viajes:
+// 1. Inicio: el mapa del barrio y un solo campo, "Contá qué pasó". Abajo, los últimos pedidos y los oficios.
+// 2. Contar: barrio y urgencia en chips, el texto, el micrófono grande y la foto.
+// 3. Tu pedido: lo que armó la IA (título, oficio, lo que suele costar y el diagnóstico) para revisar y publicar.
+// Cada paso va en el historial del navegador: el botón atrás vuelve sin perder nada. El barrio y el nombre quedan
+// recordados en el celular. No se pide teléfono: el prestador le escribe por el chat de la app.
 export default function Pedir() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
+  const tipoDeNavegacion = useNavigationType();
   const [parametros] = useSearchParams();
+  const estadoDelPaso = (ubicacion.state as EstadoDelPaso | null) ?? {};
+  // Desde un perfil público se llega con ?texto=…: va directo a Contar.
+  const paso = estadoDelPaso.paso ?? (parametros.has("texto") ? "contar" : "inicio");
 
   // Lo recordado en este celular. Se lee una sola vez al abrir.
   const [recordado] = useState(leerMisDatos);
   const [borrador] = useState(leerBorrador);
-  const [misPedidos, setMisPedidos] = useState<PedidoGuardado[]>([]);
-  // Se muestran los 3 más nuevos; "Ver todos" despliega el resto (los terminados y los viejos).
-  const [todosMisPedidos, setTodosMisPedidos] = useState(false);
   const [esPrestador, setEsPrestador] = useState(false);
   // Para publicar hace falta una cuenta. Se pide recién al final, cuando el pedido ya está armado.
   const [cuenta, setCuenta] = useState<CuentaGuardada | null>(null);
   useEffect(() => {
-    setMisPedidos(leerMisPedidos());
     setEsPrestador(Boolean(leerPrestadorId()));
     setCuenta(leerCuenta());
   }, []);
+  const { pedidos: misPedidos } = useMisPedidos(paso === "inicio" ? 20 : 0);
+  // Se muestran los 3 más nuevos; "Ver todos" despliega el resto.
+  const [todosMisPedidos, setTodosMisPedidos] = useState(false);
 
   // Contar
   const [zona, setZona] = useState(recordado.zona);
-  const [relato, setRelato] = useState(parametros.get("texto") ?? borrador?.relato ?? "");
+  const [relato, setRelato] = useState(estadoDelPaso.relato ?? parametros.get("texto") ?? borrador?.relato ?? "");
+  // Oficio y urgencia que el vecino eligió antes de que la IA arme el pedido (si no, los decide la IA).
+  const [rubroElegido, setRubroElegido] = useState<RubroId | null>(estadoDelPaso.rubro ?? null);
+  const [urgenciaElegida, setUrgenciaElegida] = useState<Urgencia | null>(null);
   const [foto, setFoto] = useState<FotoLista | null>(null);
   const [cargandoFoto, setCargandoFoto] = useState(false);
   const [vozOcupada, setVozOcupada] = useState(false);
@@ -98,6 +100,13 @@ export default function Pedir() {
   const anotarVoz = useCallback(() => {
     usoLaVoz.current = true;
   }, []);
+
+  // "Pedir de nuevo" y los oficios del inicio llegan con el relato y el oficio en el historial: se precargan.
+  useEffect(() => {
+    if (estadoDelPaso.relato) setRelato(estadoDelPaso.relato);
+    if (estadoDelPaso.rubro) setRubroElegido(estadoDelPaso.rubro);
+    // Solo cuando cambia la entrada del historial.
+  }, [ubicacion.key]);
 
   // Lo contado se guarda mientras dure la visita: si se recarga la página o se sale por error, sigue ahí.
   useEffect(() => {
@@ -124,9 +133,28 @@ export default function Pedir() {
   // Un identificador por pedido: si la respuesta se pierde y se reintenta, el servidor no lo crea dos veces.
   const idCliente = useRef(crypto.randomUUID());
 
-  // El paso va en el historial del navegador: el botón atrás del celular vuelve a "contar" sin perder nada.
-  // Si la página se recargó en "revisar" ya no hay pedido armado, así que se vuelve al inicio.
-  const enRevision = (ubicacion.state as { paso?: string } | null)?.paso === "revisar" && titulo !== "";
+  // Si la página se recargó en "revisar" ya no hay pedido armado: se muestra Contar, con lo contado guardado.
+  const enRevision = paso === "revisar" && titulo !== "";
+  const enContar = paso === "contar" || (paso === "revisar" && titulo === "");
+
+  // Volver a Contar con el botón atrás después de publicar deja la pantalla vacía: ahí se va al inicio.
+  useEffect(() => {
+    if (paso === "contar" && tipoDeNavegacion === "POP" && !relato.trim() && !estadoDelPaso.relato) {
+      navegar(ubicacion.pathname, { replace: true, state: null });
+    }
+    // Solo al llegar a esta entrada del historial.
+  }, [ubicacion.key]);
+
+  function abrirContar(precarga: Omit<EstadoDelPaso, "paso"> = {}) {
+    navegar(ubicacion.pathname, { state: { paso: "contar", ...precarga } });
+  }
+
+  // Volver un paso. Si se llegó directo (recarga o enlace), no hay a dónde volver en el historial: se va al inicio.
+  function volver() {
+    const indice = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (indice > 0) navegar(-1);
+    else navegar(ubicacion.pathname, { replace: true, state: null });
+  }
 
   async function elegirFoto(archivo: File | undefined) {
     if (!archivo) return;
@@ -156,8 +184,8 @@ export default function Pedir() {
       });
       setTitulo(resultado.pedido.titulo);
       setDescripcion(resultado.pedido.descripcion);
-      setRubro(resultado.pedido.rubro);
-      setUrgencia(resultado.pedido.urgencia);
+      setRubro(rubroElegido ?? resultado.pedido.rubro);
+      setUrgencia(urgenciaElegida ?? resultado.pedido.urgencia);
       setRango(
         resultado.pedido.precioMin !== null && resultado.pedido.precioMax !== null
           ? { min: resultado.pedido.precioMin, max: resultado.pedido.precioMax }
@@ -227,8 +255,10 @@ export default function Pedir() {
     );
   }
 
+  // --- 3. Tu pedido -----------------------------------------------------------------------------
   if (enRevision) {
     const rubroActual = rubroPorId(rubro);
+    const urgenciaActual = URGENCIAS.find((u) => u.id === urgencia);
     const falta = !zona.trim() ? "Falta elegir tu barrio" : titulo.trim().length < 4 ? "Falta decir qué necesitás" : !cuenta ? "Falta entrar con tu cuenta" : "";
     const resumenEnVoz = frasePedidoPorRevisar({
       titulo,
@@ -249,15 +279,12 @@ export default function Pedir() {
             <BotonPrimario onClick={publicar} disabled={Boolean(falta)} cargando={publicando}>
               Pedir presupuestos
             </BotonPrimario>
-            <p className="mt-2 text-center text-[15px] text-ink-500">Gratis. No te compromete a contratar.</p>
+            <p className="mt-2 text-center text-sm text-ink-500">Gratis. No te compromete a contratar.</p>
           </>
         }
       >
-        <Cabecera alVolver={() => navegar(-1)} />
-        <Titulo pregunta={fuente === "ia" ? undefined : "No pudimos ordenarlo solos. Completalo vos."}>¿Está bien así?</Titulo>
-        <div className="mt-4">
-          <BotonEscuchar texto={resumenEnVoz} automatico={leerSolo} />
-        </div>
+        <Cabecera alVolver={volver} titulo="Tu pedido" />
+        {fuente === "basico" && <p className="mt-1 text-[15px] text-ink-500">No pudimos ordenarlo solos. Revisá el texto y el oficio.</p>}
 
         {corrigiendo ? (
           <>
@@ -267,39 +294,38 @@ export default function Pedir() {
             <Campo etiqueta="Detalle para el prestador">
               <textarea className={`${claseCampo} min-h-28 resize-none`} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} maxLength={500} />
             </Campo>
+            <button type="button" onClick={() => setCorrigiendo(false)} className="mt-2 flex min-h-12 items-center text-base font-semibold text-brand">
+              Listo
+            </button>
           </>
         ) : (
-          <div className="mt-6">
-            <p className="text-[22px] font-bold leading-snug tracking-[-0.01em] text-ink">{titulo}</p>
-            <p className="mt-2 text-base text-ink-500">{descripcion}</p>
-            <button type="button" onClick={() => setCorrigiendo(true)} className="mt-1 flex min-h-12 items-center text-base font-semibold text-brand">
+          <div className="mt-3">
+            <h2 className="text-2xl font-bold leading-[1.15] tracking-[-0.01em] text-ink">{titulo}</h2>
+            {descripcion && descripcion !== titulo && <p className="mt-1.5 text-[15px] leading-snug text-ink-500">{descripcion}</p>}
+            <button type="button" onClick={() => setCorrigiendo(true)} className="flex min-h-11 items-center text-[15px] font-semibold text-brand">
               Corregir el texto
             </button>
           </div>
         )}
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap items-start gap-2">
           <ChipConOpciones titulo="¿Qué oficio es?" opciones={OFICIOS} valor={rubro} alCambiar={setRubro} etiqueta={`Oficio: ${rubroActual.nombre}. Cambiar`} />
           <ChipBarrio zona={zona} alCambiar={setZona} />
-          <ChipConOpciones titulo="¿Para cuándo?" opciones={URGENCIAS} valor={urgencia} alCambiar={setUrgencia} icono="reloj" etiqueta={`Urgencia: ${URGENCIAS.find((u) => u.id === urgencia)?.texto}. Cambiar`} />
+          <ChipConOpciones titulo="¿Para cuándo?" opciones={URGENCIAS} valor={urgencia} alCambiar={setUrgencia} icono="reloj" etiqueta={`Urgencia: ${urgenciaActual?.texto}. Cambiar`} />
+          <BotonEscuchar texto={resumenEnVoz} automatico={leerSolo} />
         </div>
-        <p className="mt-2 text-[15px] text-ink-500">{fuente === "basico" ? "Revisá el oficio: lo elegimos sin la IA." : "Tocá cualquiera para cambiarlo."}</p>
 
         {rango && (
-          <div className="mt-7">
-            <p className="text-base text-ink-500">Suele costar</p>
-            <p className="mt-1 text-[30px] font-bold leading-tight tracking-[-0.03em] text-ink">
+          <div className="mt-6">
+            <p className="text-[15px] text-ink-500">Suele costar</p>
+            <p className="cifra mt-0.5 text-[30px] font-bold leading-tight tracking-[-0.03em] text-ink">
               {pesos(rango.min)} <span className="text-ink-500">a</span> {pesos(rango.max)}
             </p>
-            <p className="mt-1 text-[15px] text-ink-500">Es un precio aproximado de la mano de obra. El precio final lo pone cada prestador.</p>
+            <p className="mt-1 text-sm text-ink-500">Mano de obra aproximada. El precio lo pone cada prestador.</p>
           </div>
         )}
 
-        {diagnostico && (
-          <div className="mt-2">
-            <Diagnostico diagnostico={diagnostico} />
-          </div>
-        )}
+        {diagnostico && <Diagnostico diagnostico={diagnostico} />}
 
         <Seccion>¿Cómo te llamás?</Seccion>
         {cambiandoContacto ? (
@@ -336,109 +362,182 @@ export default function Pedir() {
     );
   }
 
-  const hayAlgo = relato.trim().length >= 5 || foto !== null || vozOcupada;
-  const falta = !zona.trim() ? "Falta elegir tu barrio" : !hayAlgo ? "Contá qué necesitás o sacá una foto" : "";
+  // --- 2. Contar --------------------------------------------------------------------------------
+  if (enContar) {
+    const hayAlgo = relato.trim().length >= 5 || foto !== null || vozOcupada;
+    const falta = !zona.trim() ? "Falta elegir tu barrio" : !hayAlgo ? "Contá qué necesitás o agregá una foto" : "";
+    const urgenciaActual = URGENCIAS.find((u) => u.id === urgenciaElegida);
+    return (
+      <Pantalla
+        key="contar"
+        pie={
+          <>
+            {error ? <ErrorDePantalla>{error}</ErrorDePantalla> : falta && (relato || foto) ? <Falta>{falta}</Falta> : null}
+            <BotonPrimario onClick={armar} disabled={Boolean(falta)}>
+              Continuar
+              <Icono nombre="flecha" size={22} />
+            </BotonPrimario>
+          </>
+        }
+      >
+        <Cabecera alVolver={volver} titulo="Contanos qué pasa" />
 
+        <div className="mt-2 flex flex-wrap gap-2">
+          <ChipBarrio zona={zona} alCambiar={setZona} />
+          <ChipConOpciones
+            titulo="¿Para cuándo?"
+            opciones={URGENCIAS}
+            valor={urgenciaElegida}
+            alCambiar={setUrgenciaElegida}
+            icono="reloj"
+            texto={urgenciaActual?.texto ?? "¿Cuándo?"}
+            etiqueta={urgenciaActual ? `Urgencia: ${urgenciaActual.texto}. Cambiar` : "Elegir para cuándo lo necesitás"}
+          />
+          {rubroElegido && (
+            <ChipConOpciones titulo="¿Qué oficio es?" opciones={OFICIOS} valor={rubroElegido} alCambiar={setRubroElegido} etiqueta={`Oficio: ${rubroPorId(rubroElegido).nombre}. Cambiar`} />
+          )}
+        </div>
+
+        <div className="mt-5">
+          <CajaRelato
+            textoPrimero
+            etiqueta="Qué pasó"
+            valor={relato}
+            alCambiar={setRelato}
+            invitacion="Tocá y contalo"
+            ejemplo="Ej: se me rompió el termotanque, pierde agua por abajo."
+            alDetener={guardarTerminar}
+            alDictar={anotarVoz}
+            alOcuparse={setVozOcupada}
+          />
+        </div>
+
+        {/* Sin `capture`: así el celular deja elegir entre sacar la foto o usar una de la galería. */}
+        <input ref={entradaFoto} type="file" accept="image/*" className="hidden" onChange={(e) => elegirFoto(e.target.files?.[0])} />
+        <section aria-label="Fotos" className="mt-7">
+          <h2 className="text-lg font-bold text-ink">Fotos</h2>
+          <div className="mt-2.5 flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={() => entradaFoto.current?.click()}
+              disabled={cargandoFoto}
+              className="flex h-[88px] w-[88px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl bg-subtle text-[13px] font-semibold text-ink active:bg-line disabled:opacity-60"
+            >
+              <Icono nombre="camara" size={26} />
+              {cargandoFoto ? "Preparando" : foto ? "Cambiar" : "Agregar"}
+            </button>
+            {foto ? (
+              <div className="relative h-[88px] w-[88px] shrink-0">
+                <img src={foto.vistaPrevia} alt="Foto del problema" className="h-full w-full rounded-2xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setFoto(null)}
+                  aria-label="Quitar la foto"
+                  className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-ink text-white shadow-[var(--sombra-flota)]"
+                >
+                  <Icono nombre="cerrar" size={16} />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[15px] leading-snug text-ink-500">Una foto ayuda a que te presupuesten mejor. Podés sacarla o elegirla de la galería.</span>
+            )}
+          </div>
+        </section>
+      </Pantalla>
+    );
+  }
+
+  // --- 1. Inicio --------------------------------------------------------------------------------
+  const visibles = misPedidos.slice(0, todosMisPedidos ? misPedidos.length : 3);
   return (
     <Pantalla
-      key="contar"
+      key="inicio"
       mapa={
-        <Mapa alto={190} variante="inicio" etiqueta={zona || "San Salvador de Jujuy"}>
-          <MarcaEnPildora />
-          <Link href="/prestador" className="flex h-12 items-center rounded-full bg-white px-4 text-[15px] font-bold text-ink shadow-[0_4px_14px_rgba(0,0,0,0.14)]">
-            {esPrestador ? "Ver pedidos" : "Tengo un oficio"}
-          </Link>
+        <Mapa alto={300} variante="inicio" etiqueta={zona || "San Salvador de Jujuy"}>
+          <ChipBarrio
+            zona={zona}
+            alCambiar={(nueva) => {
+              setZona(nueva);
+              guardarMisDatos({ zona: nueva });
+            }}
+            variante="flotante"
+            sinElegir="Tu barrio"
+          />
+          <PildoraFlotante href="/prestador">{esPrestador ? "Ver pedidos" : "Tengo un oficio"}</PildoraFlotante>
         </Mapa>
       }
-      pie={
-        <>
-          {error ? <ErrorDePantalla>{error}</ErrorDePantalla> : falta && (relato || foto || zona) ? <Falta>{falta}</Falta> : null}
-          <BotonPrimario onClick={armar} disabled={Boolean(falta)}>
-            Continuar
-            <Icono nombre="flecha" size={22} />
-          </BotonPrimario>
-        </>
-      }
     >
-      <div className="flex items-center justify-between gap-3">
-        <Titulo>¿Qué se rompió?</Titulo>
-      </div>
+      <Titulo>¿Qué se rompió?</Titulo>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {!zona && <span className="text-[15px] font-semibold text-ink">¿En qué barrio es?</span>}
-        <ChipBarrio zona={zona} alCambiar={setZona} />
-      </div>
-
-      <div className="mt-5">
-        <CajaRelato
-          valor={relato}
-          alCambiar={setRelato}
-          invitacion="Tocá y contalo"
-          ejemplo="Ej: se me rompió el termotanque, pierde agua por abajo."
-          alDetener={guardarTerminar}
-          alDictar={anotarVoz}
-          alOcuparse={setVozOcupada}
-        />
-      </div>
-
-      {/* Sin `capture`: así el celular deja elegir entre sacar la foto o usar una de la galería. */}
-      <input ref={entradaFoto} type="file" accept="image/*" className="hidden" onChange={(e) => elegirFoto(e.target.files?.[0])} />
-      <div className="mt-4">
-        {foto ? (
-          <div className="flex items-center gap-4">
-            <img src={foto.vistaPrevia} alt="Foto del problema" className="h-16 w-16 rounded-2xl object-cover" />
-            <span className="flex-1 text-base font-semibold text-ink">Foto lista</span>
-            <button type="button" onClick={() => setFoto(null)} className="min-h-12 px-2 text-base font-semibold text-ink-500">
-              Quitar
-            </button>
-          </div>
-        ) : (
-          <BotonSecundario onClick={() => entradaFoto.current?.click()} disabled={cargandoFoto}>
-            <Icono nombre="camara" size={20} />
-            {cargandoFoto ? "Preparando la foto" : "Sacar una foto"}
-          </BotonSecundario>
-        )}
-      </div>
-
-      {!relato && (
-        <>
-          <Seccion>Oficios</Seccion>
-          <div className="mt-3 grid grid-cols-3 gap-2.5">
-            {OFICIOS_DEL_INICIO.map((id) => {
-              const oficio = rubroPorId(id);
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setRelato(`Necesito un trabajo de ${oficio.nombre.toLowerCase()}: `)}
-                  className="flex h-[90px] flex-col justify-between rounded-2xl bg-subtle p-3.5 text-left text-ink active:bg-line"
-                >
-                  <Icono nombre={id} size={26} />
-                  <span className="text-sm font-semibold">{oficio.nombre}</span>
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
+      <button
+        type="button"
+        onClick={() => abrirContar()}
+        className="mt-4 flex h-[60px] w-full items-center gap-3 rounded-2xl bg-subtle pl-4 pr-2 text-left text-[17px] active:bg-line"
+      >
+        <Icono nombre="buscar" size={22} className="shrink-0 text-ink-500" />
+        <span className={`min-w-0 flex-1 truncate ${relato ? "text-ink" : "text-ink-500"}`}>{relato || "Contá qué pasó"}</span>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white" aria-hidden="true">
+          <Icono nombre="mic" size={20} />
+        </span>
+      </button>
 
       {misPedidos.length > 0 && (
-        <>
-          <Seccion>Tus pedidos</Seccion>
-          <div className="mt-1 divide-y divide-line">
-            {misPedidos.slice(0, todosMisPedidos ? misPedidos.length : 3).map((pedido) => (
-              <Fila key={pedido.id} href={`/pedido/${pedido.id}`} icono={<IconoCirculo nombre="lista" />} titulo={pedido.titulo} detalle="Ver cómo va" />
-            ))}
-          </div>
+        <section aria-label="Tus pedidos" className="mt-5 rounded-[18px] border border-line">
+          {visibles.map((pedido) => (
+            <FilaDePedido key={pedido.id} pedido={pedido} />
+          ))}
           {misPedidos.length > 3 && !todosMisPedidos && (
-            <button type="button" onClick={() => setTodosMisPedidos(true)} className="flex min-h-12 items-center text-[15px] font-semibold text-brand">
-              Ver todos ({misPedidos.length})
+            <button type="button" onClick={() => setTodosMisPedidos(true)} className="flex min-h-14 w-full items-center justify-between border-t border-line px-4 text-[15px] font-semibold text-ink">
+              Ver todos tus pedidos ({misPedidos.length})
+              <Icono nombre="abajo" size={20} className="text-ink-500" />
             </button>
           )}
-        </>
+        </section>
       )}
+
+      <Seccion>Oficios</Seccion>
+      <div className="sin-barra -mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
+        {OFICIOS_DEL_INICIO.map((id) => {
+          const oficio = rubroPorId(id);
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => abrirContar({ rubro: id, ...(relato.trim() ? {} : { relato: `Necesito un trabajo de ${oficio.nombre.toLowerCase()}: ` }) })}
+              className="flex w-[76px] shrink-0 flex-col items-center gap-2 text-center text-[13px] font-semibold leading-tight text-ink"
+            >
+              <span className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-subtle active:bg-line" aria-hidden="true">
+                <Icono nombre={id} size={28} />
+              </span>
+              {oficio.nombre}
+            </button>
+          );
+        })}
+      </div>
 
       <EntrarACuenta motivo="Para no perder tus pedidos si cambiás de celular." />
     </Pantalla>
+  );
+}
+
+// Una fila de "Tus pedidos": el ícono del oficio, el título y cómo va.
+function FilaDePedido({ pedido }: { pedido: MiPedido }) {
+  const color = pedido.tono === "bien" ? "font-semibold text-success" : pedido.tono === "acento" ? "font-semibold text-ink" : "text-ink-500";
+  return (
+    <Link href={`/pedido/${pedido.id}`} className="flex min-h-[72px] items-center gap-3.5 border-b border-line px-4 py-3 last:border-b-0">
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-subtle text-ink" aria-hidden="true">
+        <Icono nombre={iconoDe(pedido)} size={22} />
+        {pedido.sinLeer > 0 && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-success ring-2 ring-white" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-base font-semibold text-ink">{pedido.titulo}</span>
+        <span className={`mt-0.5 flex items-center gap-1.5 text-sm ${color}`}>
+          {pedido.tono !== "neutro" && <span className={`h-2 w-2 shrink-0 rounded-full ${pedido.tono === "bien" ? "bg-success" : "bg-acento"}`} aria-hidden="true" />}
+          <span className="truncate">{pedido.texto}</span>
+        </span>
+        {pedido.sinLeer > 0 && <span className="sr-only">Tenés un mensaje nuevo.</span>}
+      </span>
+      <Icono nombre="chevron" size={20} className="shrink-0 text-ink-500" />
+    </Link>
   );
 }

@@ -1,8 +1,9 @@
 import { Icono } from "@/components/ui";
 
 // Micrófono: el objeto protagonista de las pantallas donde se cuenta algo con la voz.
-// `principal` lo pinta de azul: se usa cuando todavía no hay nada contado y hablar es LA acción de la pantalla.
-// En cuanto hay texto vuelve a gris, porque el azul pasa al botón de continuar (una sola acción azul por vez).
+// `principal` lo pinta con el color de la acción principal: se usa cuando todavía no hay nada contado y hablar es
+// LA acción de la pantalla. En cuanto hay texto vuelve a gris, porque el color pasa al botón de continuar
+// (una sola acción principal por vez).
 export function BotonMic({
   escuchando,
   onClick,
@@ -19,12 +20,13 @@ export function BotonMic({
   // Mientras lo grabado se pasa a texto no se puede volver a grabar.
   ocupado?: boolean;
 }) {
-  const medida = grande ? (principal ? "h-[124px] w-[124px]" : "h-[88px] w-[88px]") : "h-12 w-12";
+  // Grande: un círculo de 88 px con un aro de 12 px (112 en total), como en la pantalla Contar.
+  const medida = grande ? "h-[88px] w-[88px]" : "h-12 w-12";
   const color = escuchando
     ? "grabando bg-subtle text-ink ring-2 ring-danger"
     : principal
-      ? "bg-brand text-white ring-[10px] ring-brand-50"
-      : "bg-subtle text-ink";
+      ? `bg-brand text-white ${grande ? "ring-[12px] ring-subtle" : ""}`
+      : `bg-subtle text-ink ${grande ? "ring-[12px] ring-subtle" : ""}`;
   return (
     <button
       type="button"
@@ -36,7 +38,7 @@ export function BotonMic({
       {escuchando ? (
         <span className={`${grande ? "h-8 w-8 rounded-lg" : "h-4 w-4 rounded"} bg-danger`} />
       ) : (
-        <Icono nombre="mic" size={grande ? (principal ? 52 : 38) : 22} />
+        <Icono nombre="mic" size={grande ? 36 : 22} />
       )}
     </button>
   );

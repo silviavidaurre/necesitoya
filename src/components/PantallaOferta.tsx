@@ -153,6 +153,7 @@ export function PantallaOferta({
             <p className="mt-1 text-[13px] text-ink-500">Mano de obra. Los materiales van aparte.</p>
           </div>
         )}
+        <div className="mt-4">
         <BotonEscuchar
           texto={frasePedidoParaPresupuestar({
             titulo: pedido.titulo,
@@ -166,6 +167,7 @@ export function PantallaOferta({
             precioMax: pedido.precioMax,
           })}
         />
+        </div>
 
         {pedido.relato && (
           <div className="mt-4 border-l-2 border-line pl-4">
