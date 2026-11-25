@@ -156,7 +156,12 @@ ok("la billetera no sale en el perfil público", !publicoConBilletera.includes(b
 
 let pago = null;
 if (stats.pagos) {
-  const creado = await j("/api/pagos", { id, clave });
+  // Como la app: si Cosmos frena el pedido de paso, el servidor responde "preparando" (202) y se vuelve a pedir.
+  let creado = await j("/api/pagos", { id, clave });
+  for (let vuelta = 0; creado.estado === 202 && creado.datos?.preparando && vuelta < 11; vuelta++) {
+    await new Promise((listo) => setTimeout(listo, 5_000));
+    creado = await j("/api/pagos", { id, clave });
+  }
   pago = creado.datos?.pago;
   if (creado.datos?.codigo === "comision_sin_usdc") {
     // No es un error de la app: la billetera de la comisión todavía no acepta USDC (lo tiene que agregar su dueña).

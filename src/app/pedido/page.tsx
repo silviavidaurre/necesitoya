@@ -72,6 +72,8 @@ export default function SeguimientoPedido() {
   const [pidiendoMuestra, setPidiendoMuestra] = useState(false);
   // Pagar o confirmar el trabajo: mientras se guarda, el botón principal muestra que está trabajando.
   const [trabajando, setTrabajando] = useState(false);
+  // Si el sistema de pagos frena el pedido un momento, se avisa y se vuelve a probar solo (no se muestra un error).
+  const [preparando, setPreparando] = useState(false);
   // Gestión abierta a pantalla completa: reclamar, cambiar el día o cancelar.
   const [gestion, setGestion] = useState<"reclamo" | "dia" | "cancelar" | null>(null);
   // El presupuesto cuyo chat está abierto, si hay alguno.
@@ -176,15 +178,34 @@ export default function SeguimientoPedido() {
     setTrabajando(true);
     setError("");
     try {
-      const respuesta = await pedir<{ pago: PagoPublico }>("/api/pagos", { method: "POST", body: JSON.stringify({ id, clave }), espera: 40_000 });
-      cambios.current += 1;
-      abrirPago(respuesta.pago.urlDePago, ventana);
-      setDatos((previos) => previos && { ...previos, ofertas: previos.ofertas.map((o) => (o.estado === "elegida" ? { ...o, pago: respuesta.pago } : o)) });
+      // Hasta unos 3 minutos: si Cosmos frena el pedido de paso, el servidor responde "preparando" y se vuelve a pedir.
+      for (let intento = 0; ; intento++) {
+        const respuesta = await pedir<{ pago?: PagoPublico; preparando?: boolean }>("/api/pagos", { method: "POST", body: JSON.stringify({ id, clave }), espera: 40_000 });
+        if (respuesta.pago) {
+          const pago = respuesta.pago;
+          cambios.current += 1;
+          abrirPago(pago.urlDePago, ventana);
+          setDatos((previos) => previos && { ...previos, ofertas: previos.ofertas.map((o) => (o.estado === "elegida" ? { ...o, pago } : o)) });
+          return;
+        }
+        if (!respuesta.preparando || intento >= 11) throw new Error("El pago está tardando más de lo normal. Probá de nuevo en unos minutos.");
+        setPreparando(true);
+        if (ventana && !ventana.closed) {
+          try {
+            ventana.document.title = "Preparando tu pago";
+            ventana.document.body.innerHTML = '<p style="font:18px system-ui;padding:24px">Estamos preparando tu pago. Esta pestaña se abre sola en un momento.</p>';
+          } catch {
+            // Si el navegador no deja escribir en la pestaña, se sigue igual.
+          }
+        }
+        await new Promise((listo) => setTimeout(listo, 5_000));
+      }
     } catch (e) {
       ventana?.close();
       setError(e instanceof Error ? e.message : "No pudimos armar el pago. Probá de nuevo.");
     } finally {
       setTrabajando(false);
+      setPreparando(false);
     }
   }
 
@@ -444,6 +465,11 @@ export default function SeguimientoPedido() {
                 {!muestra && elegida.sinLeer > 0 && (
                   <p className="mb-2 text-center">
                     <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
+                  </p>
+                )}
+                {preparando && (
+                  <p className="mb-2 text-center" role="status">
+                    <Estado>Estamos preparando tu pago. Puede tardar un minuto.</Estado>
                   </p>
                 )}
                 {principal ? (

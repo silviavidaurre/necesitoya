@@ -46,6 +46,10 @@ function responderError(error: unknown) {
     if (error.codigo === "trustline_missing" && /merchant fee/i.test(error.message)) {
       return Response.json({ error: "El pago por la app no está disponible en este momento. Arreglen el pago por el chat.", codigo: "comision_sin_usdc" }, { status: 503 });
     }
+    // Si Cosmos frenó el pedido de paso, no se muestra un error: la app avisa que está preparando el pago y vuelve a pedirlo.
+    if (error.pasajero) {
+      return Response.json({ preparando: true, mensaje: "Estamos preparando tu pago. Puede tardar un minuto." }, { status: 202 });
+    }
     const mensaje =
       error.codigo === "trustline_missing"
         ? "La billetera del prestador todavía no acepta USDC. Avisale por el chat."

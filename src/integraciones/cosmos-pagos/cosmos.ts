@@ -12,7 +12,8 @@ import { billeteraValida } from "@/integraciones/cosmos-pagos/stellar";
 // - Pago directo (COSMOS_MODO=directo): un solo cobro al prestador con `merchantFee`, que separa la comisión en la
 //   misma transacción. No queda retenido.
 
-const BASE = "https://api.cosmospay.lat/cosmos-api";
+// COSMOS_BASE solo se usa en las pruebas locales, para apuntar a un Cosmos falso.
+const base = () => variable("COSMOS_BASE") ?? "https://api.cosmospay.lat/cosmos-api";
 const CHECKOUT = "https://payments.cosmospay.lat";
 
 export const USDC = {
@@ -27,6 +28,11 @@ export class ErrorDeCosmos extends Error {
     public estado: number,
   ) {
     super(mensaje);
+  }
+
+  // Un corte de paso (desafío antibots, sin conexión o caída de Cosmos), no un "no" de la API: conviene reintentar.
+  get pasajero() {
+    return this.codigo === "desafio" || this.codigo === "sin_conexion" || (this.codigo.startsWith("http_") && this.estado >= 500);
   }
 }
 
@@ -79,13 +85,14 @@ async function llamar<T>(metodo: "GET" | "POST", ruta: string, cuerpo?: unknown,
   let respuesta: Response;
   let texto = "";
   let datos: Record<string, unknown> | null = null;
+  let desafio = false;
   // La API de Cosmos está detrás de la protección antibots de su proveedor, que a veces frena con un desafío
   // ("Just a moment...") un pedido que sale de un servidor. Ese pedido no llegó a la API, así que se reintenta.
   for (let intento = 0; ; intento++) {
     const corte = new AbortController();
     const reloj = setTimeout(() => corte.abort(), 20_000);
     try {
-      respuesta = await fetch(BASE + ruta, {
+      respuesta = await fetch(base() + ruta, {
         method: metodo,
         headers: {
           authorization: `Bearer ${llave}`,
@@ -108,12 +115,13 @@ async function llamar<T>(metodo: "GET" | "POST", ruta: string, cuerpo?: unknown,
     } catch {
       datos = null;
     }
-    const desafio = !datos && (respuesta.status === 403 || respuesta.status === 503) && /just a moment|challenge|cf-chl/i.test(texto);
+    desafio = !datos && (respuesta.status === 403 || respuesta.status === 503) && /just a moment|challenge|cf-chl/i.test(texto);
     if (!desafio || intento >= 3) break;
     await new Promise((listo) => setTimeout(listo, 700 * (intento + 1)));
   }
   if (!respuesta.ok) {
-    const codigo = typeof datos?.code === "string" ? datos.code : `http_${respuesta.status}`;
+    // "desafio": la protección antibots frenó el pedido antes de llegar a la API. No es un rechazo: se puede volver a probar.
+    const codigo = typeof datos?.code === "string" ? datos.code : desafio ? "desafio" : `http_${respuesta.status}`;
     const mensaje = typeof datos?.message === "string" ? datos.message : "Cosmos Pay rechazó el pedido.";
     // Solo el código y el mensaje de Cosmos: nunca la clave ni los encabezados. Si la respuesta no es de la API
     // (por ejemplo, una página de bloqueo de su proveedor), se anota el principio del texto para saber quién la cortó.
