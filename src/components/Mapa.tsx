@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Icono } from "@/components/ui";
 
 // Mapa dibujado a mano (SVG propio): calles, un río, una plaza y el punto del trabajo. No es un mapa real ni usa
 // servicios de mapas: sirve de fondo para ubicarse, como en las apps de viajes. Los colores salen de los tokens,
@@ -48,6 +49,16 @@ function Casa({ x, y }: { x: number; y: number }) {
   );
 }
 
+// Dónde van los círculos de `puntos`: izquierda en % del ancho y arriba en px (por debajo de los botones de arriba).
+const LUGARES_DE_PUNTOS: [number, number][] = [
+  [22, 70],
+  [70, 150],
+  [78, 62],
+  [26, 150],
+  [88, 112],
+  [8, 116],
+];
+
 export function Mapa({
   alto = 240,
   variante = "inicio",
@@ -55,6 +66,8 @@ export function Mapa({
   iniciales = "",
   etiqueta,
   marcas = [],
+  puntos = [],
+  rutaEnAcento = false,
   children,
 }: {
   alto?: number;
@@ -66,6 +79,10 @@ export function Mapa({
   // Globitos sobre el mapa, por ejemplo los precios de los presupuestos. `acento` = el elegido (va con el color de la
   // acción principal: negro en claro, naranja en oscuro).
   marcas?: { texto: string; acento?: boolean }[];
+  // Círculos con un ícono, por ejemplo los pedidos cerca del prestador (el de `acento` va en naranja).
+  puntos?: { icono: string; acento?: boolean }[];
+  // El recorrido en naranja (el del prestador) en vez de tinta (el que sigue el vecino).
+  rutaEnAcento?: boolean;
   children?: ReactNode;
 }) {
   const ruta = rutaPara(alto);
@@ -101,7 +118,7 @@ export function Mapa({
         {variante === "destino" && <Casa x={195} y={alto * 0.62} />}
         {variante === "ruta" && (
           <g>
-            <path d={`M${ruta.map((p) => p.join(" ")).join(" L")}`} stroke="var(--color-ink)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <path d={`M${ruta.map((p) => p.join(" ")).join(" L")}`} stroke={rutaEnAcento ? "var(--color-acento)" : "var(--color-ink)"} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
             <Casa x={cx} y={cy + 12} />
             <circle cx={px} cy={py} r="26" fill="var(--color-acento)" fillOpacity="0.24" />
             <circle cx={px} cy={py} r="17" fill="#0d0d0d" stroke="#fff" strokeWidth="3" />
@@ -122,7 +139,17 @@ export function Mapa({
           {m.texto}
         </span>
       ))}
-      {children && <div className="absolute inset-x-4 top-4 flex items-center justify-between">{children}</div>}
+      {puntos.slice(0, LUGARES_DE_PUNTOS.length).map((punto, i) => (
+        <span
+          key={`${punto.icono}-${i}`}
+          className={`absolute flex h-10 w-10 items-center justify-center rounded-full shadow-[var(--sombra-flota)] ${punto.acento ? "bg-acento text-[#0d0d0d]" : "bg-flota text-ink"}`}
+          style={{ left: `${LUGARES_DE_PUNTOS[i][0]}%`, top: Math.min(LUGARES_DE_PUNTOS[i][1], alto - 90) }}
+          aria-hidden="true"
+        >
+          <Icono nombre={punto.icono} size={20} />
+        </span>
+      ))}
+      {children && <div className="absolute inset-x-4 top-4 flex items-center justify-between gap-3">{children}</div>}
     </div>
   );
 }

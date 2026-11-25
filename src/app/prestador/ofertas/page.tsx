@@ -1,14 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCerrarConAtras } from "@/components/useAtras";
+import { DeslizarParaConfirmar } from "@/components/Deslizar";
+import { BarraDeEstados } from "@/components/EstadosDeTrabajo";
 import { PantallaCambiarDia, PantallaReclamo } from "@/components/Gestiones";
+import { HojaDeAbajo, OpcionDeHoja } from "@/components/Hoja";
+import { Mapa } from "@/components/Mapa";
 import { NavPrestador } from "@/components/NavPrestador";
 import { PantallaChat } from "@/components/PantallaChat";
 import { usePrestador } from "@/components/usePrestador";
-import { BotonPrimario, BotonSecundario, Cabecera, Cargando, ErrorDePantalla, Estado, Icono, IconoCirculo, Pantalla, SinConexion, Titulo } from "@/components/ui";
+import {
+  BotonFlotante,
+  BotonPrimario,
+  BotonRedondo,
+  BotonSecundario,
+  Cabecera,
+  Cargando,
+  ErrorDePantalla,
+  Estado,
+  Icono,
+  Pantalla,
+  PildoraFlotante,
+  Segmentado,
+  SinConexion,
+  Titulo,
+} from "@/components/ui";
 import { achicarFoto, type FotoLista } from "@/lib/imagen";
-import { ESTADOS_DE_TRABAJO, siguienteEstado, textoDeTurno } from "@/lib/turnos";
+import { ESTADOS_DE_TRABAJO, sePuedeReprogramar, siguienteEstado, textoDeTurno, type EstadoDeTrabajo } from "@/lib/turnos";
 import { pesos, type RubroId } from "@/lib/catalogo";
 import { pedir } from "@/lib/cliente";
+import { fechaCorta } from "@/lib/fechas";
 import { useRouter } from "@/lib/navegacion";
 import type { EstadoDePago, Oferta, PagoPublico } from "@/lib/tipos";
 
@@ -21,6 +42,23 @@ const PAGO_PARA_EL_PRESTADOR: Record<EstadoDePago, string> = {
   vencido: "El pago venció sin pagarse",
   cancelado: "Pago cancelado",
   pagado: "Pagado a tu billetera",
+};
+
+// Lo que dice el control para deslizar según el paso que sigue.
+const DESLIZAR: Partial<Record<EstadoDeTrabajo, string>> = {
+  en_camino: "Deslizá cuando salgas",
+  llego: "Deslizá cuando llegues",
+  trabajando: "Deslizá cuando empieces",
+  terminado: "Deslizá cuando termines",
+};
+
+// El título grande del trabajo, en primera persona del prestador.
+const TITULO_DEL_TRABAJO: Record<EstadoDeTrabajo, string> = {
+  confirmado: "Te eligieron",
+  en_camino: "En camino",
+  llego: "Llegaste",
+  trabajando: "Trabajando",
+  terminado: "Terminado",
 };
 
 interface OfertaConPedido extends Oferta {
@@ -36,34 +74,43 @@ interface OfertaConPedido extends Oferta {
   sinLeer: number;
 }
 
+type Pestana = "activos" | "enviados" | "terminados";
+
+// En curso = el vecino lo eligió, el pedido sigue abierto para el trabajo y todavía no se terminó.
+const enCurso = (o: OfertaConPedido) => o.estado === "elegida" && !o.terminado && o.pedido?.estado === "cerrado" && !o.pedido.confirmado;
+const esperando = (o: OfertaConPedido) => o.estado === "enviada" && o.pedido?.estado === "abierto";
+const terminado = (o: OfertaConPedido) => o.estado === "elegida" && !enCurso(o);
+const conChat = (o: OfertaConPedido) => Boolean(o.pedido) && !o.pedido?.ejemplo;
+const pilaDe = (o: OfertaConPedido) => o.cliente?.nombre || "el vecino";
+const cuandoDe = (o: OfertaConPedido) => (o.trabajo?.turno ? textoDeTurno(o.trabajo.turno) : o.cuando);
+
+function estadoDeLaOferta(o: OfertaConPedido): { texto: string; tono: "bien" | "neutro" | "mal" } {
+  if (o.pedido?.estado === "cancelado") return { texto: "El vecino canceló", tono: "neutro" };
+  if (o.estado === "descartada") return { texto: "Eligió a otro", tono: "neutro" };
+  if (o.estado === "enviada") return { texto: "Esperando", tono: "neutro" };
+  if (o.pedido?.confirmado) return { texto: "Terminado", tono: "bien" };
+  if (o.terminado) return { texto: "Falta que confirme", tono: "neutro" };
+  return { texto: "Te eligieron", tono: "bien" };
+}
+
+// Mis presupuestos: Activos (el trabajo de hoy arriba, como el próximo viaje, y los que esperan respuesta),
+// Enviados y Terminados. El trabajo en curso se abre a pantalla completa (?trabajo=…), con el mapa y el
+// control para deslizar al próximo estado.
 export default function MisOfertas() {
   const router = useRouter();
+  const [parametros, setParametros] = useSearchParams();
   const { prestador, cargando, sinConexion, reintentar } = usePrestador();
   const [ofertas, setOfertas] = useState<OfertaConPedido[] | null>(null);
   const [error, setError] = useState("");
+  const [pestana, setPestana] = useState<Pestana>("activos");
   // El presupuesto cuyo chat está abierto, si hay alguno.
   const [chat, setChat] = useState<OfertaConPedido | null>(null);
   // El trabajo que está marcando como terminado (pantalla con la foto del después).
   const [cerrando, setCerrando] = useState<OfertaConPedido | null>(null);
   const [gestion, setGestion] = useState<{ oferta: OfertaConPedido; tipo: "reclamo" | "dia" } | null>(null);
+  // La hoja con el detalle de un presupuesto de la lista.
+  const [detalle, setDetalle] = useState<OfertaConPedido | null>(null);
   const [avanzando, setAvanzando] = useState<string | null>(null);
-
-  // Avanza el trabajo un paso (Salgo, Llegué, Empecé). El último, Terminé, pide la foto del después.
-  async function avanzar(oferta: OfertaConPedido) {
-    const siguiente = siguienteEstado(oferta.trabajo?.estado ?? "confirmado");
-    if (!siguiente || !prestadorId) return;
-    if (siguiente === "terminado") return setCerrando(oferta);
-    setAvanzando(oferta.id);
-    setError("");
-    try {
-      await pedir("/api/ofertas/estado", { method: "POST", body: JSON.stringify({ prestadorId, ofertaId: oferta.id, estado: siguiente }) });
-      await cargar();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No pudimos avisar. Probá de nuevo.");
-    } finally {
-      setAvanzando(null);
-    }
-  }
 
   const prestadorId = prestador?.id;
   const cargar = useCallback(async () => {
@@ -84,10 +131,33 @@ export default function MisOfertas() {
     return () => clearInterval(reloj);
   }, [cargar]);
 
+  // Avanza el trabajo un paso (Salgo, Llegué, Empecé). El último, Terminé, pide la foto del después.
+  async function avanzar(oferta: OfertaConPedido) {
+    const siguiente = siguienteEstado(oferta.trabajo?.estado ?? "confirmado");
+    if (!siguiente || !prestadorId) return;
+    if (siguiente === "terminado") return setCerrando(oferta);
+    setAvanzando(oferta.id);
+    setError("");
+    try {
+      await pedir("/api/ofertas/estado", { method: "POST", body: JSON.stringify({ prestadorId, ofertaId: oferta.id, estado: siguiente }) });
+      await cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos avisar. Probá de nuevo.");
+    } finally {
+      setAvanzando(null);
+    }
+  }
+
+  const idDelTrabajo = parametros.get("trabajo");
+  const abrirTrabajo = (oferta: OfertaConPedido) => setParametros({ trabajo: oferta.id });
+  const cerrarTrabajo = () => {
+    const indice = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (indice > 0) window.history.back();
+    else setParametros({}, { replace: true });
+  };
+
   if (sinConexion) return <SinConexion alReintentar={reintentar} />;
   if (cargando || !prestador) return <Cargando />;
-
-  const vacio = ofertas !== null && ofertas.length === 0;
 
   if (cerrando) {
     return (
@@ -103,124 +173,8 @@ export default function MisOfertas() {
     );
   }
 
-  return (
+  const capas = (
     <>
-      <Pantalla conNav>
-        <div className="mt-8">
-          <Titulo pregunta="¿En qué quedó cada uno?">Mis presupuestos</Titulo>
-        </div>
-
-        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
-
-        {vacio && (
-          <div className="mt-10 flex flex-col items-center text-center">
-            <IconoCirculo nombre="lista" size={72} />
-            <p className="mt-4 text-lg font-bold text-ink">Todavía no enviaste ninguno</p>
-            <p className="mt-1 text-[15px] text-ink-500">Elegí un pedido y pasá tu precio.</p>
-            <div className="mt-6 w-full">
-              <BotonPrimario onClick={() => router.push("/prestador")}>Ver pedidos</BotonPrimario>
-            </div>
-          </div>
-        )}
-
-        <ul className="mt-2 divide-y divide-line">
-          {ofertas?.map((oferta) => {
-            const pila = oferta.cliente?.nombre || "el vecino";
-            // Con los pedidos de ejemplo no hay un vecino del otro lado: no se abre el chat.
-            const conChat = Boolean(oferta.pedido) && !oferta.pedido?.ejemplo;
-            const soloLectura = oferta.estado === "descartada";
-            return (
-            <li key={oferta.id} className="py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-base font-semibold leading-snug text-ink">{oferta.pedido?.titulo ?? "Pedido eliminado"}</p>
-                  <p className="mt-0.5 text-sm text-ink-500">
-                    {oferta.pedido ? `${oferta.pedido.zona} · ` : ""}Puedo ir: {oferta.cuando.toLowerCase()}
-                    {oferta.pedido?.ejemplo ? " · Ejemplo" : ""}
-                  </p>
-                </div>
-                <p className="shrink-0 text-xl font-bold text-ink">{pesos(oferta.precio)}</p>
-              </div>
-              <p className="mt-2">
-                {oferta.estado === "elegida" ? (
-                  <Estado tono="bien">Te eligieron</Estado>
-                ) : oferta.estado === "descartada" ? (
-                  <Estado>Eligió a otro</Estado>
-                ) : (
-                  <Estado>Esperando respuesta</Estado>
-                )}
-              </p>
-              {oferta.estado === "elegida" && (oferta.terminado || oferta.pago) && (
-                <div className="mt-2 space-y-1">
-                  {oferta.terminado && (
-                    <p>
-                      {oferta.pedido?.confirmado ? <Estado tono="bien">{pila} confirmó que quedó bien</Estado> : <Estado>Esperando que {pila} confirme</Estado>}
-                    </p>
-                  )}
-                  {oferta.reclamos.map((r) => (
-                    <p key={`${r.de}-${r.motivo}`}>
-                      {r.estado === "abierto" ? <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado> : <Estado>Reclamo resuelto: {r.resolucion}</Estado>}
-                    </p>
-                  ))}
-                  {oferta.pago && (
-                    <p>
-                      <Estado tono={oferta.pago.estado === "en_disputa" ? "mal" : oferta.pago.estado === "pendiente" ? "neutro" : "bien"}>
-                        {PAGO_PARA_EL_PRESTADOR[oferta.pago.estado]}
-                      </Estado>
-                    </p>
-                  )}
-                </div>
-              )}
-              {conChat && oferta.sinLeer > 0 && (
-                <p className="mt-2">
-                  <Estado tono="bien">Mensaje nuevo de {pila}</Estado>
-                </p>
-              )}
-              {conChat && oferta.estado === "elegida" && oferta.pedido?.estado !== "cancelado" && (
-                <div className="mt-3 flex flex-wrap gap-x-6">
-                  {!oferta.terminado && (oferta.trabajo?.estado ?? "confirmado") === "confirmado" && (
-                    <button type="button" onClick={() => setGestion({ oferta, tipo: "dia" })} className="flex min-h-12 items-center text-[15px] font-semibold text-ink underline underline-offset-2">
-                      Reprogramar
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setGestion({ oferta, tipo: "reclamo" })} className="flex min-h-12 items-center text-[15px] font-semibold text-ink-500">
-                    Tengo un problema
-                  </button>
-                </div>
-              )}
-              {oferta.pedido?.estado === "cancelado" && (
-                <p className="mt-2">
-                  <Estado>El vecino canceló el pedido</Estado>
-                </p>
-              )}
-              {conChat && (!soloLectura || oferta.mensajes > 0) && (
-                <div className="mt-4">
-                  {oferta.estado === "elegida" && !oferta.terminado && oferta.pedido?.estado === "cerrado" && !oferta.pedido.confirmado ? (
-                    <TrabajoEnCurso
-                      oferta={oferta}
-                      pila={pila}
-                      ocupado={avanzando === oferta.id}
-                      alAvanzar={() => avanzar(oferta)}
-                      alEscribir={() => setChat(oferta)}
-                    />
-                  ) : oferta.estado === "elegida" ? (
-                    <BotonSecundario onClick={() => setChat(oferta)}>
-                      <Icono nombre="mensaje" size={20} />
-                      Abrir chat
-                    </BotonSecundario>
-                  ) : (
-                    <BotonSecundario onClick={() => setChat(oferta)}>
-                      <Icono nombre="mensaje" size={20} />
-                      {soloLectura ? "Ver el chat" : "Abrir chat"}
-                    </BotonSecundario>
-                  )}
-                </div>
-              )}
-            </li>
-            );
-          })}
-        </ul>
-      </Pantalla>
       {chat && (
         <PantallaChat
           ofertaId={chat.id}
@@ -237,7 +191,7 @@ export default function MisOfertas() {
         <PantallaReclamo
           ofertaId={gestion.oferta.id}
           quien={{ prestadorId: prestador.id }}
-          nombre={gestion.oferta.cliente?.nombre || "el vecino"}
+          nombre={pilaDe(gestion.oferta)}
           alCerrar={(enviado) => {
             setGestion(null);
             if (enviado) cargar();
@@ -256,8 +210,325 @@ export default function MisOfertas() {
           }}
         />
       )}
+    </>
+  );
+
+  const trabajo = idDelTrabajo ? ofertas?.find((o) => o.id === idDelTrabajo && enCurso(o)) : undefined;
+  if (trabajo) {
+    return (
+      <>
+        <TrabajoEnCurso
+          oferta={trabajo}
+          ocupado={avanzando === trabajo.id}
+          error={error}
+          alVolver={cerrarTrabajo}
+          alAvanzar={() => avanzar(trabajo)}
+          alEscribir={() => setChat(trabajo)}
+          alReclamar={() => setGestion({ oferta: trabajo, tipo: "reclamo" })}
+          alCambiarDia={() => setGestion({ oferta: trabajo, tipo: "dia" })}
+        />
+        {capas}
+      </>
+    );
+  }
+
+  const lista = ofertas ?? [];
+  const actuales = lista.filter(enCurso);
+  const enEspera = lista.filter(esperando);
+  const terminados = lista.filter(terminado);
+  const vacio = ofertas !== null && lista.length === 0;
+
+  return (
+    <>
+      <Pantalla conNav>
+        <div className="mt-6">
+          <Titulo>Mis presupuestos</Titulo>
+        </div>
+        <div className="mt-4">
+          <Segmentado<Pestana>
+            opciones={[
+              { id: "activos", texto: "Activos" },
+              { id: "enviados", texto: "Enviados" },
+              { id: "terminados", texto: "Terminados" },
+            ]}
+            valor={pestana}
+            alCambiar={setPestana}
+          />
+        </div>
+
+        {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+
+        {vacio && (
+          <div className="mt-10 flex flex-col items-center text-center">
+            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-subtle text-ink">
+              <Icono nombre="lista" size={32} />
+            </span>
+            <p className="mt-4 text-lg font-bold text-ink">Todavía no enviaste ninguno</p>
+            <p className="mt-1 text-[15px] text-ink-500">Elegí un pedido y pasá tu precio.</p>
+            <div className="mt-6 w-full">
+              <BotonPrimario onClick={() => router.push("/prestador")}>Ver pedidos</BotonPrimario>
+            </div>
+          </div>
+        )}
+
+        {!vacio && pestana === "activos" && (
+          <>
+            <div className="mt-4 flex flex-col gap-3">
+              {actuales.map((oferta) => (
+                <TarjetaDeTrabajo key={oferta.id} oferta={oferta} alAbrir={() => abrirTrabajo(oferta)} />
+              ))}
+            </div>
+            {enEspera.length > 0 && (
+              <>
+                <h2 className="mt-6 text-lg font-bold text-ink">Esperando respuesta</h2>
+                <ul className="mt-1 divide-y divide-line">
+                  {enEspera.map((oferta) => (
+                    <li key={oferta.id}>
+                      <FilaDeOferta oferta={oferta} alTocar={() => setDetalle(oferta)} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {ofertas !== null && actuales.length === 0 && enEspera.length === 0 && (
+              <p className="mt-8 text-center text-[15px] text-ink-500">No tenés trabajos en curso ni presupuestos esperando respuesta.</p>
+            )}
+          </>
+        )}
+
+        {!vacio && pestana === "enviados" && (
+          <ul className="mt-2 divide-y divide-line">
+            {lista.map((oferta) => (
+              <li key={oferta.id}>
+                <FilaDeOferta oferta={oferta} alTocar={() => (enCurso(oferta) ? abrirTrabajo(oferta) : setDetalle(oferta))} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {!vacio && pestana === "terminados" && (
+          <>
+            {terminados.length === 0 && ofertas !== null && <p className="mt-8 text-center text-[15px] text-ink-500">Todavía no terminaste ningún trabajo por la app.</p>}
+            <ul className="mt-2 divide-y divide-line">
+              {terminados.map((oferta) => (
+                <li key={oferta.id}>
+                  <FilaDeOferta oferta={oferta} alTocar={() => setDetalle(oferta)} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Pantalla>
+
+      {detalle && (
+        <HojaDeAbajo titulo={detalle.pedido?.titulo ?? "Pedido eliminado"} alCerrar={() => setDetalle(null)}>
+          <p className="text-[15px] text-ink-500">
+            {detalle.pedido ? `${detalle.pedido.zona} · ` : ""}Puedo ir: {detalle.cuando.toLowerCase()}
+            {detalle.pedido?.ejemplo ? " · Ejemplo" : ""}
+          </p>
+          <p className="cifra mt-2 text-[28px] font-bold leading-none text-ink">{pesos(detalle.precio)}</p>
+          <div className="mt-3 space-y-1.5">
+            <p>
+              <Estado tono={estadoDeLaOferta(detalle).tono}>{estadoDeLaOferta(detalle).texto}</Estado>
+            </p>
+            {detalle.pago && (
+              <p>
+                <Estado tono={detalle.pago.estado === "en_disputa" ? "mal" : detalle.pago.estado === "pendiente" ? "neutro" : "bien"}>{PAGO_PARA_EL_PRESTADOR[detalle.pago.estado]}</Estado>
+              </p>
+            )}
+            {detalle.pedido?.confirmado && <p className="text-sm text-ink-500">Confirmado el {fechaCorta(detalle.pedido.confirmado)}</p>}
+            {detalle.reclamos.map((r) => (
+              <p key={`${r.de}-${r.motivo}`}>
+                {r.estado === "abierto" ? <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado> : <Estado>Reclamo resuelto: {r.resolucion}</Estado>}
+              </p>
+            ))}
+          </div>
+          <div className="mt-3">
+            {conChat(detalle) && (detalle.estado !== "descartada" || detalle.mensajes > 0) && (
+              <OpcionDeHoja
+                icono="mensaje"
+                titulo={detalle.estado === "descartada" ? "Ver el chat" : `Escribirle a ${pilaDe(detalle)}`}
+                detalle={detalle.sinLeer > 0 ? "Tenés un mensaje nuevo" : "Por el chat de la app"}
+                onClick={() => {
+                  setChat(detalle);
+                  setDetalle(null);
+                }}
+              />
+            )}
+            {conChat(detalle) && detalle.estado === "elegida" && detalle.pedido?.estado !== "cancelado" && (
+              <OpcionDeHoja
+                icono="alerta"
+                titulo="Tengo un problema"
+                detalle="Lo revisa el equipo de NecesitoYa"
+                onClick={() => {
+                  setGestion({ oferta: detalle, tipo: "reclamo" });
+                  setDetalle(null);
+                }}
+              />
+            )}
+          </div>
+        </HojaDeAbajo>
+      )}
+      {capas}
       <NavPrestador aviso={Boolean(ofertas?.some((o) => o.sinLeer > 0))} />
     </>
+  );
+}
+
+// Una fila de la lista: título, barrio y cuándo, y a la derecha el precio y el estado.
+function FilaDeOferta({ oferta, alTocar }: { oferta: OfertaConPedido; alTocar: () => void }) {
+  const estado = estadoDeLaOferta(oferta);
+  return (
+    <button type="button" onClick={alTocar} className="flex min-h-[68px] w-full items-center gap-3.5 py-2.5 text-left">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-base font-semibold leading-snug text-ink">{oferta.pedido?.titulo ?? "Pedido eliminado"}</span>
+        <span className="text-[13px] text-ink-500">
+          {oferta.pedido ? `${oferta.pedido.zona} · ` : ""}
+          {cuandoDe(oferta)}
+          {oferta.pedido?.ejemplo ? " · Ejemplo" : ""}
+        </span>
+        {oferta.sinLeer > 0 && <span className="text-[13px] font-semibold text-success">Mensaje nuevo de {pilaDe(oferta)}</span>}
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-0.5">
+        <span className="cifra text-base font-bold text-ink">{pesos(oferta.precio)}</span>
+        <span className={`flex items-center gap-1.5 text-xs ${estado.tono === "bien" ? "font-semibold text-success" : "text-ink-500"}`}>
+          <span className={`h-[7px] w-[7px] rounded-full ${estado.tono === "bien" ? "bg-success" : "bg-ink-500"}`} aria-hidden="true" />
+          {estado.texto}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+// El trabajo de hoy, destacado arriba como el próximo viaje: cuándo, para quién, la dirección (privada, hasta
+// terminar), la barra de estados y el botón naranja con el paso que sigue (abre el trabajo para confirmarlo deslizando).
+function TarjetaDeTrabajo({ oferta, alAbrir }: { oferta: OfertaConPedido; alAbrir: () => void }) {
+  const estado = oferta.trabajo?.estado ?? "confirmado";
+  const siguiente = siguienteEstado(estado);
+  const boton = ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton;
+  return (
+    <article className="flex flex-col gap-3 rounded-[20px] bg-subtle p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="cifra text-[22px] font-bold leading-tight text-ink">{cuandoDe(oferta)}</span>
+        <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold text-success">
+          <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+          {estado === "confirmado" ? "Te eligieron" : TITULO_DEL_TRABAJO[estado]}
+        </span>
+      </div>
+      <p className="text-[15px] text-ink-500">
+        {pilaDe(oferta)} · {oferta.pedido?.titulo} · <span className="cifra font-bold text-ink">{pesos(oferta.precio)}</span>
+      </p>
+      {oferta.direccion && <Direccion direccion={oferta.direccion} fondo="bg-white" />}
+      {oferta.sinLeer > 0 && (
+        <p>
+          <Estado tono="bien">Mensaje nuevo de {pilaDe(oferta)}</Estado>
+        </p>
+      )}
+      <BarraDeEstados estado={estado} quien="prestador" />
+      {boton && (
+        <button type="button" onClick={alAbrir} className="flex min-h-14 items-center justify-center gap-2.5 rounded-2xl bg-brand text-[17px] font-bold text-white active:bg-brand-600">
+          {boton}
+          <Icono nombre="flecha" size={20} />
+        </button>
+      )}
+    </article>
+  );
+}
+
+function Direccion({ direccion, fondo = "bg-subtle" }: { direccion: { calle: string; referencia: string }; fondo?: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${fondo} text-ink`} aria-hidden="true">
+        <Icono nombre="casa" size={20} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-base font-bold text-ink">{direccion.calle}</span>
+        {direccion.referencia && <span className="block text-sm text-ink-500">{direccion.referencia}</span>}
+        <span className="flex items-center gap-1 text-[13px] text-ink-500">
+          <Icono nombre="candado" size={13} />
+          Visible hasta terminar
+        </span>
+      </span>
+    </div>
+  );
+}
+
+// Trabajo en curso, a pantalla completa: el mapa con el recorrido en naranja, el estado, la dirección privada,
+// los botones redondos (mensaje, cómo llegar, problema) y el control para deslizar al próximo estado.
+function TrabajoEnCurso({
+  oferta,
+  ocupado,
+  error,
+  alVolver,
+  alAvanzar,
+  alEscribir,
+  alReclamar,
+  alCambiarDia,
+}: {
+  oferta: OfertaConPedido;
+  ocupado: boolean;
+  error: string;
+  alVolver: () => void;
+  alAvanzar: () => void;
+  alEscribir: () => void;
+  alReclamar: () => void;
+  alCambiarDia: () => void;
+}) {
+  useCerrarConAtras(alVolver);
+  const estado = oferta.trabajo?.estado ?? "confirmado";
+  const siguiente = siguienteEstado(estado);
+  const accion = ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton ?? "";
+  const progreso = estado === "confirmado" ? 0 : estado === "en_camino" ? 0.5 : 1;
+  // Cómo llegar: Google Maps con la dirección (que solo ve el prestador elegido, mientras dura el trabajo).
+  const destino = oferta.direccion ? `${oferta.direccion.calle}, ${oferta.pedido?.zona ?? ""}, Jujuy, Argentina` : "";
+  const comoLlegar = destino ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}` : "";
+  useEffect(() => {
+    document.title = `${TITULO_DEL_TRABAJO[estado]} · NecesitoYa`;
+  }, [estado]);
+
+  return (
+    <Pantalla
+      mapa={
+        <Mapa alto={400} variante={estado === "confirmado" ? "destino" : "ruta"} progreso={progreso} rutaEnAcento>
+          <BotonFlotante icono="atras" etiqueta="Volver a mis presupuestos" onClick={alVolver} />
+          <PildoraFlotante>
+            <span className="cifra">{cuandoDe(oferta)}</span>
+          </PildoraFlotante>
+        </Mapa>
+      }
+      pie={
+        siguiente && DESLIZAR[siguiente] ? (
+          <>
+            {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+            <DeslizarParaConfirmar texto={DESLIZAR[siguiente] ?? ""} accion={accion} alConfirmar={alAvanzar} ocupado={ocupado} />
+          </>
+        ) : undefined
+      }
+    >
+      <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink">{TITULO_DEL_TRABAJO[estado]}</h1>
+      <p className="mt-0.5 text-[15px] text-ink-500">
+        {pilaDe(oferta)} · {oferta.pedido?.titulo} · <span className="cifra font-bold text-ink">{pesos(oferta.precio)}</span>
+      </p>
+      {oferta.direccion && (
+        <div className="mt-3.5">
+          <Direccion direccion={oferta.direccion} />
+        </div>
+      )}
+      <div className="mt-4 grid grid-cols-4 gap-2">
+        <BotonRedondo icono="mensaje" texto="Mensaje" onClick={alEscribir} aviso={oferta.sinLeer > 0} />
+        {comoLlegar && <BotonRedondo icono="navegar" texto="Cómo llegar" onClick={() => window.open(comoLlegar, "_blank", "noopener")} />}
+        <BotonRedondo icono="alerta" texto="Problema" onClick={alReclamar} />
+        {sePuedeReprogramar(estado) && <BotonRedondo icono="calendario" texto="Cambiar día" onClick={alCambiarDia} />}
+      </div>
+      <div className="mt-5">
+        <BarraDeEstados estado={estado} quien="prestador" />
+      </div>
+      {oferta.pago && (
+        <p className="mt-4">
+          <Estado tono={oferta.pago.estado === "en_disputa" ? "mal" : oferta.pago.estado === "pendiente" ? "neutro" : "bien"}>{PAGO_PARA_EL_PRESTADOR[oferta.pago.estado]}</Estado>
+        </p>
+      )}
+    </Pantalla>
   );
 }
 
@@ -323,8 +594,11 @@ function PantallaTerminado({
         </>
       }
     >
-      <Cabecera alVolver={alCerrar} cerrar />
-      <Titulo pregunta={`${pila} la ve y confirma.${oferta.pago?.modo === "protegido" && oferta.pago.estado === "retenido" ? " Ahí se libera tu pago." : ""}`}>¿Cómo quedó?</Titulo>
+      <Cabecera alVolver={alCerrar} cerrar titulo="Trabajo terminado" />
+      <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink">¿Cómo quedó?</h2>
+      <p className="mt-1 text-base text-ink-500">
+        {pila} la ve y confirma.{oferta.pago?.modo === "protegido" && oferta.pago.estado === "retenido" ? " Ahí se libera tu pago." : ""}
+      </p>
       <p className="mt-4 text-base font-semibold text-ink">{oferta.pedido?.titulo}</p>
       <input ref={entrada} type="file" accept="image/*" className="hidden" onChange={(e) => elegir(e.target.files?.[0])} />
       <div className="mt-6">
@@ -344,75 +618,5 @@ function PantallaTerminado({
       </div>
       {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
     </Pantalla>
-  );
-}
-
-// El trabajo en curso, como en una app de viajes: cuándo, para quién, dónde (privado, hasta terminar),
-// la línea de estados y un botón grande con el paso que sigue.
-function TrabajoEnCurso({
-  oferta,
-  pila,
-  ocupado,
-  alAvanzar,
-  alEscribir,
-}: {
-  oferta: OfertaConPedido;
-  pila: string;
-  ocupado: boolean;
-  alAvanzar: () => void;
-  alEscribir: () => void;
-}) {
-  const estado = oferta.trabajo?.estado ?? "confirmado";
-  const siguiente = siguienteEstado(estado);
-  const pasos = ESTADOS_DE_TRABAJO.filter((e) => e.id !== "confirmado");
-  const indice = pasos.findIndex((e) => e.id === estado);
-  const turno = oferta.trabajo?.turno;
-  return (
-    <div className="space-y-3">
-      <div className="rounded-[18px] bg-subtle p-4">
-        <p className="cifra text-[22px] font-bold leading-tight text-ink">{turno ? textoDeTurno(turno) : oferta.cuando}</p>
-        <p className="mt-0.5 text-[15px] text-ink-500">
-          {pila} · {oferta.pedido?.titulo}
-        </p>
-        {oferta.direccion && (
-          <div className="mt-3 flex items-start gap-3">
-            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
-              <Icono nombre="casa" size={20} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-base font-bold text-ink">{oferta.direccion.calle}</p>
-              {oferta.direccion.referencia && <p className="text-sm text-ink-500">{oferta.direccion.referencia}</p>}
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-ink-500">
-                <Icono nombre="candado" size={12} />
-                Visible hasta terminar
-              </p>
-            </div>
-          </div>
-        )}
-        <div className="mt-4" role="img" aria-label={`Estado: ${ESTADOS_DE_TRABAJO.find((e) => e.id === estado)?.texto}`}>
-          <div className="grid grid-cols-4 gap-1.5">
-            {pasos.map((paso, i) => (
-              <span key={paso.id} className={`h-1.5 rounded-full ${i <= indice ? "bg-acento" : "bg-line"}`} />
-            ))}
-          </div>
-          <div className="mt-2 grid grid-cols-4 gap-1.5 text-xs font-bold">
-            {pasos.map((paso, i) => (
-              <span key={paso.id} className={i <= indice ? "text-ink" : "text-ink-500"}>
-                {paso.texto}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-      {siguiente && (
-        <BotonPrimario onClick={alAvanzar} cargando={ocupado}>
-          {ESTADOS_DE_TRABAJO.find((e) => e.id === siguiente)?.boton}
-        </BotonPrimario>
-      )}
-      <BotonSecundario onClick={alEscribir}>
-        <Icono nombre="mensaje" size={20} />
-        Mandar un mensaje
-      </BotonSecundario>
-    </div>
   );
 }
