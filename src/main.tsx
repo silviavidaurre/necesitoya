@@ -14,6 +14,8 @@ import PedidosPrestador from "./app/prestador/page";
 import PerfilPrestador from "./app/prestador/perfil/page";
 import VerificarPrestador from "./app/prestador/verificar/page";
 import PanelInterno from "./app/admin/page";
+import Cuenta from "./app/cuenta/page";
+import MisPedidos from "./app/mis-pedidos/page";
 import Terminos from "./app/terminos/page";
 import EliminarCuentaPublica from "./app/eliminar-cuenta/page";
 import Recuperar from "./app/recuperar/page";
@@ -73,6 +75,8 @@ createRoot(document.getElementById("raiz")!).render(
           <Route path="/" element={<Pedir />} />
           <Route path="/pedir" element={<Pedir />} />
           <Route path="/pedido/:id" element={<SeguimientoPedido />} />
+          <Route path="/mis-pedidos" element={<MisPedidos />} />
+          <Route path="/cuenta" element={<Cuenta />} />
           <Route path="/prestador" element={<PedidosPrestador />} />
           <Route path="/prestador/alta" element={<AltaPrestador />} />
           <Route path="/prestador/ofertas" element={<MisOfertas />} />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { NavVecino } from "@/components/BarraFlotante";
 import { ChipBarrio } from "@/components/Barrio";
 import { BotonEscuchar } from "@/components/BotonEscuchar";
 import { CajaRelato } from "@/components/CajaRelato";
@@ -18,6 +19,7 @@ import {
   leerBorrador,
   leerCuenta,
   leerMisDatos,
+  leerMisPedidos,
   leerPrestadorId,
   pedir,
   type CuentaGuardada,
@@ -88,9 +90,9 @@ export default function Pedir() {
     setEsPrestador(Boolean(leerPrestadorId()));
     setCuenta(leerCuenta());
   }, []);
-  const { pedidos: misPedidos } = useMisPedidos(paso === "inicio" ? 20 : 0);
-  // Se muestran los 3 más nuevos; "Ver todos" despliega el resto.
-  const [todosMisPedidos, setTodosMisPedidos] = useState(false);
+  // Los 3 más nuevos; el resto está en Mis pedidos.
+  const { pedidos: misPedidos } = useMisPedidos(paso === "inicio" ? 3 : 0);
+  const [hayMas] = useState(() => leerMisPedidos().length > 3);
 
   // Contar
   const [zona, setZona] = useState(recordado.zona);
@@ -474,10 +476,11 @@ export default function Pedir() {
   }
 
   // --- 1. Inicio --------------------------------------------------------------------------------
-  const visibles = misPedidos.slice(0, todosMisPedidos ? misPedidos.length : 3);
   return (
+    <>
     <Pantalla
       key="inicio"
+      conNav
       mapa={
         <Mapa alto={300} variante="inicio" etiqueta={zona || "San Salvador de Jujuy"}>
           <ChipBarrio
@@ -509,14 +512,14 @@ export default function Pedir() {
 
       {misPedidos.length > 0 && (
         <section aria-label="Tus pedidos" className="mt-5 rounded-[18px] border border-line">
-          {visibles.map((pedido) => (
+          {misPedidos.map((pedido) => (
             <FilaDePedido key={pedido.id} pedido={pedido} />
           ))}
-          {misPedidos.length > 3 && !todosMisPedidos && (
-            <button type="button" onClick={() => setTodosMisPedidos(true)} className="flex min-h-14 w-full items-center justify-between border-t border-line px-4 text-[15px] font-semibold text-ink">
-              Ver todos tus pedidos ({misPedidos.length})
-              <Icono nombre="abajo" size={20} className="text-ink-500" />
-            </button>
+          {hayMas && (
+            <Link href="/mis-pedidos" className="flex min-h-14 w-full items-center justify-between border-t border-line px-4 text-[15px] font-semibold text-ink">
+              Ver todos tus pedidos
+              <Icono nombre="chevron" size={20} className="text-ink-500" />
+            </Link>
           )}
         </section>
       )}
@@ -541,8 +544,17 @@ export default function Pedir() {
         })}
       </div>
 
-      <EntrarACuenta motivo="Para no perder tus pedidos si cambiás de celular." />
+      {!cuenta && (
+        <p className="mt-6 text-center text-[15px] text-ink-500">
+          ¿Ya pediste con tu cuenta?{" "}
+          <Link href="/cuenta" className="font-semibold text-brand">
+            Entrá desde Cuenta
+          </Link>
+        </p>
+      )}
     </Pantalla>
+    <NavVecino />
+    </>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -55,7 +56,11 @@ export default defineConfig(({ mode }) => {
     if (/^[A-Z][A-Z0-9_]+$/.test(clave) && !clave.startsWith("VITE_") && valor && !process.env[clave]) process.env[clave] = valor;
   }
 
+  // La versión de la web, para mostrarla en Cuenta (en la app de Android se muestra la de la app).
+  const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
+
   return {
+    define: { __VERSION_WEB__: JSON.stringify(version) },
     plugins: [react(), tailwindcss(), apiNecesitoYa()],
     resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
     server: { host: "0.0.0.0", port: 3000, strictPort: true, allowedHosts: true },

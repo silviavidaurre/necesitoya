@@ -16,7 +16,7 @@ Contás qué se rompió hablando, escribiendo o con una foto, y la app te dice q
 
 ## Probala en 3 minutos, con las cuentas de demostración
 
-Entrá desde "Entrar o crear cuenta", abajo en la pantalla de inicio. No hace falta registrarse:
+Entrá desde **Cuenta**, en la barra de abajo. No hace falta registrarse:
 
 | Para ver | Mail | Contraseña |
 | --- | --- | --- |
@@ -27,10 +27,10 @@ Arriba aparece un cartel naranja "Demo · todo inventado" mientras estés en una
 
 **Como vecina (Carla, de Alto Comedero):**
 
-1. En **Tus pedidos** tocá *Termotanque pierde agua…*. Vas a ver el diagnóstico de la IA y **tres presupuestos** para comparar: precio, cuándo puede ir, si está verificado, sus reseñas y fotos de trabajos. Tocá *Ver perfil* o *Mandar un mensaje*.
+1. En el inicio tocá *Termotanque pierde agua…*. Vas a ver **tres presupuestos** juntos para comparar, con su precio en el mapa: cuándo puede ir, si está verificado y sus reseñas; abajo, el diagnóstico de la IA. Tocá *Ver perfil* o *Mensaje*.
 2. Volvé y abrí *Se tapó el inodoro…*. El plomero está **en camino**: el mapa muestra el recorrido, la dirección que solo ve él y el chat.
 3. *Salta la térmica…*: la electricista ya está **trabajando**.
-4. Tocá **Ver todos** y abrí *Pintar el living*, un trabajo **terminado y calificado**, y *Arreglar el revoque*, que tuvo un **reclamo resuelto**.
+4. En **Mis pedidos** abrí *Pintar el living*, un trabajo **terminado y calificado** (con su comprobante), y *Arreglar el revoque*, que tuvo un **reclamo resuelto**. *Pedir de nuevo* arranca un pedido igual.
 5. Para probar el flujo desde cero, escribí o dictá un problema en la pantalla de inicio. La IA lo ordena y arma el diagnóstico. Lo que pidas con esta cuenta queda en el barrio de demostración.
 
 **Como prestador (Ramiro, plomero matriculado):**

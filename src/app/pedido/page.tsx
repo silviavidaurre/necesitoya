@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { BotonFlotante, BotonPrimario, BotonRedondo, BotonSecundario, Cabecera, Cargando, ErrorDePantalla, Estado, Falta, Icono, Pantalla, Pildora, PildoraFlotante, Titulo } from "@/components/ui";
 import { Avatar, iniciales } from "@/components/Avatar";
 import { BarraDeEstados } from "@/components/EstadosDeTrabajo";
-import { HojaDeAbajo } from "@/components/Hoja";
+import { HojaDeAbajo, OpcionDeHoja } from "@/components/Hoja";
 import { Mapa } from "@/components/Mapa";
 import { ElegirTurno } from "@/components/Turnos";
 import { useCerrarConAtras } from "@/components/useAtras";
@@ -17,6 +17,7 @@ import { PantallaCambiarDia, PantallaCancelar, PantallaReclamo } from "@/compone
 import { PantallaChat } from "@/components/PantallaChat";
 import { Estrellas } from "@/components/Reputacion";
 import { claseCampo } from "@/components/ui";
+import { fechaCorta, hora } from "@/lib/fechas";
 import { frasePresupuestos } from "@/lib/frases";
 import { Link, useRouter } from "@/lib/navegacion";
 import type { Seguimiento } from "@/lib/seguimiento";
@@ -81,6 +82,7 @@ export default function SeguimientoPedido() {
   const { id = "" } = useParams();
   const ubicacion = useLocation();
   const router = useRouter();
+  const navegar = useNavigate();
   // Volver a donde estaba (el inicio o la lista de pedidos). Si se abrió directo (un enlace o un aviso), al inicio.
   const volverAtras = () => {
     const indice = (window.history.state as { idx?: number } | null)?.idx ?? 0;
@@ -105,6 +107,8 @@ export default function SeguimientoPedido() {
   const [pidiendoMuestra, setPidiendoMuestra] = useState(false);
   // La hoja que explica cómo se paga.
   const [infoDePago, setInfoDePago] = useState(false);
+  // En el detalle de un pedido terminado: el comprobante o la ayuda.
+  const [hojaDelDetalle, setHojaDelDetalle] = useState<"comprobante" | "ayuda" | null>(null);
   // Pagar o confirmar el trabajo: mientras se guarda, el botón principal muestra que está trabajando.
   const [trabajando, setTrabajando] = useState(false);
   // Si el sistema de pagos frena el pedido un momento, se avisa y se vuelve a probar solo (no se muestra un error).
@@ -493,6 +497,212 @@ export default function SeguimientoPedido() {
       ...(porLiberar && !pedido.calificacion ? [{ icono: "estrella", texto: "Calificar", onClick: () => setCalificando(true) }] : []),
     ];
 
+    // Lo que se abre encima: el chat, el reclamo y cambiar el día.
+    const capas = (
+      <>
+        {pantallaDeChat}
+        {gestion === "reclamo" && clave && (
+          <PantallaReclamo
+            ofertaId={elegida.id}
+            quien={{ pedidoId: id, clave }}
+            nombre={pila}
+            alCerrar={(enviado) => {
+              setGestion(null);
+              if (enviado) cargar();
+            }}
+          />
+        )}
+        {gestion === "dia" && clave && (
+          <PantallaCambiarDia
+            ofertaId={elegida.id}
+            quien={{ pedidoId: id, clave }}
+            actual={elegida.cuando}
+            turnos={elegida.turnos ?? []}
+            alCerrar={(nuevo) => {
+              setGestion(null);
+              if (nuevo) cargar();
+            }}
+          />
+        )}
+      </>
+    );
+
+    // Detalle de un pedido terminado y confirmado: la foto del después, con quién fue, cuándo y cuánto,
+    // el comprobante y la ayuda, los estados con su hora y las filas del pago y la calificación.
+    if (confirmado && pedido.confirmado) {
+      const fin = pedido.confirmado;
+      const linea = [
+        ...(trabajo?.historial ?? []).filter((h) => h.estado !== "confirmado").map((h) => ({ texto: textoDeEstado(h.estado), cuando: h.creado, final: false })),
+        { texto: "Terminado y confirmado", cuando: fin, final: true },
+      ];
+      const pagado = pago && (pago.estado === "pagado" || pago.estado === "liberado");
+      const pedirDeNuevo = () => navegar("/", { state: { paso: "contar", relato: pedido.relato?.trim() || pedido.descripcion || pedido.titulo, rubro: pedido.rubro } });
+      return (
+        <>
+          <Pantalla
+            pie={
+              principal ? (
+                <>
+                  {preparando && (
+                    <p className="mb-2 text-center" role="status">
+                      <Estado>Estamos preparando tu pago. Puede tardar un minuto.</Estado>
+                    </p>
+                  )}
+                  <BotonPrimario onClick={principal.accion} cargando={trabajando}>
+                    {principal.texto}
+                  </BotonPrimario>
+                </>
+              ) : undefined
+            }
+          >
+            <Cabecera
+              alVolver={() => {
+                const indice = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+                if (indice > 0) navegar(-1);
+                else router.replace("/mis-pedidos");
+              }}
+            />
+            <Titulo>Detalle del pedido</Titulo>
+
+            {terminado?.fotoId && (
+              <img src={`/api/fotos?id=${terminado.fotoId}`} alt={`Cómo quedó el trabajo, según ${pila}`} className="mt-4 h-[180px] w-full rounded-2xl object-cover" />
+            )}
+
+            <div className="mt-4 flex items-center gap-3.5">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-2xl font-bold leading-[1.15] tracking-[-0.01em] text-ink">
+                  {rubro.nombre} con {elegida.prestador.nombre}
+                </h2>
+                <p className="mt-1 text-[15px] text-ink-500">{pedido.titulo}</p>
+                <p className="mt-1.5 text-[15px] text-ink-500">
+                  {fechaCorta(fin)} · {hora(fin)}
+                </p>
+                <p className="cifra mt-0.5 text-lg font-bold text-ink">{pesos(elegida.precio)}</p>
+              </div>
+              <Avatar nombre={elegida.prestador.nombre} size={64} />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Pildora icono="recibo" onClick={() => setHojaDelDetalle("comprobante")}>
+                Comprobante
+              </Pildora>
+              <Pildora icono="ayuda" onClick={() => setHojaDelDetalle("ayuda")}>
+                Ayuda
+              </Pildora>
+            </div>
+
+            <ol aria-label="Cómo fue" className="mt-5 flex flex-col">
+              {linea.map((paso) => (
+                <li key={`${paso.texto}-${paso.cuando}`} className={`flex min-h-[38px] items-center gap-3.5 text-[15px] text-ink ${paso.final ? "font-bold" : ""}`}>
+                  <span className={`h-2.5 w-2.5 shrink-0 ${paso.final ? "rounded-[2px] bg-ink" : "rounded-full border-2 border-ink"}`} aria-hidden="true" />
+                  <span className="flex-1">{paso.texto}</span>
+                  <span className="font-normal text-ink-500">{hora(paso.cuando)}</span>
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-3">
+              {!muestra && (
+                <FilaDeDato icono="escudo">
+                  {pago ? (pagado ? "Pagado por la app" : `${TEXTO_DE_PAGO[pago.estado]} · ${pago.moneda === "USDC" ? `${pago.monto} USDC` : pesos(Number(pago.monto))}`) : "Sin pago por la app"}
+                </FilaDeDato>
+              )}
+              <FilaDeDato
+                icono="estrella"
+                derecha={
+                  <button type="button" onClick={pedirDeNuevo} className="flex min-h-11 items-center text-[15px] font-bold text-ink underline underline-offset-[3px]">
+                    Pedir de nuevo
+                  </button>
+                }
+              >
+                {pedido.calificacion ? (
+                  <>Tu calificación: {pedido.calificacion.estrellas} de 5</>
+                ) : (
+                  <button type="button" onClick={() => setCalificando(true)} className="flex min-h-11 items-center font-semibold text-brand">
+                    Calificar a {pila}
+                  </button>
+                )}
+              </FilaDeDato>
+              {pago?.urlDeComision && !pago.comisionPagada && pago.estado !== "pendiente" && (
+                <button type="button" onClick={() => abrirPago(pago.urlDeComision ?? "")} className="flex min-h-12 items-center text-base font-semibold text-ink underline underline-offset-2">
+                  Pagar la comisión ({pago.comision} USDC)
+                </button>
+              )}
+              {datos.reclamos.map((r) => (
+                <p key={r.creado} className="mt-2">
+                  {r.estado === "abierto" ? <Estado tono="mal">Reclamo en revisión: {r.motivo.toLowerCase()}</Estado> : <Estado>Reclamo resuelto: {r.resolucion}</Estado>}
+                </p>
+              ))}
+            </div>
+            {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
+          </Pantalla>
+
+          {hojaDelDetalle === "comprobante" && (
+            <HojaDeAbajo
+              titulo="Comprobante"
+              alCerrar={() => setHojaDelDetalle(null)}
+              pie={
+                <BotonSecundario onClick={() => window.print()}>
+                  <Icono nombre="recibo" size={20} />
+                  Guardar o imprimir
+                </BotonSecundario>
+              }
+            >
+              <div className="imprimible">
+                <p className="cifra hidden text-xl font-bold print:block">NecesitoYa · Comprobante</p>
+                <dl className="divide-y divide-line">
+                  {[
+                    ["Pedido", pedido.titulo],
+                    ["Oficio", rubro.nombre],
+                    ["Prestador", elegida.prestador.nombre],
+                    ["Barrio", pedido.zona],
+                    ["Terminado", `${fechaCorta(fin)} · ${hora(fin)}`],
+                    ["Precio del presupuesto", pesos(elegida.precio)],
+                    ["Pago", pago ? `${TEXTO_DE_PAGO[pago.estado]} · ${pago.moneda === "USDC" ? `${pago.monto} USDC` : pesos(Number(pago.monto))}` : "Sin pago por la app"],
+                    ["Número de pedido", id.slice(0, 8).toUpperCase()],
+                  ].map(([dato, valor]) => (
+                    <div key={dato} className="flex min-h-12 items-center justify-between gap-4 py-2">
+                      <dt className="text-[15px] text-ink-500">{dato}</dt>
+                      <dd className="text-right text-[15px] font-semibold text-ink">{valor}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {muestra && <p className="mt-2 text-sm text-ink-500">Era un presupuesto de muestra.</p>}
+              </div>
+            </HojaDeAbajo>
+          )}
+          {hojaDelDetalle === "ayuda" && (
+            <HojaDeAbajo titulo="Ayuda" alCerrar={() => setHojaDelDetalle(null)}>
+              {!muestra && (
+                <OpcionDeHoja
+                  icono="alerta"
+                  titulo="Tengo un problema con el trabajo"
+                  detalle="Lo revisa el equipo de NecesitoYa"
+                  onClick={() => {
+                    setHojaDelDetalle(null);
+                    setGestion("reclamo");
+                  }}
+                />
+              )}
+              {!muestra && (
+                <OpcionDeHoja
+                  icono="mensaje"
+                  titulo={`Escribirle a ${pila}`}
+                  detalle="Por el chat de la app"
+                  onClick={() => {
+                    setHojaDelDetalle(null);
+                    setChat(elegida);
+                  }}
+                />
+              )}
+              <OpcionDeHoja icono="ayuda" titulo="Cómo funciona NecesitoYa" detalle="Términos y condiciones" onClick={() => router.push("/terminos")} />
+            </HojaDeAbajo>
+          )}
+          {capas}
+        </>
+      );
+    }
+
     return (
       <>
         <Pantalla
@@ -641,30 +851,7 @@ export default function SeguimientoPedido() {
           </div>
           {error && <ErrorDePantalla>{error}</ErrorDePantalla>}
         </Pantalla>
-        {pantallaDeChat}
-        {gestion === "reclamo" && clave && (
-          <PantallaReclamo
-            ofertaId={elegida.id}
-            quien={{ pedidoId: id, clave }}
-            nombre={pila}
-            alCerrar={(enviado) => {
-              setGestion(null);
-              if (enviado) cargar();
-            }}
-          />
-        )}
-        {gestion === "dia" && clave && (
-          <PantallaCambiarDia
-            ofertaId={elegida.id}
-            quien={{ pedidoId: id, clave }}
-            actual={elegida.cuando}
-            turnos={elegida.turnos ?? []}
-            alCerrar={(nuevo) => {
-              setGestion(null);
-              if (nuevo) cargar();
-            }}
-          />
-        )}
+        {capas}
       </>
     );
   }
@@ -822,12 +1009,13 @@ export default function SeguimientoPedido() {
   );
 }
 
-// Una fila de dato con ícono y línea arriba (dirección privada, pago).
-function FilaDeDato({ icono, children }: { icono: string; children: ReactNode }) {
+// Una fila de dato con ícono y línea arriba (dirección privada, pago, calificación).
+function FilaDeDato({ icono, children, derecha }: { icono: string; children: ReactNode; derecha?: ReactNode }) {
   return (
     <div className="flex min-h-12 items-center gap-3 border-t border-line py-2 text-[15px] text-ink">
       <Icono nombre={icono} size={20} className="shrink-0" />
-      <span className="min-w-0">{children}</span>
+      <span className="min-w-0 flex-1">{children}</span>
+      {derecha}
     </div>
   );
 }

@@ -91,7 +91,7 @@ export default function EliminarCuentaPublica() {
       <Seccion>Desde la app</Seccion>
       <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[15px] leading-snug text-ink">
         <li>Abrí NecesitoYa y entrá con tu cuenta.</li>
-        <li>Abajo de la pantalla de inicio (o en tu Perfil, si sos prestador), en "Mi cuenta", tocá "Eliminar mi cuenta".</li>
+        <li>Tocá "Cuenta" en la barra de abajo (o "Perfil", si sos prestador) y después "Eliminar la cuenta".</li>
         <li>Confirmá. Se elimina en el momento.</li>
       </ol>
 
