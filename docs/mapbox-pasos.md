@@ -5,11 +5,10 @@ El código ya está hecho. Mientras no esté el token, la app sigue con el mapa 
 ## Pasos
 
 1. Crear una cuenta en https://account.mapbox.com/auth/signup. Pide una tarjeta, pero el uso de la app entra holgado en el plan gratis: 50.000 cargas de mapa web y 100.000 búsquedas de direcciones por mes.
-2. En https://account.mapbox.com/access-tokens/ tocá **Create a token**:
-   - **Name:** NecesitoYa
-   - **Scopes:** dejá solo los públicos que vienen marcados (`styles:tiles`, `styles:read`, `fonts:read`, `datasets:read`, `vision:read`). No marques ningún scope secreto.
-   - **URL restrictions:** agregá `https://necesitoya.gabriel13iturre.workers.dev`. Así el token solo sirve desde la app. Para probar en tu compu, sumá también `http://localhost:3000`.
-   - Guardá y copiá el token: empieza con `pk.`.
+2. El token: en https://account.mapbox.com/access-tokens/ está el **Default public token** (empieza con `pk.`). Es el que usa hoy la app.
+   - Una cuenta sin tarjeta no deja crear tokens nuevos ni ponerles restricciones, pero tampoco cobra: si se pasa del plan gratis, el mapa deja de cargar hasta el mes siguiente.
+   - Si la cuenta tiene otras apps, todas usan el mismo token y suman al mismo cupo gratis.
+   - **Si un día se agrega una tarjeta**, antes conviene crear un token propio (**Create a token**, solo scopes públicos, **URL restrictions** con `https://necesitoya.gabriel13iturre.workers.dev` y `http://localhost:3000`) y reemplazar el de abajo: con tarjeta, un token sin restricciones copiado de la app podría generar cobros.
 3. Cargalo en el Worker desde la carpeta `necesitoya`. El comando pide pegar el valor; no lo pongas en el comando ni en el repo:
    ```
    npx wrangler secret put MAPBOX_TOKEN
